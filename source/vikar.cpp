@@ -6,8 +6,46 @@
 #include <iostream>
 #include <time.h>
 
+#include "TFile.h"
+#include "TTree.h"
+
 #include "../include/vikar_core.h"
 #include "../include/planar.h"
+
+struct ejectileData{
+	double hitX, hitY, hitZ; // Hit X, Y, and Z in meters
+	double hitTheta, hitPhi; // Hit theta and phi in degrees
+	double energy, tof; // Ejectile energy in MeV and TOF in seconds
+	double faceX, faceY, faceZ; // Bar face hit data
+	int face, bar;
+	
+	void Set(double hitX_, double hitY_, double hitZ_, double hitTheta_, double hitPhi_, double energy_, 
+			 double tof_, double faceX_, double faceY_, double faceZ_, int bar_, int face_){
+		hitX = hitX_; hitY = hitY_; hitZ = hitZ_;
+		hitTheta = hitTheta_; hitPhi = hitPhi_;
+		energy = energy_; tof = tof_;
+		faceX = faceX_; faceY = faceY_; faceZ = faceZ_;
+		face = face_; bar = bar_;
+	}
+};
+
+struct recoilData{
+	double theta, phi; // Theta and phi in degrees
+	double energy; // Recoil energy in MeV
+	
+	void Set(double theta_, double phi_, double energy_){
+		theta = theta_; phi = phi_; energy = energy_;
+	}
+};
+
+struct debugData{
+	double theta, phi; // Theta and phi in degrees
+	double energy; // Recoil energy in MeV
+	
+	void Set(double theta_, double phi_, double energy_){
+		theta = theta_; phi = phi_; energy = energy_;
+	}
+};
 
 int main(int argc, char* argv[]){ 
 	// A Monte-Carlo charged particle experiment simulation program - details below
@@ -389,7 +427,7 @@ int main(int argc, char* argv[]){
 		std::cout << " Error: Missing required variable\n";
 		return 1;
 	}
-	
+		
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
 
 	// Read VIKAR detector setup file or manually setup simple systems
@@ -479,11 +517,27 @@ int main(int argc, char* argv[]){
 	Nsimulated = 0; // Total number of simulated particles
 	Nreactions = 0; // Total number of particles which react with the target
 
-	// Open the output file
-	std::ofstream VIKARout((output_fname_prefix+"_main.dat").c_str());
-	std::ofstream RecoilOut, DebugOut;
-	if(WriteRecoil){ RecoilOut.open((output_fname_prefix+"_recoil.dat").c_str()); }
-	if(WriteDebug){ DebugOut.open((output_fname_prefix+"_debug.dat").c_str()); }
+	// Open the output file(s)
+	//std::ofstream VIKARout((output_fname_prefix+"_main.dat").c_str());
+	//std::ofstream RecoilOut, DebugOut;
+	//if(WriteRecoil){ RecoilOut.open((output_fname_prefix+"_recoil.dat").c_str()); }
+	//if(WriteDebug){ DebugOut.open((output_fname_prefix+"_debug.dat").c_str()); }
+		
+	// Root stuff
+	TFile *file = new TFile("VIKAR.root", "RECREATE");
+	TTree *VIKARtree = new TTree("VIKAR", "VIKAR output tree");
+	TTree *DEBUGtree = NULL;
+	
+	ejectileData EJECTdata;
+	recoilData RECOILdata;
+	debugData DEBUGdata;
+	
+	VIKARtree->Branch("Eject", &EJECTdata, "hitX/D:hitY/D:hitZ/D:hitTheta/D:hitPhi/D:energy/D:tof/D:faceX/D:faceY/D:faceZ/D:face/i:bar/i");
+	if(WriteRecoil){ VIKARtree->Branch("Recoil", &RECOILdata, "theta/D:phi/D:energy/D"); }
+	if(WriteDebug){ 
+		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
+		DEBUGtree->Branch("Debug", &DEBUGdata, "theta/D:phi/D:energy/D"); 
+	}
 
 	// Begin the simulation
 	std::cout << " ---------- Simulation Setup Complete -----------\n"; 
@@ -577,7 +631,11 @@ int main(int argc, char* argv[]){
 		}
 		
 		Sphere2Cart(HitDetectSphere, Ejectile); // HitDetectSphere is a unit vector (no need to normalize)
-		if(WriteDebug){ DebugOut << HitDetectSphere.axis[1] << "\t" << HitDetectSphere.axis[2] << Eeject << "\n"; }
+		if(WriteDebug){ 
+			//DebugOut << HitDetectSphere.axis[1] << "\t" << HitDetectSphere.axis[2] << Eeject << "\n"; 
+			DEBUGdata.Set(HitDetectSphere.axis[1], HitDetectSphere.axis[2], Eeject);
+			DEBUGtree->Fill();
+		}
 
 		// Gammas are indistinguishable from the ejectile (to a VANDLE bar)
 		/*if(SimGamma && RecoilState > 0){
@@ -627,11 +685,17 @@ int main(int argc, char* argv[]){
 				
 					// Main output string
 					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) EjectileE(MeV) EjectileToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-					if(Eeject >= 0.1 && Eeject <= 3.0){
-						VIKARout << HitDetect.axis[0] << "\t" << HitDetect.axis[1] << "\t" << HitDetect.axis[2] << "\t"; // Hit X, Y, and Z (in meters)
-						VIKARout << HitDetectSphere.axis[1]*rad2deg << "\t" << HitDetectSphere.axis[2]*rad2deg << "\t" << Eeject << "\t" << tof*(1E9) << "\t"; // Energy, ToF, and ejectile angles
-						VIKARout << bar << "\t" << face << "\t" << hit_x << "\t" << hit_y << "\t" << hit_z << std::endl; // Individual bar data
-						if(WriteRecoil){ RecoilOut << RecoilSphere.axis[1] << "\t" << RecoilSphere.axis[2] << "\t" << Erecoil << "\n"; }
+					if(Eeject >= 0.1 && Eeject <= 5.0){
+						//VIKARout << HitDetect.axis[0] << "\t" << HitDetect.axis[1] << "\t" << HitDetect.axis[2] << "\t"; // Hit X, Y, and Z (in meters)
+						//VIKARout << HitDetectSphere.axis[1]*rad2deg << "\t" << HitDetectSphere.axis[2]*rad2deg << "\t" << Eeject << "\t" << tof*(1E9) << "\t"; // Energy, ToF, and ejectile angles
+						//VIKARout << bar << "\t" << face << "\t" << hit_x << "\t" << hit_y << "\t" << hit_z << std::endl; // Individual bar data
+						EJECTdata.Set(HitDetect.axis[0], HitDetect.axis[1], HitDetect.axis[2], HitDetectSphere.axis[1]*rad2deg,
+									  HitDetectSphere.axis[2]*rad2deg, Eeject, tof*(1E9), hit_x, hit_y, hit_z, bar, face);
+						if(WriteRecoil){ 
+							//RecoilOut << RecoilSphere.axis[1] << "\t" << RecoilSphere.axis[2] << "\t" << Erecoil << "\n";
+							RECOILdata.Set(RecoilSphere.axis[1], RecoilSphere.axis[2], Erecoil);
+						}
+						VIKARtree->Fill();
 			
 						Ndetected++;
 						if(!flag){ flag = true; }
@@ -655,7 +719,17 @@ int main(int argc, char* argv[]){
 	else{ std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
 	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 	
-	std::cout << "  Wrote file " << output_fname_prefix+"_main.dat\n"; VIKARout.close();
-	if(WriteRecoil){ std::cout << "  Wrote file " << output_fname_prefix+"_recoil.dat\n"; RecoilOut.close(); }
-	if(WriteDebug){ std::cout << "  Wrote file " << output_fname_prefix+"_debug.dat\n"; DebugOut.close(); }
+	//std::cout << "  Wrote file " << output_fname_prefix+"_main.dat\n"; VIKARout.close();
+	//if(WriteRecoil){ std::cout << "  Wrote file " << output_fname_prefix+"_recoil.dat\n"; RecoilOut.close(); }
+	//if(WriteDebug){ std::cout << "  Wrote file " << output_fname_prefix+"_debug.dat\n"; DebugOut.close(); }
+	
+	file->cd();
+	VIKARtree->Write();
+	if(DEBUGtree){ DEBUGtree->Write(); }
+	
+	std::cout << "  Wrote file " << output_fname_prefix << ".root\n";
+	if(WriteRecoil){ std::cout << "   Wrote " << VIKARtree->GetEntries() << " events for VIKAR\n"; }
+	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " events for DEBUG\n"; }
+	file->Close();
+	delete file;
 } 

@@ -2,28 +2,29 @@
 # Based on version 3.11 by Steve Pain
 
 COMPILER = g++
-FFLAGS = -Wall
 
-SOURCES = ./obj/vikar_core.o ./obj/planar.o ./obj/vikar.o
+CFLAGS = -g -fPIC -Wall -O3 `root-config --cflags`
+LDLIBS = `root-config --libs`
+LDFLAGS = `root-config --glibs`
+ROOT_INC = `root-config --incdir`
 
-all: libs vikar
+SOURCES = vikar_core.cpp planar.cpp vikar.cpp
+OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
+
+SOURCE_DIR = ./source
+C_OBJ_DIR = ./obj
+
+PROG = vikar
+
+all: $(PROG)
 	@echo " Finished Compilation"
 
 libs: core planar main
 	@echo " Done making libs"
 
-core:
-	$(COMPILER) $(FFLAGS) -c -o ./obj/vikar_core.o ./source/vikar_core.cpp
-
-planar:
-	$(COMPILER) $(FFLAGS) -c -o ./obj/planar.o ./source/planar.cpp
-
-main:
-	$(COMPILER) $(FFLAGS) -c -o ./obj/vikar.o ./source/vikar.cpp
-	
-vikar:
-	$(COMPILER) $(FFLAGS) -o vikar $(SOURCES)
-	@echo " Done making vikar"
+$(C_OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
+#	Compile C++ source files
+	$(COMPILER) -c $(CFLAGS) $< -o $@
 
 front:
 	$(COMPILER) $(FFLAGS) -o vikarFront ./source/vikarFront.cpp
@@ -39,9 +40,9 @@ kind:
 	$(COMPILER) $(FFLAGS) ./obj/vikar_core.o ./tools/Kinematics.o -o Kinematics
 	@echo " Done making Kinematics"
 
-$(PROG): libs
-	$(COMPILER) $(FFLAGS) -o $(PROG) $(SOURCES)
-	@echo " Done making"$(PROG)
+$(PROG): $(OBJECTS)
+	$(COMPILER) $(LDFLAGS) $(OBJECTS) -o $@ $(LDLIBS)
+	@echo " Done making "$(PROG)
 
 clean:
 	rm -f obj/*.o

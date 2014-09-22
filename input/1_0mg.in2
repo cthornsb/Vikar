@@ -24,12 +24,12 @@
 1.06300
 0.0000
 0
-/home/cory/Research/VANDLE/vikar2/efficiency/Small.eff
-/home/cory/Research/VANDLE/vikar2/efficiency/Medium.eff
-/home/cory/Research/VANDLE/vikar2/efficiency/Large.eff
+/home/cory/Research/VANDLE/Vikar/efficiency/Small.eff
+/home/cory/Research/VANDLE/Vikar/efficiency/Medium.eff
+/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff
 1
-/home/cory/Research/VANDLE/vikar2/detectors/7BeExp.det
+/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det
 10000
 0
-0
+1
 0

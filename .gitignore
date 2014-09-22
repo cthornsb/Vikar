@@ -1,0 +1,16 @@
+# Root files and data files #
+#############################
+*.root
+*.dat 
+
+# C++ object files #
+####################
+*.o
+*.so
+
+# Executables #
+###############
+vikar
+front
+angle
+kind
