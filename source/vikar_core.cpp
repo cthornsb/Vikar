@@ -196,7 +196,7 @@ unsigned short Efficiency::ReadLarge(const char* fname){
 double Efficiency::GetSmallEfficiency(double Energy){
 	if(!init_small || NsmallEff == 0){ return 1.0; }
 	
-	double efficiency;
+	double efficiency = 0.0;
 	if(Energy < small_energy[0]){ efficiency = small_efficiency[0]; }
 	else if(Energy > small_energy[NsmallEff-1]){ efficiency = small_efficiency[NsmallEff-1]; }
 	else{
@@ -215,7 +215,7 @@ double Efficiency::GetSmallEfficiency(double Energy){
 double Efficiency::GetMediumEfficiency(double Energy){
 	if(!init_med || NmedEff == 0){ return 1.0; }
 	
-	double efficiency;
+	double efficiency = 0.0;
 	if(Energy < med_energy[0]){ efficiency = med_efficiency[0]; }
 	else if(Energy > med_energy[NmedEff-1]){ efficiency = med_efficiency[NmedEff-1]; }
 	else{
@@ -234,7 +234,7 @@ double Efficiency::GetMediumEfficiency(double Energy){
 double Efficiency::GetLargeEfficiency(double Energy){
 	if(!init_large || NlargeEff == 0){ return 1.0; }
 	
-	double efficiency;
+	double efficiency = 0.0;
 	if(Energy < large_energy[0]){ efficiency = large_efficiency[0]; }
 	else if(Energy > large_energy[NlargeEff-1]){ efficiency = large_efficiency[NlargeEff-1]; }
 	else{
@@ -308,6 +308,11 @@ double AngularDist::Sample(){
 /////////////////////////////////////////////////////////////////////
 // Support Functions
 /////////////////////////////////////////////////////////////////////
+
+double dabs(double value){
+	if(value < 0){ return -1.0*value; }
+	return value;
+}
 
 // Return the minimum value
 double min(double v1, double v2){
@@ -847,7 +852,7 @@ double rndgauss0(double w){
 	// rndgauss0, a cut down version of rndgauss1; 
 	// returns a random number with FWHM w centred at 0;
 	
-	double t, tsq;  
+	double t = 0.0, tsq = 0.0;  
 	const double c0=2.515517, c1=0.802853, c2=0.010328; 
 	const double d1=1.432788, d2=0.189269, d3=0.001308; 
 	const double widthfact=0.424628450; 
@@ -1443,8 +1448,43 @@ bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double
 	return true;
 }
 
+// Overloaded version which also calculates data for the recoil particle
+bool Kindeux::FillVars(double Beam_E, double beam_theta_com, double *EjectTheta, double *RecoilTheta, double *RecoilTheta2, double *Ejectile_E, double *Ejectile_E2, double *Recoil_E, double *Recoil_E2){
+	for(unsigned int i = 0; i < NrecoilStates; i++){
+		// In the center of mass frame
+		double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass
+		double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass
+		double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+RecoilExStates[i]))); // Ejectile CoM velocity after reaction
+	
+		EjectTheta[i] = std::atan2(std::sin(beam_theta_com),(std::cos(beam_theta_com)+(Vcm/VejectCoM))); // Ejectile angle in the lab
+		double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta[i]),2.0));
+		double Ejectile_V = Vcm*std::cos(EjectTheta[i]) + temp_value; // Ejectile velocity in the lab frame
+		double Ejectile_V2 = Vcm*std::cos(EjectTheta[i]) - temp_value; // Ejectile velocity for double valued solutions
+		
+		Ejectile_E[i] = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
+		Recoil_E[i] = (Beam_E+Qvalue-(0.0+RecoilExStates[i])) - Ejectile_E[i]; // Recoil calculations (now in the lab frame)
+		RecoilTheta[i] = std::asin(((std::sqrt(2*Meject*Ejectile_E[i]))/(std::sqrt(2*Mrecoil*Recoil_E[i])))*std::sin(EjectTheta[i])); // Recoil angle in the lab
+	
+		if(VejectCoM >= Vcm){ 
+			// Veject is single valued	
+			Ejectile_E2[i] = -1;
+			Recoil_E2[i] = -1;
+			RecoilTheta2[i] = -1;
+		} 
+		else{ 
+			// Veject is double valued
+			Ejectile_E2[i] = 0.5*Meject*Ejectile_V2*Ejectile_V2; // Ejectile energy in the lab frame
+			Recoil_E2[i] = (Beam_E+Qvalue-(0.0+RecoilExStates[i])) - Ejectile_E2[i]; // Recoil calculations (now in the lab frame)
+			RecoilTheta2[i] = std::asin(((std::sqrt(2*Meject*Ejectile_E2[i]))/(std::sqrt(2*Mrecoil*Recoil_E2[i])))*std::sin(EjectTheta[i])); // Recoil angle in the lab		
+		}
+	
+
+	} // over NrecoilStates
+	return true;
+}
+
 // Convert ejectile CoM angle to Lab angle
-double Kindeux::ConvertAngle2CoM(double Beam_E, double Recoil_Ex, double Eject_CoM_angle){
+double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_CoM_angle){
 	// In the center of mass frame
 	double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass	
 	double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass

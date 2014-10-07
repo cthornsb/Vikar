@@ -45,7 +45,7 @@ struct Vector3{
 };
 
 class Efficiency{
-    private:
+  private:
 	double *small_energy, *small_efficiency;
 	double *med_energy, *med_efficiency;
 	double *large_energy, *large_efficiency;
@@ -54,7 +54,7 @@ class Efficiency{
 	
 	bool _read_eff_file(const char* fname, std::vector<double> &energy, std::vector<double> &efficiency);
 	
-    public:
+  public:
 	Efficiency();
 	~Efficiency();
 	
@@ -75,13 +75,13 @@ class Efficiency{
 };
 
 class AngularDist{
-    private:
+  private:
 	std::vector<double> com_theta, dsigma_domega, integral;
 	double reaction_xsection, rate;
 	unsigned int num_points;
 	bool init;
 	
-    public:
+  public:
 	AngularDist(){
 		reaction_xsection = 0.0;
 		num_points = 0;
@@ -100,53 +100,55 @@ class AngularDist{
 };
 
 class Kindeux{
-    private:   	
-    	double Mbeam, Mtarg, Mrecoil;
-    	double Meject, Qvalue, tgt_thickness;
-    	double *RecoilExStates;
-    	
-    	unsigned short NDist, NrecoilStates;
-    	AngularDist *distributions;
-    	bool ang_dist, init;
-    	
-    	bool get_excitations(double&);
+  private:   	
+	double Mbeam, Mtarg, Mrecoil;
+	double Meject, Qvalue, tgt_thickness;
+	double *RecoilExStates;
+	
+	unsigned short NDist, NrecoilStates;
+	AngularDist *distributions;
+	bool ang_dist, init;
+	
+	bool get_excitations(double&);
    	void prod_proc();
-    
-    public:
-    	Kindeux(){
-    		ang_dist = false; init = false;
-    		NDist = 0; NrecoilStates = 0;
-    		RecoilExStates = NULL;
-    		Mbeam = 0.0; Mtarg = 0.0;
-    		Mrecoil = 0.0; Meject = 0.0;
-    		Qvalue = 0.0;
-    	}
-    	~Kindeux(){ 
-    		if(ang_dist){ delete[] distributions; } 
-    	}
-    	
-    	double GetMbeam(bool in_kg=false){ 
-    		if(!in_kg){ return Mbeam; }
-    		else{ return Mbeam/6.02214129E26; }
-    	}
-    	double GetMtarg(bool in_kg=false){ 
-    		if(!in_kg){ return Mtarg; }
-    		else{ return Mtarg/6.02214129E26; }
-    	}
-    	double GetMrecoil(bool in_kg=false){ 
-    		if(!in_kg){ return Mrecoil; }
-    		else{ return Mrecoil/6.02214129E26; }
-    	}
-    	double GetMeject(bool in_kg=false){ 
-    		if(!in_kg){ return Meject; }
-    		else{ return Meject/6.02214129E26; }
-    	}
+	
+  public:
+	Kindeux(){
+		ang_dist = false; init = false;
+		NDist = 0; NrecoilStates = 0;
+		RecoilExStates = NULL;
+		Mbeam = 0.0; Mtarg = 0.0;
+		Mrecoil = 0.0; Meject = 0.0;
+		Qvalue = 0.0;
+	}
+	~Kindeux(){ 
+		if(ang_dist){ delete[] distributions; } 
+	}
+
+	double GetMbeam(bool in_kg=false){ 
+		if(!in_kg){ return Mbeam; }
+		else{ return Mbeam/6.02214129E26; }
+	}
+	double GetMtarg(bool in_kg=false){ 
+		if(!in_kg){ return Mtarg; }
+		else{ return Mtarg/6.02214129E26; }
+	}
+	double GetMrecoil(bool in_kg=false){ 
+		if(!in_kg){ return Mrecoil; }
+		else{ return Mrecoil/6.02214129E26; }
+	}
+	double GetMeject(bool in_kg=false){ 
+		if(!in_kg){ return Meject; }
+		else{ return Meject/6.02214129E26; }
+	}
    	
-    	void Initialize(double, double, double, double, double, unsigned short, double*, double);
-    	bool SetDist(std::vector<std::string>&, double, double);
-    	bool FillVars(double, double, double, double&, Vector3&);
-    	bool FillVars(double, double, double, double&, double&, Vector3&, Vector3&);
-	double ConvertAngle2CoM(double, double, double);
+	void Initialize(double, double, double, double, double, unsigned short, double*, double);
+	bool SetDist(std::vector<std::string>&, double, double);
+	bool FillVars(double, double, double, double&, Vector3&);
+	bool FillVars(double, double, double, double&, double&, Vector3&, Vector3&);
+	bool FillVars(double, double, double*, double*, double*, double*, double*, double*, double*);
+	double ConvertAngle2Lab(double, double, double);
+	double ConvertAngle2CoM(double, double, double, double precision=1E-12);
 	double GetEnergies(double, double, unsigned short, double*, double*);
 	void Sample(double*);
 	void Print();
@@ -156,6 +158,7 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+double dabs(double);
 double min(double, double);
 double max(double, double);
 double frand();

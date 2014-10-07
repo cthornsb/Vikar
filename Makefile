@@ -3,7 +3,7 @@
 
 COMPILER = g++
 
-CFLAGS = -g -fPIC -Wall -O3 `root-config --cflags`
+CFLAGS = -g -fPIC -Wall -O3 `root-config --cflags` -Iinclude
 LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
@@ -11,6 +11,7 @@ ROOT_INC = `root-config --incdir`
 SOURCES = vikar_core.cpp planar.cpp vikar.cpp
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
+TOOL_DIR = ./tools
 SOURCE_DIR = ./source
 C_OBJ_DIR = ./obj
 
@@ -26,19 +27,25 @@ $(C_OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
 #	Compile C++ source files
 	$(COMPILER) -c $(CFLAGS) $< -o $@
 
-front:
-	$(COMPILER) $(FFLAGS) -o vikarFront ./source/vikarFront.cpp
-	@echo " Done making vikarFront"
+$(C_OBJ_DIR)/%.o: $(TOOL_DIR)/%.cpp
+#	Compile C++ source files
+	$(COMPILER) -c $(CFLAGS) $< -o $@
 
-angle:
-	$(COMPILER) $(FFLAGS) -c -o ./tools/angleConvert.o ./tools/angleConvert.cpp
-	$(COMPILER) $(FFLAGS) vikar_core.o ./tools/angleConvert.o -o angleConvert
-	@echo " Done making angleConvert"
+vikarFront: $(SOURCE_DIR)/vikarFront.cpp
+	$(COMPILER) $(FFLAGS) -o $@ $(SOURCE_DIR)/vikarFront.cpp
+	@echo " Done making "$@
 
-kind:
-	$(COMPILER) $(FFLAGS) -c -o ./tools/Kinematics.o ./tools/Kinematics.cpp
-	$(COMPILER) $(FFLAGS) ./obj/vikar_core.o ./tools/Kinematics.o -o Kinematics
-	@echo " Done making Kinematics"
+angleConvert: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/angleConvert.o
+	$(COMPILER) $(FFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/angleConvert.o -o $@
+	@echo " Done making "$@
+
+Kinematics: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kinematics.o
+	$(COMPILER) $(FFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kinematics.o -o $@
+	@echo " Done making "$@
+
+Kindist: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kindist.o
+	$(COMPILER) $(FFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kindist.o -o $@
+	@echo " Done making "$@	
 
 $(PROG): $(OBJECTS)
 	$(COMPILER) $(LDFLAGS) $(OBJECTS) -o $@ $(LDLIBS)

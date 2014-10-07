@@ -9,7 +9,7 @@
 #include <string>
 #include <time.h>
 
-#include "/home/cory/Research/VANDLE/vikar2/include/vikar_core.h"
+#include "vikar_core.h"
 
 int main(int argc, char* argv[]){
 	std::ifstream inFile;

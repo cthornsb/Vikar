@@ -11,6 +11,7 @@
 # Executables #
 ###############
 vikar
-front
-angle
-kind
+vikarFront
+angleConvert
+Kinematics
+Kindist
