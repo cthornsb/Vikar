@@ -2,8 +2,8 @@
 // Converted by FortranConvert v0.1
 // Wed Feb 12 19:33:21 2014
 
-#include "../include/vikar_core.h"
-#include "../include/planar.h"
+#include "vikar_core.h"
+#include "detectors.h"
 
 /////////////////////////////////////////////////////////////////////
 // Constant Globals (for fortran commons)
@@ -98,157 +98,6 @@ double Vector3::Normalize(){
 	
 void Vector3::Dump(){ std::cout << " " << axis[0] << ", " << axis[1] << ", " << axis[2] << std::endl; }
 
-// Read NewVIKAR VANDLE efficiency file and load data into arrays
-// Returns the number of data points which are found in the file
-// Assumes the following efficiency file format for each point in file
-// Lab_Energy(MeV) Efficiency
-bool Efficiency::_read_eff_file(const char* fname, std::vector<double> &energy, std::vector<double> &efficiency){
-	std::ifstream eff_file(fname);
-	if(!eff_file.good()){ return false; }
-	float values[2];
-
-	while(true){
-		for(unsigned short i = 0; i < 2; i++){ 
-			eff_file >> values[i];
-		}
-
-		energy.push_back(values[0]);
-		efficiency.push_back(values[1]);
-		if(eff_file.eof()){ break; }
-	}	
-	eff_file.close();
-
-	if(energy.size() != efficiency.size()){ return false; }
-	return true;
-}
-
-Efficiency::Efficiency(){
-	small_energy = NULL; small_efficiency = NULL;
-	med_energy = NULL; med_efficiency = NULL;
-	large_energy = NULL; large_efficiency = NULL;
-	NsmallEff = 0; NmedEff = 0; NlargeEff = 0;
-	init_small = false; 
-	init_med = false; 
-	init_large = false;
-}
-
-Efficiency::~Efficiency(){
-	if(init_small){ delete[] small_energy; delete[] small_efficiency; }
-	if(init_med){ delete[] med_energy; delete[] med_efficiency; }
-	if(init_large){ delete[] large_energy; delete[] large_efficiency; }
-}
-
-// Load small bar efficiency data
-unsigned short Efficiency::ReadSmall(const char* fname){
-	std::vector<double> E, Eff;
-	if(init_small || !_read_eff_file(fname, E, Eff)){ return 0; }
-	
-	// Generate the efficiency arrays
-	small_energy = new double[E.size()];
-	small_efficiency = new double[E.size()];
-	for(unsigned short i = 0; i < E.size(); i++){
-		small_energy[i] = E[i];
-		small_efficiency[i] = Eff[i];
-	}
-	init_small = true;
-
-	NsmallEff = E.size();
-	return NsmallEff;
-}
-
-// Load medium bar efficiency data
-unsigned short Efficiency::ReadMedium(const char* fname){
-	std::vector<double> E, Eff;
-	if(init_med || !_read_eff_file(fname, E, Eff)){ return 0; }
-	
-	// Generate the efficiency arrays
-	med_energy = new double[E.size()];
-	med_efficiency = new double[E.size()];
-	for(unsigned short i = 0; i < E.size(); i++){
-		med_energy[i] = E[i];
-		med_efficiency[i] = Eff[i];
-	}
-	init_med = true;
-
-	NmedEff = E.size();
-	return NmedEff;
-}
-
-// Load medium bar efficiency data
-unsigned short Efficiency::ReadLarge(const char* fname){
-	std::vector<double> E, Eff;
-	if(init_large || !_read_eff_file(fname, E, Eff)){ return 0; }
-	
-	// Generate the efficiency arrays
-	large_energy = new double[E.size()];
-	large_efficiency = new double[E.size()];
-	for(unsigned short i = 0; i < E.size(); i++){
-		large_energy[i] = E[i];
-		large_efficiency[i] = Eff[i];
-	}
-	init_large = true;
-
-	NlargeEff = E.size();
-	return NlargeEff;
-}
-
-// Return the interpolated value for the input energy
-double Efficiency::GetSmallEfficiency(double Energy){
-	if(!init_small || NsmallEff == 0){ return 1.0; }
-	
-	double efficiency = 0.0;
-	if(Energy < small_energy[0]){ efficiency = small_efficiency[0]; }
-	else if(Energy > small_energy[NsmallEff-1]){ efficiency = small_efficiency[NsmallEff-1]; }
-	else{
-		for(unsigned short i = 1; i < NsmallEff; i++){
-			if(Energy >= small_energy[i-1] && Energy <= small_energy[i]){
-				efficiency = Interpolate(small_energy[i-1],small_efficiency[i-1],
-							 small_energy[i],small_efficiency[i],Energy);
-				break;
-			}
-		}
-	}
-	return efficiency;
-}
-
-// Return the interpolated value for the input energy
-double Efficiency::GetMediumEfficiency(double Energy){
-	if(!init_med || NmedEff == 0){ return 1.0; }
-	
-	double efficiency = 0.0;
-	if(Energy < med_energy[0]){ efficiency = med_efficiency[0]; }
-	else if(Energy > med_energy[NmedEff-1]){ efficiency = med_efficiency[NmedEff-1]; }
-	else{
-		for(unsigned short i = 1; i < NmedEff; i++){
-			if(Energy >= med_energy[i-1] && Energy <= med_energy[i]){
-				efficiency = Interpolate(med_energy[i-1],med_efficiency[i-1],
-							 med_energy[i],med_efficiency[i],Energy);
-				break;
-			}
-		}
-	}
-	return efficiency;
-}	
-
-// Return the interpolated value for the input energy
-double Efficiency::GetLargeEfficiency(double Energy){
-	if(!init_large || NlargeEff == 0){ return 1.0; }
-	
-	double efficiency = 0.0;
-	if(Energy < large_energy[0]){ efficiency = large_efficiency[0]; }
-	else if(Energy > large_energy[NlargeEff-1]){ efficiency = large_efficiency[NlargeEff-1]; }
-	else{
-		for(unsigned short i = 1; i < NlargeEff; i++){
-			if(Energy >= large_energy[i-1] && Energy <= large_energy[i]){
-				efficiency = Interpolate(large_energy[i-1],large_efficiency[i-1],
-							 large_energy[i],large_efficiency[i],Energy);
-				break;
-			}
-		}
-	}
-	return efficiency;
-}
-
 // Load the differential cross section from a file.
 // Return true if the file is correctly loaded and contains a non-zero number
 // of data points. Does nothing if AngularDist has already been initialized
@@ -336,13 +185,8 @@ double frand(){
 	return double(rand())/RAND_MAX;
 }
 
-// Convert char* to short
-short atos(const char* input){
-	return short(atol(input));
-}
-
 // Sample a point on the surface of the unit sphere
-void UnitRandom(Vector3 &vec){
+void UnitSphereRandom(Vector3 &vec){
 	double u = 2*frand()-1;
 	double theta = 2*pi*frand();
 	vec.axis[0] = std::sqrt(1-u*u)*std::cos(theta);
@@ -350,14 +194,20 @@ void UnitRandom(Vector3 &vec){
 	vec.axis[2] = u;
 }
 
-void UnitRandom(double &theta, double &phi){
+// Sample a point on the surface of the unit sphere
+void UnitSphereRandom(double &theta, double &phi){
 	phi = 2*pi*frand();
 	theta = std::acos(2*frand()-1);
 }
 
+// Sample a point on the unit circle
+double UnitCircleRandom(){
+	return 2*pi*frand();
+}
+
 // Calculate proper bar spacing for a wall of VANDLE bars
 // Leave half gaps at either edge for clearance to other walls
-double BarSpacing(double total_width, double bar_width, unsigned short num_bars){
+double BarSpacing(double total_width, double bar_width, unsigned int num_bars){
 	return (total_width-num_bars*bar_width)/num_bars;
 }
 
@@ -374,9 +224,9 @@ double WrapValue(double value, double min_val, double max_val){
 }
 
 // Return the number of lines in a file
-unsigned short GetLines(const char* input){
+unsigned int GetLines(const char* input){
 	std::ifstream file(input); 
-	unsigned short count = 0;
+	unsigned int count = 0;
 	std::string line;
 	while(std::getline(file,line)){ 
 		count++; 
@@ -626,26 +476,13 @@ double shell(double e){
 
 double dedxp(double enrgy, double db2, double beta){
 	// only valid for beta > 0.0046 : 10 kev protons
-	
-	//const double emass = 938.2592;
 	return eden*0.5099147*(pow(zeff(1.0,beta), 2.0)/db2)*((log(1.022008*db2/(1.0-db2))-db2)-elni-shell(enrgy)-deff(enrgy)*0.5);
-	//double ze = zeff(1.0,beta);
-	//dsp *= (ze*ze)/db2;
-	//dsp *= pow(zeff(1.0,beta), 2.0)/db2;
-	//double d = log(1.022008*db2/(1.0-db2))-db2;
-	//double delta = deff(enrgy);
-	//double coz = shell(enrgy);
-	//dsp *= (log(1.022008*db2/(1.0-db2))-db2)-elni-shell(enrgy)-deff(enrgy)*0.5;
-	//return dsp;
 } 
 
 double dedx(double emass, double epart, double zpart){ 
 	// only valid for beta > 0.0046*z**(1/3)
-	  
 	double db2 = beta2(epart,emass);
 	double beta = std::sqrt(db2);
-	//double pe = btoep(db2);
-	//double gog = zeff(zpart,beta)/zeff(1.0,beta);
 	return pow(zeff(zpart,beta)/zeff(1.0,beta), 2.0)*dedxp(btoep(db2),db2,beta);
 } 
 
@@ -662,7 +499,7 @@ double range(double dx, double emass, double epart, double zpart, double sp){
 	e = 0.0; r = 0.0; er1 = 0.0; jf = 0.0;
 
 	int count = 0;
-	while(count < 10000){
+	while(true){
 		ed = ed-de(dxt,emass,es,zpart,spe);
 		e = ed;
 		if(e <= 0.0000001){ break; }
@@ -687,10 +524,6 @@ double range(double dx, double emass, double epart, double zpart, double sp){
 		count++;
 	} 
 
-	//if(count >= 10000){ std::cout << " Warning: Value did not converge!\n"; }
-	if(count >= 10000){ 
-		std::cout << ed << " " << dxt << " " << emass << " " << es << " " << zpart << " " << spe << " " << e << " " << r << std::endl; 
-	}
 	return r+es/spe;
 } 
 
@@ -728,7 +561,6 @@ double range2(double dx, double emass, double epart, double zpart, double sp){
 	
 	er2 = er1;
 	dxt = f*dxs;
-	std::cout << ed << " " << dxt << " " << emass << " " << es << " " << zpart << " " << spe << " " << e << " " << r << std::endl;
 	goto top;
 	
     bottom:
@@ -749,46 +581,34 @@ double algip(double z){
 	
 	iz = z + 0.050;
 	if(iz > 12){ potl = 9.760*z + 58.80/(pow(z, 0.190)); }
-	else{ potl = pot[short(iz)-1]; }
+	else{ potl = pot[(unsigned int)(iz)-1]; }
 	return std::log(potl * 1.0e-6);
 } 
 
 void ncdedx(double tgtdens, double atarget, double ztarget, double abeam, double zbeam, double energy, 
 	    double &dedxmg, double &tgtionpot, double &rangemg){ 
-	double mchem[10], zmed[10], amua[10];
-	double nmed = 1.0;
-	double avden = tgtdens;
-	amua[0] = atarget;
-	zmed[0] = ztarget;
-	mchem[0] = 1.0;
-	double amum = mchem[0]*amua[0];
-	double denm = avden/(amum*1.660543);
-	
-	double sumn = 0.0;
-	double sumnz = 0.0;
-	double sumnzi = 0.0;
+	double sumn;
+	double sumnz;
+	double sumnzi;
 	double en,enz,enzi;
-	for(unsigned short i = 0; i < nmed; i++){
-		en = mchem[i]*denm;
-		enz = en*zmed[i];
-		enzi = enz*algip(zmed[i]);
-		sumn += en;
-		sumnz += enz;
-		sumnzi += enzi;
-	}
+
+	en = tgtdens/(atarget*1.660543);
+	enz = en*ztarget;
+	enzi = enz*algip(ztarget); // algip is LN of Ionization potential
+	sumn = en;
+	sumnz = enz;
+	sumnzi = enzi;
 	
 	elni = sumnzi/sumnz; //global
 	avip = std::exp(elni); //global
-	tgtionpot = avip*1000000.0; //return (good)
 	eden = sumnz; //global
 	avz = sumnz/sumn; //global
-	double emass = abeam*931.4812;
-	double epart = energy;
-	double dx = 0.5/dedx(emass,epart,zbeam);
-	double sp = dedx(emass,epart,zbeam);
-	double r = range2(dx,emass,epart,zbeam,sp);
-	dedxmg = (sp*0.001)/avden; //return (good)
-	rangemg = r*avden*1000.0; //return (off)
+
+	double eloss = dedx(abeam*931.4812, energy, zbeam);
+
+	dedxmg = (eloss*0.001)/tgtdens; //return
+	tgtionpot = avip*1000000.0; // The target ionization potential (MeV)
+	rangemg = range2(0.5/eloss,abeam*931.4812,energy,zbeam,eloss)*tgtdens*1000.0; //return
 } 
 
 /////////////////////////////////////////////////////////////////////
@@ -835,7 +655,7 @@ double momentum(double energy, double mass){
 // radlength.f
 /////////////////////////////////////////////////////////////////////
 
-double radlength(unsigned short A, unsigned short Z){
+double radlength(unsigned int A, unsigned int Z){
 	// radlength 1.0 written by S.D.Pain on 11/02/2005
 	// Function to calculate the radiation length of a material
 	// in mg/cm^2
@@ -1121,14 +941,11 @@ void targ_thick(double theta_in, double phi_in, double thicknessZ, double depth,
 	//   thickness = thickness of material the particle must pass through
 
 	double x, y, z; 
-	double dummy, pi; 
 	double newx, newy, newz; 
 	double dummyr, dummytheta, dummyphi; 
-	pi = 3.14159; 
 	
 	// Convert the ion's direction to cartesian coordinates
-	dummy = 1.0; 
-	Sphere2Cart(dummy,theta_in,phi_in,x,y,z); 
+	Sphere2Cart(1.0,theta_in,phi_in,x,y,z); 
 	//length = sqrt(pow(x, 2)+pow(y, 2)+pow(z, 2)); 
 	
 	// Rotate the ion's vector so it is measured wrt to the target
@@ -1141,7 +958,7 @@ void targ_thick(double theta_in, double phi_in, double thicknessZ, double depth,
 	Cart2Sphere(newx, newy, newz, dummyr, dummytheta, dummyphi); 
 	
 	// Calculate the thickness seen by the ion. Bloody marvelous.
-	if(dummytheta <= (0.5*pi)){ thickness = (thicknessZ-depth)/std::cos(dummytheta); }
+	if(dummytheta <= (pi/2.0)){ thickness = (thicknessZ-depth)/std::cos(dummytheta); }
 	else{ thickness = (-depth)/std::cos(dummytheta); }
 	
 	// This line was added to account for an occasion where dummytheta was greater
@@ -1171,7 +988,7 @@ void unitV(double xl, double yl, double zl, double &x, double &y, double &z, dou
 // AngDist_read.f
 /////////////////////////////////////////////////////////////////////
 
-void AngDist_read(std::string fName, unsigned short &Npoints, double *angle, double *integral, double &max_integral){ 
+void AngDist_read(std::string fName, unsigned int &Npoints, double *angle, double *integral, double &max_integral){ 
 	// AngDist_read 1.0 written by S.D.Pain on 5/05/2006
 	//
 	// Subroutine for reading in an angular distribution profile from
@@ -1182,7 +999,7 @@ void AngDist_read(std::string fName, unsigned short &Npoints, double *angle, dou
 	// [angle (deg)] [cumulative integral(0-angle)]
 	// where the angles must span the range 0 to 180 degrees.	
 	
-	unsigned short i; 
+	unsigned int i; 
 	max_integral = 0.0; 
 	// DetSet_stat stores error status - T = good, F = bad
 
@@ -1207,7 +1024,7 @@ void AngDist_read(std::string fName, unsigned short &Npoints, double *angle, dou
 // srim-read.f
 /////////////////////////////////////////////////////////////////////
 
-void SRIMread(std::string fName, bool &SRIM_stat, unsigned short &Npoints, double *energy, double *dedx, double *range, double *longitude, double *latitude, bool convert){ 
+void SRIMread(std::string fName, bool &SRIM_stat, unsigned int &Npoints, double *energy, double *dedx, double *range, double *longitude, double *latitude, bool convert){ 
 	// SRIMread 1.0 written by S.D.Pain on 24/11/2004
 	//
 	// Subroutine for reading in data from a SRIM output file fName
@@ -1243,7 +1060,7 @@ void SRIMread(std::string fName, bool &SRIM_stat, unsigned short &Npoints, doubl
 		file10 >> dummyC; 
 	} 
 	
-	Npoints = 0; // Zero the data pounsigned short counter
+	Npoints = 0; // Zero the data pounsigned int counter
 	
 	// Read in the main data points from the SRIM output file
 	while(!file10.eof() && SRIM_stat){
@@ -1304,7 +1121,7 @@ void SRIMread(std::string fName, bool &SRIM_stat, unsigned short &Npoints, doubl
 // RecoilExStates_ is a pointer to an array of excitations for the recoil (in MeV)
 // tgt_thickness_ is given in units of mg/cm^2
 void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, 
-			 unsigned short NrecoilStates_, double *RecoilExStates_, double tgt_thickness_){
+			 unsigned int NrecoilStates_, double *RecoilExStates_, double tgt_thickness_){
 	if(!init){
 		Mbeam = Mbeam_; Mtarg = Mtarg_; 
 		Mrecoil = Mrecoil_; Meject = Meject_; 
@@ -1330,7 +1147,7 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 		distributions = new AngularDist[NDist];
 	
 		// Load all distributions from file
-		for(unsigned short i = 0; i < NDist; i++){
+		for(unsigned int i = 0; i < NDist; i++){
 			if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness, incident_beam_current)){
 				ang_dist = false;
 				break;
@@ -1371,7 +1188,7 @@ bool Kindeux::get_excitations(double& recoil){
 
 // See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
 // to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251
-bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double &Ejectile_E, Vector3 &Ejectile){
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile){
 	double Recoil_Ex;
 	if(!get_excitations(Recoil_Ex)){ 
 		// No reaction occured
@@ -1385,7 +1202,7 @@ bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double
 	
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
 	double temp_angle; // Ejectile angle in the center of mass frame
-	UnitRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
+	UnitSphereRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
 	
 	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
@@ -1408,7 +1225,7 @@ bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double
 }
 
 // Overloaded version which also calculates data for the recoil particle
-bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil){
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil){
 	double Recoil_Ex;
 	if(!get_excitations(Recoil_Ex)){ 
 		// No reaction occured
@@ -1422,7 +1239,7 @@ bool Kindeux::FillVars(double Beam_E, double theta_beam, double phi_beam, double
 	
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
 	double temp_angle; // Ejectile and recoil angle in the center of mass frame
-	UnitRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
+	UnitSphereRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
 	
 	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
@@ -1498,7 +1315,7 @@ double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_C
 // accept a number of doubles equal to the number of distributions
 void Kindeux::Sample(double *values){
 	if(ang_dist){
-		for(unsigned short i = 0; i < NDist; i++){
+		for(unsigned int i = 0; i < NDist; i++){
 			values[i] = distributions[i].Sample();
 		}
 	}
@@ -1508,7 +1325,7 @@ void Kindeux::Sample(double *values){
 // Does nothing if angular distributions are not set
 void Kindeux::Print(){
 	if(ang_dist){
-		for(unsigned short i = 0; i < NDist; i++){
+		for(unsigned int i = 0; i < NDist; i++){
 			std::cout << "  State " << i+1 << ":";
 			std::cout << " Reaction X-Section: " << distributions[i].GetReactionXsection() << " mb";
 			std::cout << "\tExpected Rate: " << distributions[i].GetRate() << " pps\n";

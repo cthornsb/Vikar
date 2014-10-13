@@ -9,8 +9,9 @@
 #include "TFile.h"
 #include "TTree.h"
 
-#include "../include/vikar_core.h"
-#include "../include/planar.h"
+#include "vikar_core.h"
+#include "materials.h"
+#include "detectors.h"
 
 struct ejectileData{
 	double hitX, hitY, hitZ; // Hit X, Y, and Z in meters
@@ -39,13 +40,21 @@ struct recoilData{
 };
 
 struct debugData{
-	double theta, phi; // Theta and phi in degrees
-	double energy; // Recoil energy in MeV
+	double var1, var2, var3;
 	
-	void Set(double theta_, double phi_, double energy_){
-		theta = theta_; phi = phi_; energy = energy_;
+	void Set(double v1, double v2, double v3){
+		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
+
+std::string Parse(std::string input){
+	std::string output = "";
+	for(unsigned int i = 0; i < input.size(); i++){
+		if(input[i] == ' ' || input[i] == '\t'){ break; }
+		output += input[i];
+	}
+	return output;
+}
 
 int main(int argc, char* argv[]){ 
 	// A Monte-Carlo charged particle experiment simulation program - details below
@@ -101,22 +110,22 @@ int main(int argc, char* argv[]){
 	
 	// Energy loss varibales
 	double tof;
-	unsigned short NtargElements; 
-	unsigned short **targComp; 
-	double tgtdens;
-	double thickness, Zdepth, targ_depth, targ_angle; 
+	double Zdepth; 
 	double Ereact;
-	double AveTargZ, AveTargA, totalTarg; 
-	double targRadL;
+	
+	RangeTable beam_targ, eject_targ;
+	RangeTable eject_det, recoil_targ;
+	double dzBeam, range_beam;
+	
+	Target targ;
 	
 	// Physics Variables
-	unsigned short NRecoilStates;
+	unsigned int NRecoilStates;
 	std::vector<std::string> AngDist_fname; 
 	double *ExRecoilStates, gsQvalue; 
 	double *totXsect; 
-	double Ebeam, Ebeam0, Erecoil, Eeject, Abeam, Zbeam, Atarg;
+	double Ebeam, Ebeam0, Erecoil, Eeject, Abeam, Zbeam;
 	double Arecoil, Zrecoil, Aeject, Zeject;
-	double Ztarg;
 	
 	// Beam variables
 	double thetaBeam, phiBeam; // Incident beam particle direction
@@ -142,7 +151,7 @@ int main(int argc, char* argv[]){
 
 	bool SimGamma, WriteRecoil, WriteDebug;
 
-	unsigned short Ndet;
+	unsigned int Ndet;
 	bool PerfectDet, DetSetup, ADists, SupplyRates;
 	short idummy;
 
@@ -168,7 +177,7 @@ int main(int argc, char* argv[]){
 	std::cout << "     ## ##         ##     ##      ##     ##         ##   ##      ##    ##\n";
 	std::cout << "      ###       ######## ####      ###  ####       #### ####      ### ###########\n";
 
-	std::cout << "\n VANDLE VIKAR 1.0\n"; 
+	std::cout << "\n VANDLE VIKAR 1.1\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
 	
 	std::cout << " Welcome to NewVIKAR, the Virtual Instrumentation for Kinematics\n"; 
@@ -189,16 +198,18 @@ int main(int argc, char* argv[]){
 		// Specify the name of the output files
 		if(argc >= 3){ output_fname_prefix = std::string(argv[2]); }
 		
-		unsigned short count = 0;
+		unsigned int count = 0;
 		std::string input;
 		std::cout << "\n Reading from file " << argv[1] << std::endl;
 		while(true){
-			input_file >> input;
+			getline(input_file, input); input = Parse(input);
 			if(input_file.eof()){ break; }
 			if(count == 0){ 
 				version = atof(input.c_str()); 
 				std::cout << "  Version: " << version << std::endl;
-				if(version != 1.0){ std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; }
+				if(version != 1.1f){ 
+					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
+				}
 			}
 			else if(count == 1){ 
 				Zbeam = atof(input.c_str());  
@@ -209,21 +220,21 @@ int main(int argc, char* argv[]){
 				std::cout << "  Beam-A: " << Abeam << std::endl;
 			}
 			else if(count == 3){ 
-				Ztarg = atof(input.c_str());  
-				std::cout << "  Target-Z: " << Ztarg << std::endl;
+				targ.SetZ((double)atof(input.c_str()));
+				std::cout << "  Target-Z: " << targ.GetZ() << std::endl;
 			}
 			else if(count == 4){ 
-				Atarg = atof(input.c_str());  
-				std::cout << "  Target-A: " << Atarg << std::endl;
+				targ.SetA((double)atof(input.c_str()));
+				std::cout << "  Target-A: " << targ.GetA() << std::endl;
 			}
 			else if(count == 5){ 
 				Zeject = atof(input.c_str());
-				Zrecoil = Zbeam + Ztarg - Zeject;  
+				Zrecoil = Zbeam + targ.GetZ() - Zeject;  
 				std::cout << "  Ejectile-Z: " << Zeject << std::endl;
 			}
 			else if(count == 6){ 
 				Aeject = atof(input.c_str()); 
-				Arecoil = Abeam + Atarg - Aeject; 
+				Arecoil = Abeam + targ.GetA() - Aeject; 
 				std::cout << "  Ejectile-A: " << Aeject << std::endl;
 				std::cout << "  Recoil-Z: " << Zrecoil << std::endl;
 				std::cout << "  Recoil-A: " << Arecoil << std::endl;
@@ -235,7 +246,7 @@ int main(int argc, char* argv[]){
 			else if(count == 8){ 
 				beamspot = atof(input.c_str());  
 				std::cout << "  Beam Spot Size: " << beamspot << " mm\n";
-				beamspot *= 0.1;
+				beamspot *= 0.001; // in meters
 			}
 			else if(count == 9){ 
 				beamEspread = atof(input.c_str());  
@@ -247,42 +258,42 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 11){ 
 				// Recoil excited state information
-				NRecoilStates = atos(input.c_str()) + 1;
+				NRecoilStates = atoi(input.c_str()) + 1;
 				std::cout << "  No. Excited States: " << NRecoilStates-1 << std::endl;
 				ExRecoilStates = new double[NRecoilStates]; ExRecoilStates[0] = 0.0;
 				totXsect = new double[NRecoilStates]; totXsect[0] = 0.0;
 				std::cout << "   Recoil Ground State: 0.0 MeV\n";
-				for(unsigned short i = 1; i < NRecoilStates; i++){
-					input_file >> input;
+				for(unsigned int i = 1; i < NRecoilStates; i++){
+					getline(input_file, input); input = Parse(input);
 					ExRecoilStates[i] = atof(input.c_str());
-					std::cout << "   Recoil State " << i+1 << ": " << ExRecoilStates[i] << " MeV\n";
+					std::cout << "   Recoil Excited State " << i << ": " << ExRecoilStates[i] << " MeV\n";
 					totXsect[i] = 0.0;
 				}
 			}
 			else if(count == 12){ 
 				// Angular distribution information
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ ADists = true; }
 				else{ ADists = false; }
 				std::cout << "  Supply Angular Distributions: ";
 				if(ADists){
 					std::cout << "Yes\n";
-					for(unsigned short i = 0; i < NRecoilStates; i++){
-						input_file >> input;
+					for(unsigned int i = 0; i < NRecoilStates; i++){
+						getline(input_file, input); input = Parse(input);
 						AngDist_fname.push_back(input);
 						if(i == 0){ std::cout << "   Distribution for ground state: " << AngDist_fname[i] << std::endl; }
 						else{ std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname[i] << std::endl; }
 					}
 					
 					// Supply beam rate information
-					input_file >> input;
-					idummy = atos(input.c_str());
+					getline(input_file, input); input = Parse(input);
+					idummy = atoi(input.c_str());
 					if(idummy == 1){ SupplyRates = true; }
 					else{ SupplyRates = false; }
 					std::cout << "  Calculate Rates: ";
 					if(SupplyRates){ 
 						std::cout << "Yes\n"; 
-						input_file >> input;
+						getline(input_file, input); input = Parse(input);
 						BeamRate = atof(input.c_str());
 						std::cout << "   Beam Rate: " << BeamRate << " pps\n";
 					}
@@ -297,86 +308,73 @@ int main(int argc, char* argv[]){
 				}
 			}
 			else if(count == 13){ 
-				// Target information
-				NtargElements = atos(input.c_str());
-				std::cout << "  No. Target Elements: " << NtargElements << std::endl;
-				targComp = new unsigned short *[NtargElements];
-				for(unsigned short i = 0; i < NtargElements; i++){
-					targComp[i] = new unsigned short[3];
-					input_file >> input; targComp[i][0] = atos(input.c_str()); 
-					input_file >> input; targComp[i][1] = atos(input.c_str());  
-					input_file >> input; targComp[i][2] = atos(input.c_str()); 
-					std::cout << "   Element " << i+1 << ": " << targComp[i][2] << " per molecule of Z = " << targComp[i][0] << ", A = " << targComp[i][1] << std::endl;
-				}
-				
-				// Calculate the radiation length for the target material
-				// for use in angular straggling calculations later.
-				// See Barnett et al., Phys. Rev. D 54 (1996) 1, page 135
-				AveTargZ = 0.0; 
-				AveTargA = 0.0; 
-				totalTarg = 0.0; 
-				targRadL = 0.0; 
-				for(unsigned short i = 0; i < NtargElements; i++){
-					AveTargZ += targComp[i][0]*targComp[i][2]; 
-					AveTargA += targComp[i][1]*targComp[i][2]; 
-					totalTarg += targComp[i][2]; 
-					targRadL += ((targComp[i][1]*targComp[i][2]/AveTargA)/radlength(targComp[i][1],targComp[i][0])); 
-				} 
-	
-				targRadL = 1.0/targRadL; 
-				AveTargZ = AveTargZ/totalTarg; 
-				AveTargA = AveTargA/totalTarg;
+				// Target thickness
+				targ.SetThickness((double)atof(input.c_str()));
+				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";
 			}
 			else if(count == 14){ 
-				// Target thickness
-				thickness = atof(input.c_str());  
-				std::cout << "  Target Thickness: " << thickness << " mg/cm^2\n";
+				// Target density
+				targ.SetDensity((double)atof(input.c_str()));
+				std::cout << "  Target Density: " << targ.GetDensity() << " g/cm^3\n";
 			}
 			else if(count == 15){ 
-				// Target density
-				tgtdens = atof(input.c_str());  
-				std::cout << "  Target Density: " << tgtdens << " g/cm^3\n";
+				// Target angle wrt beam axis
+				targ.SetAngle((double)atof(input.c_str())*deg2rad);
+				std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
 			}
 			else if(count == 16){ 
-				// Target angle wrt beam axis
-				targ_angle = atof(input.c_str());  
-				std::cout << "  Target Angle: " << targ_angle << " degrees\n";
-				targ_angle *= deg2rad;
+				// Target information
+				unsigned int num_elements = (unsigned int)atoi(input.c_str());
+				unsigned int num_per_molecule[num_elements];
+				double element_Z[num_elements];
+				double element_A[num_elements];
+				
+				std::cout << "  No. Target Elements: " << num_elements << std::endl;
+				for(unsigned int i = 0; i < num_elements; i++){
+					getline(input_file, input); input = Parse(input); element_Z[i] = (double)atof(input.c_str()); 
+					getline(input_file, input); input = Parse(input); element_A[i] = (double)atof(input.c_str());  
+					getline(input_file, input); input = Parse(input); num_per_molecule[i] = (unsigned int)atoi(input.c_str()); 
+					std::cout << "   Element " << i+1 << ": " << num_per_molecule[i] << " per molecule of Z = " << element_Z[i] << ", A = " << element_A[i] << std::endl;
+				}
+				
+				targ.Init(num_elements);
+				targ.SetElements(num_per_molecule, element_Z, element_A);
+				std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
 			}
 			else if(count == 17){ 
 				// Load the small, medium, and large bar efficiencies
 				// Efficiency index 0 is the underflow efficiency (for energies below E[0])
 				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ PerfectDet = true; }
 				else{ PerfectDet = false; }
 				std::cout << "  Perfect Detector: ";
 				if(!PerfectDet){ 
 					// Load small bar efficiency data
 					std::cout << "No\n";
-					input_file >> input; 
+					getline(input_file, input); input = Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadSmall(input.c_str()) << " small bar data points in file " << input << "\n";
 					
 					// Load medium bar efficiency data
-					input_file >> input; 
+					getline(input_file, input); input = Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadMedium(input.c_str()) << " medium bar data points in file " << input << "\n";
 					
 					// Load large bar efficiency data
-					input_file >> input; 
+					getline(input_file, input); input = Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadLarge(input.c_str()) << " large bar data points in file " << input << "\n";
 				}
 				else{ std::cout << "Yes\n"; }
 			}
 			else if(count == 18){ 
 				// Supply detector setup file?
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ DetSetup = true; }
 				else{ DetSetup = false; }
 				std::cout << "  Detector Setup File: ";
 				if(DetSetup){
 					// Load detector setup from a file
 					std::cout << "Yes\n";
-					input_file >> det_fname;
+					getline(input_file, det_fname); det_fname = Parse(det_fname);
 					std::cout << "   Path: " << det_fname << std::endl;
 				}
 				else{ std::cout << "No\n"; }
@@ -388,7 +386,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 20){
 				// Simulate prompt gamma flash?
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ SimGamma = true; }
 				else{ SimGamma = false; }
 				std::cout << "  Detect Prompt Gammas: ";
@@ -397,7 +395,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 21){
 				// Write Recoil data to file?
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ WriteRecoil = true; }
 				else{ WriteRecoil = false; }
 				std::cout << "  Write Recoil: ";
@@ -406,7 +404,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 22){
 				// Write Debug data to file?
-				idummy = atos(input.c_str());
+				idummy = atoi(input.c_str());
 				if(idummy == 1){ WriteDebug = true; }
 				else{ WriteDebug = false; }
 				std::cout << "  Write Debug Info: ";
@@ -430,6 +428,59 @@ int main(int argc, char* argv[]){
 		
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
 
+	// Make sure the input variables are correct
+	std::string temp_input = "";
+	while(true){
+		std::cout << " Are the above settings correct? (yes/no) "; std::cin >> temp_input;
+		if(temp_input == "yes" || temp_input == "y"){ break; }
+		else if(temp_input == "no" || temp_input == "n"){ 
+			std::cout << "  ABORTING...\n";
+			return 1; 
+		}
+		else{ std::cout << "  Type yes or no\n"; }
+	}
+
+	// Calculate the stopping power table for the beam particles in the target
+	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
+		std::cout << " Calculating range tables for beam in target...";
+		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Abeam, Zbeam, &targ);
+		std::cout << " done\n";
+	}
+	
+	// Calculate the stopping power table for the ejectiles in the target
+	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
+		double dummy1, dummy2, rangemg, step;
+		std::cout << " Calculating range tables for ejectile in target...";
+		eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Aeject, Zeject, &targ);
+		std::cout << " done\n";
+		
+		// NOT IMPLEMENTED!
+		/*// Set detector material to Si. Add user selection at some point
+		Adet = 28; 
+		Zdet = 14; 
+		density_det = 2.3212; 
+		density_det = density_det*1000.0; // Convert density to mg/cm^3
+		conv_det = 1.0e-4*density_det; 
+		DetRadL = radlength(Adet,Zdet);
+	
+		// Calculate the stopping power table for the ejectiles in the detector
+		std::cout << " Calculating range tables for ejectile in detector..."; 
+		eject_det.Init(100);
+		step = (Ebeam0+2*beamEspread)/99.0;
+		for(unsigned int i = 0; i < 100; i++){ 
+			ncdedx(tgtdens, Adet, Zdet, Aeject, Zeject, i*step, dummy1, dummy2, rangemg);
+			eject_det.Set(i, i*step, rangemg/conv_det);
+		} 
+		std::cout << " done\n";*/
+	}
+	
+	// Calculate the stopping power table for the recoils in the target
+	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
+		std::cout << " Calculating range tables for recoil in target...";
+		recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Arecoil, Zrecoil, &targ);
+		std::cout << " done\n";
+	}
+
 	// Read VIKAR detector setup file or manually setup simple systems
 	if(DetSetup){
 		std::cout << " Reading in NewVIKAR detector setup file...\n";
@@ -445,14 +496,14 @@ int main(int argc, char* argv[]){
 		float values[9];
 
 		while(true){
-			for(unsigned short i = 0; i < 6; i++){ 
+			for(unsigned int i = 0; i < 6; i++){ 
 				detfile >> values[i];
 			}
 
 			// Set the size of the bar
 			detfile >> bar_type;
 			if(!(bar_type == "small" || bar_type == "medium" || bar_type == "large")){
-				for(unsigned short i = 6; i < 9; i++){ detfile >> values[i]; }
+				for(unsigned int i = 6; i < 9; i++){ detfile >> values[i]; }
 			}
 
 			detectors.push_back(NewVIKARDet(values, bar_type));
@@ -462,7 +513,7 @@ int main(int argc, char* argv[]){
 
 		// Generate the Planar bar array
 		vandle_bars = new Planar[detectors.size()];
-		for(unsigned short i = 0; i < detectors.size(); i++){
+		for(unsigned int i = 0; i < detectors.size(); i++){
 			// Set the size of the bar
 			if(detectors[i].bar_type == "small"){ vandle_bars[i].SetSmall(); }
 			else if(detectors[i].bar_type == "medium"){ vandle_bars[i].SetMedium(); }
@@ -494,10 +545,10 @@ int main(int argc, char* argv[]){
 	std::cout << "\n Initializing main simulation Kindeux object...\n";
 
 	// Initialize kinematics object
-	kind.Initialize(Abeam, Atarg, Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates, tgtdens);
+	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates, targ.GetDensity());
 	if(ADists){ 
 		std::cout << " Loading state angular distribution files...\n";
-		if(kind.SetDist(AngDist_fname, totalTarg, BeamRate)){
+		if(kind.SetDist(AngDist_fname, targ.GetTotalElements(), BeamRate)){
 			// Successfully set the angular distributions
 			kind.Print();
 		}
@@ -516,12 +567,6 @@ int main(int argc, char* argv[]){
 	NbarHit = 0; // Total number of particles which collided with a bar
 	Nsimulated = 0; // Total number of simulated particles
 	Nreactions = 0; // Total number of particles which react with the target
-
-	// Open the output file(s)
-	//std::ofstream VIKARout((output_fname_prefix+"_main.dat").c_str());
-	//std::ofstream RecoilOut, DebugOut;
-	//if(WriteRecoil){ RecoilOut.open((output_fname_prefix+"_recoil.dat").c_str()); }
-	//if(WriteDebug){ DebugOut.open((output_fname_prefix+"_debug.dat").c_str()); }
 		
 	// Root stuff
 	TFile *file = new TFile("VIKAR.root", "RECREATE");
@@ -536,7 +581,7 @@ int main(int argc, char* argv[]){
 	if(WriteRecoil){ VIKARtree->Branch("Recoil", &RECOILdata, "theta/D:phi/D:energy/D"); }
 	if(WriteDebug){ 
 		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
-		DEBUGtree->Branch("Debug", &DEBUGdata, "theta/D:phi/D:energy/D"); 
+		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
 	}
 
 	// Begin the simulation
@@ -555,6 +600,8 @@ int main(int argc, char* argv[]){
 	bool flag = false;
 	bool hit;
 	timer = clock();
+	
+	Vector3 interaction;
 
 	while(Ndetected < Nwanted){
 		// ****************Time Estimate**************
@@ -578,62 +625,47 @@ int main(int argc, char* argv[]){
 			std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
 			counter++; 
 		}
-		
 		Nsimulated++; 
+		
+		// Calculate where the beam particle hits the target inside the 
+		// beamspot as well as the distance traversed through the target
+		// The sqrt ensures that the point is uniformly distributed on the beamspot
+		Zdepth = targ.GetInteractionPoint(std::sqrt(frand()*beamspot), UnitCircleRandom(), interaction);
 
-		// Recoil Hit????
 		// Set the beam direction to (0,0,1) i.e. along the z axis
-		// Set the incident direction for the beam
-		thetaBeam = rndgauss0(0.1*deg2rad); 
-		phiBeam = frand()*2.0*pi; 
-
-		// Calculate the depth in the target for the reaction
-		targ_depth = thickness*frand(); 
-
-		// Calculate thickness traversed by the beam particle (Zdepth),
-		// dependent on the target angle and beam particle direction.
-		// (use (thickness-targ_depth) as subroutine written for recoil/ejectile)
-		targ_thick(thetaBeam,phiBeam,thickness,(thickness-targ_depth),targ_angle,Zdepth); 
+		// Calculate thickness traversed by the beam particle (Zdepth), dependent on the target angle.
+		//targ_thick(0.0,pi/2.0,targ.GetThickness(),targ.GetThickness()*(1-frand()),targ.GetAngle(),Zdepth);
 
 		// Calculate the beam particle energy, varied with energy spread
 		Ebeam = Ebeam0 + rndgauss0(beamEspread); 
 
 		// Calculate the beam particle range in the target
-		//range_beam = linear(beam_E[short(Ebeam)],beam_E[short(Ebeam+1.0)],beam_Erange[short(Ebeam)],beam_Erange[short(Ebeam+1.0)],Ebeam); 
-		//range_beam = linear(beam_E[short(Ebeam)-1],beam_E[short(Ebeam)],beam_Erange[short(Ebeam)-1],beam_Erange[short(Ebeam)],Ebeam); 
-
-		// Code for calculating energy loss of particle...
-		// Find the ranges for energies straddling the beam energy
-		//i = 1; 
-		//while(beam_Erange[i] < (range_beam-Zdepth)){ i = i + 1; }
-		/*for(unsigned short i = 1; i < num_beam_E; i++){
-			if(beam_Erange[i] < (range_beam-Zdepth)){ break; }
-		}*/
-
+		//range_beam = beam_targ.GetRange(Ebeam);
+		
 		// Calculate the new energy
-		//Ereact = linear(beam_Erange[i-1],beam_Erange[i],beam_E[i-1],beam_E[i],(range_beam-Zdepth)); // FIX!!!!
-		Ereact = Ebeam; // Remove beam particle energy loss effects
-
+		//Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
+		//Ereact = Ebeam; // Remove beam particle energy loss effects
+		Ereact = targ.GetEnergy(Ebeam, Zdepth*targ.GetRealZthickness(), Zbeam, Abeam);
+		
 		// Determine the angle of the beam particle's trajectory at the
 		// interaction point, due to angular straggling and the incident trajectory.
-		strag_targ(Abeam,Zbeam,Zdepth,thetaBeam,phiBeam,Ebeam,thetaReact,phiReact,targRadL); 
+		strag_targ(Abeam, Zbeam, Zdepth, 0.0, pi/2.0, Ebeam, thetaReact, phiReact, targ.GetRadLength()); 
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
 		if(WriteRecoil || SimGamma){ 
 			// Need to calculate parameters for the recoil
-			if(kind.FillVars(Ereact, thetaReact, phiReact, Eeject, Erecoil, HitDetectSphere, RecoilSphere)){ Nreactions++; }
+			if(kind.FillVars(Ereact, Eeject, Erecoil, HitDetectSphere, RecoilSphere)){ Nreactions++; }
 			else{ continue; } // A reaction did not occur
 		}
 		else{ 
 			// Only interested in the ejectile	
-			if(kind.FillVars(Ereact, thetaReact, phiReact, Eeject, HitDetectSphere)){ Nreactions++; }
+			if(kind.FillVars(Ereact, Eeject, HitDetectSphere)){ Nreactions++; }
 			else{ continue; } // A reaction did not occur
 		}
 		
 		Sphere2Cart(HitDetectSphere, Ejectile); // HitDetectSphere is a unit vector (no need to normalize)
 		if(WriteDebug){ 
-			//DebugOut << HitDetectSphere.axis[1] << "\t" << HitDetectSphere.axis[2] << Eeject << "\n"; 
-			DEBUGdata.Set(HitDetectSphere.axis[1], HitDetectSphere.axis[2], Eeject);
+			DEBUGdata.Set(Zdepth*targ.GetRealZthickness(), Ebeam, Ereact);
 			DEBUGtree->Fill();
 		}
 
@@ -641,11 +673,11 @@ int main(int argc, char* argv[]){
 		/*if(SimGamma && RecoilState > 0){
 			// Simulate gamma decays for excited recoils
 			double gamma_theta, gamma_phi;
-			UnitRandom(gamma_theta, gamma_phi);
+			UnitSphereRandom(gamma_theta, gamma_phi);
 		}*/
 
 		// Process the ejectile
-		for(unsigned short bar = 0; bar < Ndet; bar++){
+		for(unsigned int bar = 0; bar < Ndet; bar++){
 			face = -1;
 			face = vandle_bars[bar].FaceIntersect(Ejectile, HitDetect, hit_x, hit_y, hit_z);
 			if(face != -1){
@@ -683,16 +715,12 @@ int main(int argc, char* argv[]){
 						Eeject += rndgauss0(energyRes*Eeject); // Smear energy due to VANDLE resolution
 					}
 				
-					// Main output string
+					// Main output
 					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) EjectileE(MeV) EjectileToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 					if(Eeject >= 0.1 && Eeject <= 5.0){
-						//VIKARout << HitDetect.axis[0] << "\t" << HitDetect.axis[1] << "\t" << HitDetect.axis[2] << "\t"; // Hit X, Y, and Z (in meters)
-						//VIKARout << HitDetectSphere.axis[1]*rad2deg << "\t" << HitDetectSphere.axis[2]*rad2deg << "\t" << Eeject << "\t" << tof*(1E9) << "\t"; // Energy, ToF, and ejectile angles
-						//VIKARout << bar << "\t" << face << "\t" << hit_x << "\t" << hit_y << "\t" << hit_z << std::endl; // Individual bar data
 						EJECTdata.Set(HitDetect.axis[0], HitDetect.axis[1], HitDetect.axis[2], HitDetectSphere.axis[1]*rad2deg,
 									  HitDetectSphere.axis[2]*rad2deg, Eeject, tof*(1E9), hit_x, hit_y, hit_z, bar, face);
 						if(WriteRecoil){ 
-							//RecoilOut << RecoilSphere.axis[1] << "\t" << RecoilSphere.axis[2] << "\t" << Erecoil << "\n";
 							RECOILdata.Set(RecoilSphere.axis[1], RecoilSphere.axis[2], Erecoil);
 						}
 						VIKARtree->Fill();
@@ -718,10 +746,6 @@ int main(int argc, char* argv[]){
 	}
 	else{ std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
 	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
-	
-	//std::cout << "  Wrote file " << output_fname_prefix+"_main.dat\n"; VIKARout.close();
-	//if(WriteRecoil){ std::cout << "  Wrote file " << output_fname_prefix+"_recoil.dat\n"; RecoilOut.close(); }
-	//if(WriteDebug){ std::cout << "  Wrote file " << output_fname_prefix+"_debug.dat\n"; DebugOut.close(); }
 	
 	file->cd();
 	VIKARtree->Write();

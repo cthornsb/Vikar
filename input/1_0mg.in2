@@ -1,35 +1,35 @@
-1.0
-4
-7
-1
-2
-0
-1
-30.30
-10.00
-0.8
--2.085
-2
-0.7695
-2.3200
-0
-2
-6
-12
-1
-1
-2
-2
-1.0
-1.06300
-0.0000
-0
-/home/cory/Research/VANDLE/Vikar/efficiency/Small.eff
-/home/cory/Research/VANDLE/Vikar/efficiency/Medium.eff
-/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff
-1
-/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det
-10000
-0
-1
-0
+1.1			# Vikar input file version number
+4			# Beam Z
+7			# Beam A
+1			# Target Z (isotope of interest)
+2			# Target A (isotope of interest)
+0			# Ejectile Z
+1			# Ejectile A
+30.30		# Beam energy (MeV)
+10.00		# Beam spot size (mm)
+0.8			# Beam energy spread (MeV)
+-2.085		# Ground state Q-value
+2			# Number of excited states
+0.7695		# Energy of excited state 1
+2.3200		# Energy of excited state 2
+0			# Supply angular distributions?
+1.0			# Target thickness (mg/cm^2)
+1.06300		# Target density (g/cm^3)
+0.0000		# Target angle wrt beam axis (degrees)
+2			# Number of target elements per molecule
+6			# Element 1 Z
+12			# Element 1 A
+1			# Number of element 1 per target molecule
+1			# Element 2 Z
+2			# Element 2 A
+2			# Number of element 2 per target molecule
+0			# Perfect detectors?
+/home/cory/Research/VANDLE/Vikar/efficiency/Small.eff	# Small bar efficiency file
+/home/cory/Research/VANDLE/Vikar/efficiency/Medium.eff	# Medium bar efficiency file
+/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff	# Large bar efficiency file
+1			# Supply detector setup file?
+/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det	# Detector setup filename
+10		# Number of detections
+0			# Detect prompt gammas?
+1			# Write recoil to output?
+1			# Write debug info to output?

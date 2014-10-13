@@ -1,7 +1,8 @@
 # Root files and data files #
 #############################
 *.root
-*.dat 
+*.dat
+*.out 
 
 # C++ object files #
 ####################

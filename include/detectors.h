@@ -1,8 +1,8 @@
 // vikar_lib.h
 // Cory Thornsberry
 
-#ifndef PLANAR_H
-#define PLANAR_H
+#ifndef DETECTORS_H
+#define DETECTORS_H
 
 #include <string>
 #include <cmath>

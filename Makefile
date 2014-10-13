@@ -8,7 +8,7 @@ LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
-SOURCES = vikar_core.cpp planar.cpp vikar.cpp
+SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOOL_DIR = ./tools
@@ -20,7 +20,7 @@ PROG = vikar
 all: $(PROG)
 	@echo " Finished Compilation"
 
-libs: core planar main
+libs: core detectors main
 	@echo " Done making libs"
 
 $(C_OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp

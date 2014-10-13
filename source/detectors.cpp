@@ -2,7 +2,7 @@
 // Converted by FortranConvert v0.1
 // Wed Feb 12 19:35:20 2014
 
-#include "../include/planar.h"
+#include "detectors.h"
 
 /////////////////////////////////////////////////////////////////////
 // Planar Class
@@ -372,7 +372,7 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned short num_bars, unsigned i
 	
 	count = 0;
 	for(unsigned int i = 0; i < num_trials; i++){
-		UnitRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
+		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].FaceIntersect(temp_ray, temp_vector, tempx, tempy, tempz) != -1){
 				// A hit was detected on one of the faces
@@ -655,7 +655,7 @@ void strag_dE_plan(double A, double Z, double detThick, double DetZ, double thet
 
 	// Calculate absolute angle of the scattered ion wrt to detector plane 
 	if(theta_new <= pi/2.0){ detAngle = theta_new; }
-	else if(theta_new > pi/2.0){ detAngle = pi-theta_new; }
+	else{ detAngle = pi-theta_new; }
 
 	// Calculate the length of the vector from the scattering pounsigned short to the
 	// pounsigned short of incidence on the E detector

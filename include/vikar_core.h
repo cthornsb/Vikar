@@ -1,4 +1,4 @@
-// vikar_lib.h
+// vikar_core.h
 // Cory Thornsberry
 
 #ifndef VIKAR_LIB_H
@@ -44,36 +44,6 @@ struct Vector3{
 	void Dump();
 };
 
-class Efficiency{
-  private:
-	double *small_energy, *small_efficiency;
-	double *med_energy, *med_efficiency;
-	double *large_energy, *large_efficiency;
-	unsigned short NsmallEff, NmedEff, NlargeEff;
-	bool init_small, init_med, init_large;
-	
-	bool _read_eff_file(const char* fname, std::vector<double> &energy, std::vector<double> &efficiency);
-	
-  public:
-	Efficiency();
-	~Efficiency();
-	
-	unsigned short GetNsmall(){ return NsmallEff; }
-	unsigned short GetNmedium(){ return NmedEff; }
-	unsigned short GetNlarge(){ return NlargeEff; }
-	
-	bool IsSmallInit(){ return init_small; }
-	bool IsMediumInit(){ return init_med; }
-	bool IsLargeInit(){ return init_large; }
-	
-	unsigned short ReadSmall(const char*);
-	unsigned short ReadMedium(const char*);
-	unsigned short ReadLarge(const char*);
-	double GetSmallEfficiency(double);
-	double GetMediumEfficiency(double);
-	double GetLargeEfficiency(double);
-};
-
 class AngularDist{
   private:
 	std::vector<double> com_theta, dsigma_domega, integral;
@@ -105,7 +75,7 @@ class Kindeux{
 	double Meject, Qvalue, tgt_thickness;
 	double *RecoilExStates;
 	
-	unsigned short NDist, NrecoilStates;
+	unsigned int NDist, NrecoilStates;
 	AngularDist *distributions;
 	bool ang_dist, init;
 	
@@ -142,14 +112,14 @@ class Kindeux{
 		else{ return Meject/6.02214129E26; }
 	}
    	
-	void Initialize(double, double, double, double, double, unsigned short, double*, double);
+	void Initialize(double, double, double, double, double, unsigned int, double*, double);
 	bool SetDist(std::vector<std::string>&, double, double);
-	bool FillVars(double, double, double, double&, Vector3&);
-	bool FillVars(double, double, double, double&, double&, Vector3&, Vector3&);
+	bool FillVars(double, double&, Vector3&);
+	bool FillVars(double, double&, double&, Vector3&, Vector3&);
 	bool FillVars(double, double, double*, double*, double*, double*, double*, double*, double*);
 	double ConvertAngle2Lab(double, double, double);
 	double ConvertAngle2CoM(double, double, double, double precision=1E-12);
-	double GetEnergies(double, double, unsigned short, double*, double*);
+	double GetEnergies(double, double, unsigned int, double*, double*);
 	void Sample(double*);
 	void Print();
 };
@@ -162,10 +132,11 @@ double dabs(double);
 double min(double, double);
 double max(double, double);
 double frand();
-short atos(const char*);
-void UnitRandom(Vector3&);
+void UnitSphereRandom(Vector3&);
+void UnitSphereRandom(double&, double&);
+double UnitCircleRandom();
 double WrapValue(double, double, double);
-unsigned short GetLines(const char*);
+unsigned int GetLines(const char*);
 void Cart2Sphere(double, double, double, double&, double&, double&);
 void Cart2Sphere(double, double, double, Vector3&);
 void Cart2Sphere(Vector3, Vector3&);
@@ -182,7 +153,7 @@ void ncdedx(double, double, double, double, double, double, double&, double&, do
 double de(double, double, double, double, double);
 double linear(double, double, double, double, double);
 double momentum(double, double);
-double radlength(unsigned short, unsigned short);
+double radlength(unsigned int, unsigned int);
 double rndgauss0(double);
 void rndgauss1(double&, double&, double&, double&, double&);
 void Sphere2Cart(double, double, double, double&, double&, double&);
@@ -194,8 +165,8 @@ void transform(double, double, double, double, double&, double&);
 void strag_targ(double, double, double, double, double, double, double&, double&, double);
 void targ_thick(double, double, double, double, double, double&);
 void unitV(double, double, double, double&, double&, double&, double&);
-void AngDist_read(std::string, unsigned short&, double*, double*, double&);
-void SRIMread(std::string, bool&, unsigned short&, double*, double*, double*, double*, double*, bool);
+void AngDist_read(std::string, unsigned int&, double*, double*, double&);
+void SRIMread(std::string, bool&, unsigned int&, double*, double*, double*, double*, double*, bool);
 std::string to_str(double);
 double Interpolate(double, double, double, double, double);
 
