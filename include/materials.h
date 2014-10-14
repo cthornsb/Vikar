@@ -4,6 +4,8 @@
 #ifndef MATERIALS_H
 #define MATERIALS_H
 
+#include "detectors.h"
+
 /////////////////////////////////////////////////////////////////////
 // Globals
 /////////////////////////////////////////////////////////////////////
@@ -67,6 +69,8 @@ class Target{
 	
 	void _initialize();
 	
+	Planar physical; // The physical target geometry
+	
   public:
 	Target();
 	Target(unsigned int);
@@ -77,12 +81,9 @@ class Target{
 	void SetZ(double Z_){ Z = Z_; }
 	void SetA(double A_){ A = A_; }
 	void SetDensity(double density_){ density = density_; }
-	void SetThickness(double thickness_){ thickness = thickness_;	}
-	void SetAngle(double angle_){
-		angle = angle_;	
-		Zthickness = dabs(thickness / std::cos(angle));
-	}
+	void SetThickness(double thickness_);
 	void SetElements(unsigned int*, double*, double*);
+	void SetAngle(double angle_);
 	
 	bool IsInit(){ return init; }
 	
@@ -94,16 +95,23 @@ class Target{
 	double GetDensity(){ return density; } // Return the density of the target (g/cm^3)
 	double GetThickness(){ return thickness; } // Return the thickness of the target (mg/cm^2)
 	double GetZthickness(){ return Zthickness; } // Return the thickness the beam sees (mg/cm^2)
-	double GetRealThickness(){ return thickness/(density*1000.0); } // Return the physical thickness of the target (cm)
-	double GetRealZthickness(){ return Zthickness/(density*1000.0); } // Return the physical thickness the beam sees (cm)
+	double GetRealThickness(){ return thickness/(density*1E5); } // Return the physical thickness of the target (m)
+	double GetRealZthickness(){ return Zthickness/(density*1E5); } // Return the physical thickness the beam sees (m)
 	double GetAngle(){ return angle; } // Return the angle of the target wrt the beam axis
+	Planar *GetPlanar(){ return &physical; } // Return a pointer to the 3d geometry object
 
 	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the target molecule
 	unsigned int GetNumElements(){ return num_elements; } // Return the number of unique elements per target molecule
 	
-	// Get the real world coordinates of the interaction point within the target
-	// Return the Z distance into the target
-	double GetInteractionPoint(double, double, Vector3&);
+	// Get the depth into the target at which the reaction occurs
+	// offset_ is the global position where the beam particle originates
+	// direction_ is the direction of the beam particle entering the target
+	// intersect is the global position where the beam particle intersects the front face of the target
+	// interact is the global position where the beam particle reacts inside the target
+	double GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact);
+
+	// Determine the new direction of a particle inside the target due to angular straggling
+	void AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, double depth_, Vector3 &new_direction);
 	
 	// Return the stopping power of the target
 	double GetStoppingPower(double, double, double);

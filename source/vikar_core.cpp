@@ -24,63 +24,67 @@ double avz = 0.0;
 // Vector3 Struct
 /////////////////////////////////////////////////////////////////////
 
-void Vector3::operator = (Vector3 other){
+const Vector3& Vector3::operator = (const Vector3 &other){
 	axis[0] = other.axis[0];
 	axis[1] = other.axis[1];
 	axis[2] = other.axis[2];
+	return *this;
 }
 
 // Vector addition
-void Vector3::operator += (Vector3 other){
+const Vector3& Vector3::operator += (const Vector3 &other){
 	axis[0] += other.axis[0];
 	axis[1] += other.axis[1];
 	axis[2] += other.axis[2];
+	return *this;
 }
 
 // Vector subtraction
-void Vector3::operator -= (Vector3 other){
+const Vector3& Vector3::operator -= (const Vector3 &other){
 	axis[0] -= other.axis[0];
 	axis[1] -= other.axis[1];
 	axis[2] -= other.axis[2];
+	return *this;
 }
 
 // Scalar multiplication
-void Vector3::operator *= (double scalar){
+const Vector3& Vector3::operator *= (const double &scalar){
 	axis[0] *= scalar;
 	axis[1] *= scalar;
 	axis[2] *= scalar;
+	return *this;
 }
 
-Vector3 Vector3::operator + (Vector3 other){
+Vector3 Vector3::operator + (const Vector3 &other) const {
 	return Vector3(axis[0]+other.axis[0], axis[1]+other.axis[1], axis[2]+other.axis[2]);
 }
 
-Vector3 Vector3::operator - (Vector3 other){
+Vector3 Vector3::operator - (const Vector3 &other) const {
 	return Vector3(axis[0]-other.axis[0], axis[1]-other.axis[1], axis[2]-other.axis[2]);
 }
 
-Vector3 Vector3::operator * (double scalar){
+Vector3 Vector3::operator * (const double &scalar) const {
 	return Vector3(axis[0]*scalar, axis[1]*scalar, axis[2]*scalar);
 }
 
 // Dot product
-double Vector3::Dot(Vector3 other){
+double Vector3::Dot(const Vector3 &other) const {
 	return (axis[0]*other.axis[0] + axis[1]*other.axis[1] + axis[2]*other.axis[2]);
 }
 
 // Cross product
-Vector3 Vector3::Cross(Vector3 other){
+Vector3 Vector3::Cross(const Vector3 &other) const {
 	return Vector3((axis[1]*other.axis[2]-other.axis[1]*axis[2]),
 		       (other.axis[0]*axis[2]-axis[0]*other.axis[2]),
 		       (axis[0]*other.axis[1]-other.axis[0]*axis[1]));
 }
 
 // Return the length of the vector
-double Vector3::Length(){
+double Vector3::Length() const {
 	return std::sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
 }
 
-double Vector3::Distance(Vector3 other){
+double Vector3::Distance(const Vector3 &other) const {
 	double x = axis[0]-other.axis[0];
 	double y = axis[1]-other.axis[1];
 	double z = axis[2]-other.axis[2];
@@ -95,8 +99,12 @@ double Vector3::Normalize(){
 	axis[2] = axis[2]/parameter;
 	return parameter;
 }
-	
-void Vector3::Dump(){ std::cout << " " << axis[0] << ", " << axis[1] << ", " << axis[2] << std::endl; }
+
+std::string Vector3::Dump() const { 
+	std::stringstream stream;
+	stream << axis[0] << ", " << axis[1] << ", " << axis[2]; 
+	return stream.str();
+}
 
 // Load the differential cross section from a file.
 // Return true if the file is correctly loaded and contains a non-zero number
@@ -249,6 +257,11 @@ double Interpolate(double x1, double y1, double x2, double y2, double x){
 	return ((y2-y1)/(x2-x1))*(x-x1)+y1;
 }
 
+// Return the distance between two points in 3d space
+double Dist3d(const Vector3 &v1, const Vector3 &v2){
+	return (v2-v1).Length();
+}
+
 /////////////////////////////////////////////////////////////////////
 // Cart2Sphere.f
 /////////////////////////////////////////////////////////////////////
@@ -294,7 +307,7 @@ void Cart2Sphere(double x, double y, double z, Vector3 &sphere){
 	}
 }
 
-void Cart2Sphere(Vector3 cart, Vector3 &sphere){
+void Cart2Sphere(const Vector3 &cart, Vector3 &sphere){
 	if(cart.axis[0] == 0.0 && cart.axis[1] == 0.0 && cart.axis[2] == 0.0){
 		sphere.axis[0] = 0.0; sphere.axis[1] = 0.0; sphere.axis[2] = 0.0;
 	}
@@ -338,7 +351,7 @@ void Sphere2Cart(double r, double theta, double phi, Vector3 &cart){
 	cart.axis[2] = r*std::cos(theta);
 }
 
-void Sphere2Cart(Vector3 sphere, Vector3 &cart){
+void Sphere2Cart(const Vector3 &sphere, Vector3 &cart){
 	cart.axis[0] = sphere.axis[0]*std::sin(sphere.axis[1])*std::cos(sphere.axis[2]);
 	cart.axis[1] = sphere.axis[0]*std::sin(sphere.axis[1])*std::sin(sphere.axis[2]); 
 	cart.axis[2] = sphere.axis[0]*std::cos(sphere.axis[1]);
@@ -803,29 +816,25 @@ void straggleA(double &theta, double energy, double Z, double A, double thicknes
 // transform.f
 /////////////////////////////////////////////////////////////////////
 
-void transform(double theta1, double phi1, double theta2, double phi2, double &theta, double &phi){ 
+// direction_ and new_direction should be in cartesian. CRT
+void transform(const Vector3 &direction_, double theta2, double phi2, Vector3 &new_direction){ 
 	// transform 2.0 written by S.D.Pain on 4/03/2005
 	//
 	// Subroutine for transforming the a spherical polar vector
 	// from one refernce frame to another.
 	// (theta2,phi2) is a vector in the master frame
-	// (theta1,phi1) is measured relative to (theta2,phi2).
-	// (theta,phi) is (theta1,phi1) in the master frame
+	// (direction_.axis[1],direction_.axis[2]) is measured relative to (theta2,phi2).
+	// (theta,phi) is (direction_.axis[1],direction_.axis[2]) in the master frame
 
 	double term1, term2, temp, x1, y1, x2, y2, x, y; 
-	double beamX, beamY, beamZ, dummy, pi; 
+	double beamX, beamY, beamZ, dummy; 
 	double dumtheta1, dumphi1, dumtheta2, dumphi2; 
-	bool swap; 
-	
-	swap = false; 
-	
-	pi = 3.1415926540; 
-	dummy = 1.0; 
+	bool swap = false; 
 	
 	// copy the input angles to different variables, and use the copies in
 	// the subroutine, as they get modified.
-	dumtheta1 = theta1; 
-	dumphi1 = phi1; 
+	dumtheta1 = direction_.axis[1]; 
+	dumphi1 = direction_.axis[2]; 
 	dumtheta2 = theta2; 
 	dumphi2 = phi2; 
 	
@@ -836,14 +845,6 @@ void transform(double theta1, double phi1, double theta2, double phi2, double &t
 	
 	if (dumtheta1 > (0.5*pi)){
 		swap = true; 
-		
-		// Doesn't appear that any transformation is needed here - perhaps
-		// worth checking, though...
-		//        call Sphere2Cart(dummy,theta2,phi2,beamX,beamY,beamZ)
-		//        beamX = -beamX
-		//        beamY = -beamY
-		//        beamZ = -beamZ
-		//        call Cart2Sphere(beamX,beamY,beamZ,dummy,theta2,phi2)
 		
 		Sphere2Cart(dummy,dumtheta1,dumphi1,beamX,beamY,beamZ); 
 		beamX = -beamX; 
@@ -856,7 +857,7 @@ void transform(double theta1, double phi1, double theta2, double phi2, double &t
 	// effective polar angle.
 	term1 = dumtheta1 + dumtheta2*(cos(dumphi2-dumphi1)); 
 	term2 = dumtheta2*(sin((dumphi2-dumphi1))); 
-	theta = sqrt(pow(term1, 2 )+pow( term2, 2) ); 
+	new_direction.axis[1] = sqrt(pow(term1, 2 )+pow( term2, 2) ); 
 	
 	x1 = dumtheta1*sin(dumphi1); 
 	y1 = dumtheta1*cos(dumphi1); 
@@ -867,26 +868,18 @@ void transform(double theta1, double phi1, double theta2, double phi2, double &t
 	y = y1+y2; 
 	
 	temp = x/(sqrt(pow(x, 2)+pow(y, 2)) ); 
-	phi = asin(temp); 
+	new_direction.axis[2] = asin(temp); 
 	
-	if (x>=0.0){ phi = acos(y/(std::sqrt(pow(x, 2)+pow(y, 2)))); } 
-	else{ phi = 2.0*3.14159-acos(y/(sqrt(pow(x, 2)+pow(y, 2)))); }
-	
-	// Keeps theta & phi within limits. Not needed, with reflection
-	// procedure
-	//      if(theta.gt.3.14159)then
-	//       theta = 2.0*3.14159-theta
-	//        phi = phi+3.14159
-	//        if(phi.gt.2.0*3.14159) phi = phi-2.0*3.14159
-	//      endif
+	if (x>=0.0){ new_direction.axis[2] = acos(y/(std::sqrt(pow(x, 2)+pow(y, 2)))); } 
+	else{ new_direction.axis[2] = 2.0*3.14159-acos(y/(sqrt(pow(x, 2)+pow(y, 2)))); }
 	
 	// If a reflection was made, reflect back again.
 	if (swap){
-		Sphere2Cart(dummy,theta,phi,beamX,beamY,beamZ); 
+		Sphere2Cart(dummy,new_direction.axis[1],new_direction.axis[2],beamX,beamY,beamZ); 
 		beamX = -beamX; 
 		beamY = -beamY; 
 		beamZ = -beamZ; 
-		Cart2Sphere(beamX,beamY,beamZ,dummy,theta,phi); 
+		Cart2Sphere(beamX,beamY,beamZ,dummy,new_direction.axis[1],new_direction.axis[2]); 
 	} 
 } 
 
@@ -923,7 +916,11 @@ void strag_targ(double A, double Z, double targ_thick, double theta_old, double 
 	phi_scat = frand()*2.0*pi; 
 	
 	// Determine the std::absolute lab angle to which the ion is scattered
-	transform(theta_old, phi_old, theta_scat, phi_scat, theta_new, phi_new); 
+	//transform(theta_old, phi_old, theta_scat, phi_scat, theta_new, phi_new); 
+	Vector3 temp;
+	transform(Vector3(1.0, theta_old, phi_old), theta_scat, phi_scat, temp);
+	theta_new = temp.axis[1];
+	phi_new = temp.axis[2];
 }
 
 /////////////////////////////////////////////////////////////////////

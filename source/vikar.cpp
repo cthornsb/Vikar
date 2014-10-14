@@ -56,6 +56,27 @@ std::string Parse(std::string input){
 	return output;
 }
 
+// Get a random vector inside a cone approximating the beam shape
+// spot_ is the beamspot size in m
+// thick_ is the target thickness in m
+// Zoffset_ is the distance from the center of the target to the beam focus point in cm
+// beam is the vector pointing from the beam focus to the intersect point at the surface of the target
+void RandomCone(double spot_, double Zoffset_, double thick_, Vector3 &beam){
+	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), Zoffset_-thick_/2.0);
+}
+
+// Get a random vector inside a perfectly cylindrical beam
+// spot_ is the beamspot size in m
+// thick_ is the target thickness in m
+// beam is a 2d vector (z=0) pointing from the z-axis to the target surface intersect
+void RandomCylinder(double spot_, Vector3 &beam){
+	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -100);
+}
+
 int main(int argc, char* argv[]){ 
 	// A Monte-Carlo charged particle experiment simulation program - details below
 	//
@@ -107,15 +128,20 @@ int main(int argc, char* argv[]){
 	double hit_x, hit_y, hit_z;
 	
 	Vector3 Ejectile, Gamma, HitDetect, HitDetectSphere, RecoilSphere;
-	
-	// Energy loss varibales
-	double tof;
-	double Zdepth; 
-	double Ereact;
+	Vector3 beam_focus; // The focus point for the beam. Beam particles will originate from this point (wrt the origin)
+	Vector3 beam_free; // The original trajectory of the beam particle before it enters the target
+	Vector3 beam_react; // The position of the reaction inside the target
+	Vector3 beam_react_direction; // The angular straggled trajectory of the beam particle just before the reaction occurs
+	Vector3 targ_surface; // The intersection point between the beam particle and the target surface (wrt beam focus)
+	Vector3 interaction; // The interaction point inside the target (wrt beam focus)
+
+	double tof; // Neutron time of flight (s)
+	double Zdepth; // Interaction depth inside of the target (cm)
+	double Ereact; // Energy at which the reaction occurs (MeV)
+	double range_beam;
 	
 	RangeTable beam_targ, eject_targ;
 	RangeTable eject_det, recoil_targ;
-	double dzBeam, range_beam;
 	
 	Target targ;
 	
@@ -130,7 +156,9 @@ int main(int argc, char* argv[]){
 	// Beam variables
 	double thetaBeam, phiBeam; // Incident beam particle direction
 	double thetaReact, phiReact; // Direction of beam particle at reaction (after straggling)
-	double beamspot, beamEspread; // Beamspot size FWHM (mm)
+	double beamspot; // Beamspot diameter (m) (on the surface of the target)
+	double beamEspread; // Beam energy spread (MeV)
+	double beamAngdiv; // Beam angular divergence (radians)
 
 	double timeRes = 3E-9;
 	double energyRes;
@@ -152,11 +180,11 @@ int main(int argc, char* argv[]){
 	bool SimGamma, WriteRecoil, WriteDebug;
 
 	unsigned int Ndet;
-	bool PerfectDet, DetSetup, ADists, SupplyRates;
+	bool PerfectDet, DetSetup, ADists;
+	bool SupplyRates, use_beam_focus;
 	short idummy;
 
 	// Error reporting variables
-	float version;
 	std::string SRIM_fName, SRIM_fName_beam, SRIM_fName_targ_eject, SRIM_fName_targ_recoil;
 	std::string SRIM_fName_det_eject, SRIM_fName_det_recoil;
 
@@ -177,7 +205,7 @@ int main(int argc, char* argv[]){
 	std::cout << "     ## ##         ##     ##      ##     ##         ##   ##      ##    ##\n";
 	std::cout << "      ###       ######## ####      ###  ####       #### ####      ### ###########\n";
 
-	std::cout << "\n VANDLE VIKAR 1.1\n"; 
+	std::cout << "\n VANDLE VIKAR 1.11\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
 	
 	std::cout << " Welcome to NewVIKAR, the Virtual Instrumentation for Kinematics\n"; 
@@ -205,9 +233,8 @@ int main(int argc, char* argv[]){
 			getline(input_file, input); input = Parse(input);
 			if(input_file.eof()){ break; }
 			if(count == 0){ 
-				version = atof(input.c_str()); 
-				std::cout << "  Version: " << version << std::endl;
-				if(version != 1.1f){ 
+				std::cout << "  Version: " << input << std::endl;
+				if(input != "1.11"){ 
 					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
 				}
 			}
@@ -246,17 +273,22 @@ int main(int argc, char* argv[]){
 			else if(count == 8){ 
 				beamspot = atof(input.c_str());  
 				std::cout << "  Beam Spot Size: " << beamspot << " mm\n";
-				beamspot *= 0.001; // in meters
+				beamspot = beamspot/1000.0; // in meters
 			}
 			else if(count == 9){ 
+				beamAngdiv = atof(input.c_str());  
+				std::cout << "  Beam Angular Divergence: " << beamAngdiv << " degrees\n";
+				beamAngdiv *= deg2rad; // in radians
+			}
+			else if(count == 10){ 
 				beamEspread = atof(input.c_str());  
 				std::cout << "  Beam Spread: " << beamEspread << " MeV\n";
 			}
-			else if(count == 10){ 
+			else if(count == 11){ 
 				gsQvalue = atof(input.c_str());  
 				std::cout << "  G.S. Q-Value: " << gsQvalue << " MeV\n";
 			}
-			else if(count == 11){ 
+			else if(count == 12){ 
 				// Recoil excited state information
 				NRecoilStates = atoi(input.c_str()) + 1;
 				std::cout << "  No. Excited States: " << NRecoilStates-1 << std::endl;
@@ -270,7 +302,7 @@ int main(int argc, char* argv[]){
 					totXsect[i] = 0.0;
 				}
 			}
-			else if(count == 12){ 
+			else if(count == 13){ 
 				// Angular distribution information
 				idummy = atoi(input.c_str());
 				if(idummy == 1){ ADists = true; }
@@ -307,22 +339,22 @@ int main(int argc, char* argv[]){
 					SupplyRates = false;
 				}
 			}
-			else if(count == 13){ 
+			else if(count == 14){ 
 				// Target thickness
 				targ.SetThickness((double)atof(input.c_str()));
-				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";
+				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";			
 			}
-			else if(count == 14){ 
+			else if(count == 15){ 
 				// Target density
 				targ.SetDensity((double)atof(input.c_str()));
 				std::cout << "  Target Density: " << targ.GetDensity() << " g/cm^3\n";
 			}
-			else if(count == 15){ 
+			else if(count == 16){ 
 				// Target angle wrt beam axis
 				targ.SetAngle((double)atof(input.c_str())*deg2rad);
 				std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
 			}
-			else if(count == 16){ 
+			else if(count == 17){ 
 				// Target information
 				unsigned int num_elements = (unsigned int)atoi(input.c_str());
 				unsigned int num_per_molecule[num_elements];
@@ -341,7 +373,7 @@ int main(int argc, char* argv[]){
 				targ.SetElements(num_per_molecule, element_Z, element_A);
 				std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
 			}
-			else if(count == 17){ 
+			else if(count == 18){ 
 				// Load the small, medium, and large bar efficiencies
 				// Efficiency index 0 is the underflow efficiency (for energies below E[0])
 				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
@@ -365,7 +397,7 @@ int main(int argc, char* argv[]){
 				}
 				else{ std::cout << "Yes\n"; }
 			}
-			else if(count == 18){ 
+			else if(count == 19){ 
 				// Supply detector setup file?
 				idummy = atoi(input.c_str());
 				if(idummy == 1){ DetSetup = true; }
@@ -379,12 +411,12 @@ int main(int argc, char* argv[]){
 				}
 				else{ std::cout << "No\n"; }
 			}
-			else if(count == 19){ 
+			else if(count == 20){ 
 				// Desired number of detections
 				Nwanted = atol(input.c_str());
 				std::cout << "  Desired Detections: " << Nwanted << std::endl; 
 			}
-			else if(count == 20){
+			else if(count == 21){
 				// Simulate prompt gamma flash?
 				idummy = atoi(input.c_str());
 				if(idummy == 1){ SimGamma = true; }
@@ -393,7 +425,7 @@ int main(int argc, char* argv[]){
 				if(SimGamma){ std::cout << "Yes\n"; }
 				else{ std::cout << "No\n"; }
 			}
-			else if(count == 21){
+			else if(count == 22){
 				// Write Recoil data to file?
 				idummy = atoi(input.c_str());
 				if(idummy == 1){ WriteRecoil = true; }
@@ -402,7 +434,7 @@ int main(int argc, char* argv[]){
 				if(WriteRecoil){ std::cout << "Yes\n"; }
 				else{ std::cout << "No\n"; }
 			}
-			else if(count == 22){
+			else if(count == 23){
 				// Write Debug data to file?
 				idummy = atoi(input.c_str());
 				if(idummy == 1){ WriteDebug = true; }
@@ -440,6 +472,15 @@ int main(int argc, char* argv[]){
 		else{ std::cout << "  Type yes or no\n"; }
 	}
 
+	if(beamAngdiv >= pi/100.0){
+		beam_focus = Vector3(0.0, 0.0, -(beamspot/std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
+		use_beam_focus = true;
+	}
+	else{
+		std::cout << " Note: Beam angular divergence is too small, using a cylindrical beam instead\n";
+		use_beam_focus = false;
+	}
+
 	// Calculate the stopping power table for the beam particles in the target
 	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
 		std::cout << " Calculating range tables for beam in target...";
@@ -449,7 +490,6 @@ int main(int argc, char* argv[]){
 	
 	// Calculate the stopping power table for the ejectiles in the target
 	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
-		double dummy1, dummy2, rangemg, step;
 		std::cout << " Calculating range tables for ejectile in target...";
 		eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Aeject, Zeject, &targ);
 		std::cout << " done\n";
@@ -601,8 +641,6 @@ int main(int argc, char* argv[]){
 	bool hit;
 	timer = clock();
 	
-	Vector3 interaction;
-
 	while(Ndetected < Nwanted){
 		// ****************Time Estimate**************
 		if(flag && (Ndetected % chunk == 0)){
@@ -627,29 +665,41 @@ int main(int argc, char* argv[]){
 		}
 		Nsimulated++; 
 		
-		// Calculate where the beam particle hits the target inside the 
+		// Simulate a beam particle before entering the target
+		// Randomly select a point uniformly distributed on the beamspot
+		// Calculate where the beam particle reacts inside the target
 		// beamspot as well as the distance traversed through the target
-		// The sqrt ensures that the point is uniformly distributed on the beamspot
-		Zdepth = targ.GetInteractionPoint(std::sqrt(frand()*beamspot), UnitCircleRandom(), interaction);
+		if(use_beam_focus){ 
+			// Beam particles originate from a fixed point (beam_focus)
+			RandomCone(beamspot, beam_focus.axis[2], targ.GetRealThickness(), beam_free);
+			
+			// In this case, beam_focus is the originating point of the beam particle
+			// The direction is given by the vector beam_free
+			Zdepth = targ.GetInteractionDepth(beam_focus, beam_free, targ_surface, beam_react);
+		}
+		else{ 
+			// Beam particles originate from infinity
+			RandomCylinder(beamspot, beam_free); 
+			
+			// In this case, beam_free is the intersect point on the surface of the target
+			// The direction is given simply by the +z-axis
+			Zdepth = targ.GetInteractionDepth(beam_free, Vector3(0.0, 0.0, 1.0), targ_surface, beam_react);
+		}	
 
-		// Set the beam direction to (0,0,1) i.e. along the z axis
-		// Calculate thickness traversed by the beam particle (Zdepth), dependent on the target angle.
-		//targ_thick(0.0,pi/2.0,targ.GetThickness(),targ.GetThickness()*(1-frand()),targ.GetAngle(),Zdepth);
-
-		// Calculate the beam particle energy, varied with energy spread
+		// Calculate the beam particle energy, varied with energy spread (in MeV)
 		Ebeam = Ebeam0 + rndgauss0(beamEspread); 
 
-		// Calculate the beam particle range in the target
-		//range_beam = beam_targ.GetRange(Ebeam);
+		// Calculate the beam particle range in the target (in m)
+		range_beam = beam_targ.GetRange(Ebeam);
 		
 		// Calculate the new energy
-		//Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
-		//Ereact = Ebeam; // Remove beam particle energy loss effects
-		Ereact = targ.GetEnergy(Ebeam, Zdepth*targ.GetRealZthickness(), Zbeam, Abeam);
+		if(range_beam - Zdepth <= 0.0){ continue; } // The beam stops in the target (no reaction)
+		Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
 		
 		// Determine the angle of the beam particle's trajectory at the
 		// interaction point, due to angular straggling and the incident trajectory.
-		strag_targ(Abeam, Zbeam, Zdepth, 0.0, pi/2.0, Ebeam, thetaReact, phiReact, targ.GetRadLength()); 
+		if(use_beam_focus){ targ.AngleStraggling(beam_free, Abeam, Zbeam, Ebeam, Zdepth, beam_react_direction); }
+		else{ targ.AngleStraggling(Vector3(0.0, 0.0, 1.0), Abeam, Zbeam, Ebeam, Zdepth, beam_react_direction); }
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
 		if(WriteRecoil || SimGamma){ 
@@ -665,7 +715,7 @@ int main(int argc, char* argv[]){
 		
 		Sphere2Cart(HitDetectSphere, Ejectile); // HitDetectSphere is a unit vector (no need to normalize)
 		if(WriteDebug){ 
-			DEBUGdata.Set(Zdepth*targ.GetRealZthickness(), Ebeam, Ereact);
+			DEBUGdata.Set(beam_react.axis[0], beam_react.axis[1], beam_react.axis[2]);
 			DEBUGtree->Fill();
 		}
 
@@ -679,7 +729,7 @@ int main(int argc, char* argv[]){
 		// Process the ejectile
 		for(unsigned int bar = 0; bar < Ndet; bar++){
 			face = -1;
-			face = vandle_bars[bar].FaceIntersect(Ejectile, HitDetect, hit_x, hit_y, hit_z);
+			face = vandle_bars[bar].FaceIntersect(beam_react, Ejectile, HitDetect, hit_x, hit_y, hit_z);
 			if(face != -1){
 				// Geometric hit detected
 				NbarHit++;
@@ -728,11 +778,11 @@ int main(int argc, char* argv[]){
 						Ndetected++;
 						if(!flag){ flag = true; }
 					}
-				}
+				} // if(hit)
 
 				break;
-			}
-		}
+			} // if(face != -1)
+		} // for(unsigned int bar = 0; bar < Ndet; bar++)
 
 	} // Main simulation loop
 	// ==  ==  ==  ==  ==  ==  == 

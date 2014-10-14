@@ -1,4 +1,4 @@
-1.1			# Vikar input file version number
+1.11		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -6,7 +6,8 @@
 0			# Ejectile Z
 1			# Ejectile A
 30.30		# Beam energy (MeV)
-10.00		# Beam spot size (mm)
+10.00		# Beam spot size diameter (mm)
+0.00		# Beam angular divergence (degrees)
 0.8			# Beam energy spread (MeV)
 -2.085		# Ground state Q-value
 2			# Number of excited states
@@ -29,7 +30,7 @@
 /home/cory/Research/VANDLE/Vikar/efficiency/Large.eff	# Large bar efficiency file
 1			# Supply detector setup file?
 /home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det	# Detector setup filename
-10		# Number of detections
+1000		# Number of detections
 0			# Detect prompt gammas?
 1			# Write recoil to output?
 1			# Write debug info to output?

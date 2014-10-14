@@ -51,11 +51,8 @@ bool RangeTable::Init(unsigned int num_entries_, double startE, double stopE, do
 	double step = (stopE-startE)/(num_entries-1);
 	for(unsigned int i = 0; i < num_entries; i++){
 		ncdedx(tgt_dens, targA, targZ, A, Z, (startE+i*step), dummy1, dummy2, rangemg);
-		energy[i] = startE + i*step;
-		range[i] = rangemg;
-		//abeam*931.4812,energy,zbeam
-		//std::cout << startE+i*step << "\t" << startE+i*step/rangemg << "\t" << targ->GetStoppingPower(startE+i*step, Z, A) << std::endl;
-		std::cout << startE+i*step << "\t" << dedx(A*931.4812,startE+i*step,Z) << "\t" << targ->GetStoppingPower(startE+i*step, Z, A) << std::endl;
+		energy[i] = startE + i*step; // Energy in MeV
+		range[i] = rangemg/(tgt_dens*1E5); // Range in m
 	}
 
 	return true;
@@ -255,7 +252,7 @@ double Efficiency::GetLargeEfficiency(double Energy){
 /////////////////////////////////////////////////////////////////////
 
 void Target::_initialize(){
-	density = 0.0;
+	density = 1.0;
 	thickness = 0.0;
 	Zthickness = 0.0;
 	angle = 0.0;
@@ -303,9 +300,20 @@ bool Target::Init(unsigned int num_elements_){
 	}
 
 	rad_length = 0.0;
-	
+		
 	init = true;
 	return true;
+}
+
+void Target::SetThickness(double thickness_){ 
+	thickness = thickness_;	
+	physical.SetSize(1.0, 1.0, (thickness/density)*1E-5); // Only the thickness matters
+}
+
+void Target::SetAngle(double angle_){
+	angle = angle_;	
+	Zthickness = dabs(thickness / std::cos(angle));
+	physical.SetBarRotation(angle, 0.0, 0.0);
 }
 
 void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_){
@@ -337,14 +345,52 @@ void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_
 	rad_length = 1.0/rad_length; 
 }
 
-double Target::GetInteractionPoint(double r_, double angle_, Vector3 &point){
-	point.axis[0] = r_ * std::sin(angle_); // The x coordinate of the interaction point
-	point.axis[1] = r_ * std::cos(angle_); // The y coordinate of the interaction point
-	
-	// The z coordinate cooresponds to the z position on the surface of the target plus a random distance into the target
-	double zdist = Zthickness*frand();
-	point.axis[2] = point.axis[0]*std::tan(angle_) + zdist;
+// Get the depth into the target at which the reaction occurs
+// offset_ is the global position where the beam particle originates
+// direction_ is the direction of the beam particle entering the target
+// intersect is the global position where the beam particle intersects the front face of the target
+// interact is the global position where the beam particle reacts inside the target
+double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){	
+	Vector3 temp;
+	double zdist = physical.GetApparentThickness(offset_, direction_, 0, 2, intersect, temp); // The target thickness the ray sees
+	if(zdist == -1.0){ std::cout << " Negative apparent thickness!\n"; }
+	zdist *= frand(); // Reaction occurs at a random depth into the target
+	interact = intersect + direction_*zdist;
 	return zdist; 
+}
+
+// Determine the new direction of a particle inside the target due to angular straggling
+// direction_ and new_direction have x,y,z format and are measured in meters
+void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, double E_, double depth_, Vector3 &new_direction){
+	// strag_targ 1.0 written by S.D.Pain on 20/01/2004
+	//
+	// strag_targ 1.1 modified by S.D.Pain on 7/03/2005
+	// to untilise transform2.0
+	//
+	// Subroutine to calculate the angular straggling of an ion in
+	// the target. The A,Z of the ion are read in, along with the
+	// theta,phi and energy of the ion. The average radiation length
+	// of the target material is read in as X.
+	//
+	// The calculation of the width of the scattering distribution
+	// is calculated by straggleA. A Gaussian weighted scattering angle
+	// based on this width is calculated, using rndgauss0
+	//
+	// The new theta,phi to which the ion is scattered is returned.
+		
+	double theta_scatW; 
+	double theta_scat, phi_scat; 
+	
+	// Calculate the straggling width
+	straggleA(theta_scatW, E_, Z_, A_, thickness, rad_length); 
+	
+	// Select the scattering angle of the ion wrt its initial direction
+	theta_scat = rndgauss0(theta_scatW); 
+	theta_scat = std::sqrt(pow(theta_scat, 2.0)*2.0); 
+	phi_scat = frand()*2.0*pi; 
+	
+	// Determine the std::absolute lab angle to which the ion is scattered
+	transform(direction_, theta_scat, phi_scat, new_direction);
 }
 
 // This function returns the stopping power of the target for a given energy in units of MeV/m

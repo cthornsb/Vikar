@@ -29,19 +29,19 @@ struct Vector3{
 	
 	Vector3(){ axis[0] = 0.0; axis[1] = 0.0; axis[2] = 0.0; }
 	Vector3(double x, double y, double z){ axis[0] = x; axis[1] = y; axis[2] = z; }
-	void operator = (Vector3);
-	void operator += (Vector3);
-	void operator -= (Vector3);
-	void operator *= (double);
-	Vector3 operator + (Vector3);
-	Vector3 operator - (Vector3);
-	Vector3 operator * (double);
-	double Dot(Vector3);
-	Vector3 Cross(Vector3);
-	double Length();
-	double Distance(Vector3);
+	const Vector3& operator = (const Vector3&);
+	const Vector3& operator += (const Vector3&);
+	const Vector3& operator -= (const Vector3&);
+	const Vector3& operator *= (const double&);
+	Vector3 operator + (const Vector3&) const ;
+	Vector3 operator - (const Vector3&) const ;
+	Vector3 operator * (const double&) const ;
+	double Dot(const Vector3 &) const ;
+	Vector3 Cross(const Vector3 &) const ;
+	double Length() const ;
+	double Distance(const Vector3 &) const ;
 	double Normalize();
-	void Dump();
+	std::string Dump() const ;
 };
 
 class AngularDist{
@@ -128,6 +128,7 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+double Dist3d(const Vector3&, const Vector3&);
 double dabs(double);
 double min(double, double);
 double max(double, double);
@@ -139,7 +140,7 @@ double WrapValue(double, double, double);
 unsigned int GetLines(const char*);
 void Cart2Sphere(double, double, double, double&, double&, double&);
 void Cart2Sphere(double, double, double, Vector3&);
-void Cart2Sphere(Vector3, Vector3&);
+void Cart2Sphere(const Vector3&, Vector3&);
 double beta2(double, double);
 double btoep(double);
 double zeff(double, double);
@@ -158,10 +159,10 @@ double rndgauss0(double);
 void rndgauss1(double&, double&, double&, double&, double&);
 void Sphere2Cart(double, double, double, double&, double&, double&);
 void Sphere2Cart(double, double, double, Vector3&);
-void Sphere2Cart(Vector3, Vector3&);
+void Sphere2Cart(const Vector3&, Vector3&);
 double velocity(double, double);
 void straggleA(double&, double, double, double, double, double);
-void transform(double, double, double, double, double&, double&);
+void transform(const Vector3&, double, double, Vector3&);
 void strag_targ(double, double, double, double, double, double, double&, double&, double);
 void targ_thick(double, double, double, double, double, double&);
 void unitV(double, double, double, double&, double&, double&, double&);
