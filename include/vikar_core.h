@@ -128,6 +128,8 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+std::string Parse(std::string input);
+void Parse(std::string input, float *arr, unsigned int num_values);
 double Dist3d(const Vector3&, const Vector3&);
 double dabs(double);
 double min(double, double);

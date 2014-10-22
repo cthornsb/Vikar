@@ -166,6 +166,18 @@ double AngularDist::Sample(){
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+// Parse an input string and return text up to the first 
+// occurance of white space or the first occurance of a '#'
+std::string Parse(std::string input){
+	std::string output = "";
+	for(unsigned int i = 0; i < input.size(); i++){
+		if(input[i] == ' ' || input[i] == '\t' || input[i] == '#'){ break; }
+		output += input[i];
+	}
+	return output;
+}
+
+// Double absolute value
 double dabs(double value){
 	if(value < 0){ return -1.0*value; }
 	return value;

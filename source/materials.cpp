@@ -313,7 +313,7 @@ void Target::SetThickness(double thickness_){
 void Target::SetAngle(double angle_){
 	angle = angle_;	
 	Zthickness = dabs(thickness / std::cos(angle));
-	physical.SetBarRotation(angle, 0.0, 0.0);
+	physical.SetRotation(angle, 0.0, 0.0);
 }
 
 void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_){

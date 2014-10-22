@@ -21,9 +21,9 @@ const Vector3 zero_vector = Vector3(0.0, 0.0, 0.0);
 
 // Default constructor
 Planar::Planar(){
-	barX = Vector3(1.0, 0.0, 0.0);
-	barY = Vector3(0.0, 1.0, 0.0);
-	barZ = Vector3(0.0, 0.0, 1.0);
+	detX = Vector3(1.0, 0.0, 0.0);
+	detY = Vector3(0.0, 1.0, 0.0);
+	detZ = Vector3(0.0, 0.0, 1.0);
 	length = 1.0;
 	width = 1.0;
 	depth = 1.0;
@@ -31,57 +31,43 @@ Planar::Planar(){
 	med = false;
 	large = false;
 	need_set = true;
+	is_cylinder = false;
+	use_recoil = false;
+	type = "unknown";
+	subtype = "unknown";
 }
 
 // Set the global face coordinates (wrt global origin)
 // Each vertex is the center coordinate of one of the faces 
 void Planar::_set_face_coords(){
 	// Calculate the center points of each face
-	GlobalFace[0] = position-barZ*(depth/2.0); // Front face
-	GlobalFace[1] = position+barX*(width/2.0); // Right face
-	GlobalFace[2] = position+barZ*(depth/2.0); // Back face
-	GlobalFace[3] = position-barX*(width/2.0); // Left face
-	GlobalFace[4] = position+barY*(length/2.0); // Top face
-	GlobalFace[5] = position-barY*(length/2.0); // Bottom face
-	
-	// Calculate the vertices for all six faces
-	// This array will contain duplicate data for simplified calculations later
-	// Vertices are indexed from top left clockwise about the normal of the face
-	/*GlobalVertex[0][0] = GlobalFace[0] - barX*(width/2.0) + barY*(length/2.0); // -x +y
-	GlobalVertex[0][1] = GlobalFace[0] + barX*(width/2.0) + barY*(length/2.0); // +x +y
-	GlobalVertex[0][2] = GlobalFace[0] + barX*(width/2.0) - barY*(length/2.0); // +x -y
-	GlobalVertex[0][3] = GlobalFace[0] - barX*(width/2.0) - barY*(length/2.0); // -x -y
-
-	GlobalVertex[2][0] = GlobalFace[2] + barX*(width/2.0) + barY*(length/2.0); // +x +y
-	GlobalVertex[2][1] = GlobalFace[2] + barX*(width/2.0) - barY*(length/2.0); // +x -y
-	GlobalVertex[2][2] = GlobalFace[2] - barX*(width/2.0) - barY*(length/2.0); // -x -y
-	GlobalVertex[2][3] = GlobalFace[2] - barX*(width/2.0) + barY*(length/2.0); // -x +y
-	
-	GlobalVertex[1] = {GlobalVertex[0][1], GlobalVertex[1][0], GlobalVertex[1][3], GlobalVertex[0][2]}; // +y -z | +y +z | -y +z | -y -z
-	GlobalVertex[3] = {GlobalVertex[1][1], GlobalVertex[0][0], GlobalVertex[0][3], GlobalVertex[1][2]}; // +y +z | +y -z | -y -z | -y +z
-	GlobalVertex[4] = {GlobalVertex[1][1], GlobalVertex[1][0], GlobalVertex[0][1], GlobalVertex[0][0]}; // -x +z | +x +z | +x -z | -x -z
-	GlobalVertex[5] = {GlobalVertex[1][3], GlobalVertex[1][2], GlobalVertex[0][3], GlobalVertex[0][2]}; // -x +z | +x +z | +x -z | -x -z*/
+	GlobalFace[0] = position-detZ*(depth/2.0); // Front face
+	GlobalFace[1] = position+detX*(width/2.0); // Right face
+	GlobalFace[2] = position+detZ*(depth/2.0); // Back face
+	GlobalFace[3] = position-detX*(width/2.0); // Left face
+	GlobalFace[4] = position+detY*(length/2.0); // Top face
+	GlobalFace[5] = position-detY*(length/2.0); // Bottom face
 
 	need_set = false;
 }
 
 // Return the unit vector of one of the faces. Returns the zero vector if the face is undefined
-void Planar::GetUnitVector(unsigned short face_, Vector3 &unit){
-	if(face_ == 0){ unit = barZ; } // +z local axis face (front)
-	else if(face_ == 1){ unit = barX; } // +x local axis (right)
-	else if(face_ == 2){ unit = barZ; unit *= -1; } // -z local axis (back)
-	else if(face_ == 3){ unit = barX; unit *= -1; } // -x local axis (left)
-	else if(face_ == 4){ unit = barY; } // +y local axis (top)
-	else if(face_ == 5){ unit = barY; unit *= -1; } // -y local axis (bottom)
+void Planar::GetUnitVector(unsigned int face_, Vector3 &unit){
+	if(face_ == 0){ unit = detZ; } // +z local axis face (front)
+	else if(face_ == 1){ unit = detX; } // +x local axis (right)
+	else if(face_ == 2){ unit = detZ; unit *= -1; } // -z local axis (back)
+	else if(face_ == 3){ unit = detX; unit *= -1; } // -x local axis (left)
+	else if(face_ == 4){ unit = detY; } // +y local axis (top)
+	else if(face_ == 5){ unit = detY; unit *= -1; } // -y local axis (bottom)
 	else{ unit = Vector3(0.0, 0.0, 0.0); }
 }	
 
 // Return the local bar frame coordinates of a global coordinate
 void Planar::GetLocalCoords(const Vector3 &world_coords, double &x, double &y, double &z){
 	Vector3 temp = (world_coords - position);
-	x = temp.Dot(barX);
-	y = temp.Dot(barY);
-	z = temp.Dot(barZ);
+	x = temp.Dot(detX);
+	y = temp.Dot(detY);
+	z = temp.Dot(detZ);
 }
 
 // Set the physical size of the bar
@@ -117,16 +103,16 @@ void Planar::SetPolarPosition(double r, double theta, double phi){
 
 // Get the local unit vectors using 3d matrix rotation
 // X and Y are face axes, Z is the axis into or out of the bar
-void Planar::SetBarRotation(double theta_, double phi_, double psi_){
+void Planar::SetRotation(double theta_, double phi_, double psi_){
 	theta = theta_; phi = phi_; psi = psi_;
 
 	/*double sin_theta = std::sin(theta); double cos_theta = std::cos(theta);
 	double sin_phi = std::sin(phi); double cos_phi = std::cos(phi);
 	double sin_psi = std::sin(psi); double cos_psi = std::cos(psi);
 	
-	barX = Vector3(cos_psi*cos_phi-cos_theta*sin_phi*sin_psi, cos_psi*sin_phi+cos_theta*cos_phi*sin_psi, sin_psi*sin_theta); // Width axis
-	barY = Vector3(-sin_psi*cos_phi-cos_theta*sin_phi*cos_psi, -sin_psi*sin_phi+cos_theta*cos_phi*cos_psi, cos_psi*sin_theta); // Length axis
-	barZ = Vector3(sin_theta*sin_phi, -sin_theta*cos_phi, cos_theta);  // Depth axis*/
+	detX = Vector3(cos_psi*cos_phi-cos_theta*sin_phi*sin_psi, cos_psi*sin_phi+cos_theta*cos_phi*sin_psi, sin_psi*sin_theta); // Width axis
+	detY = Vector3(-sin_psi*cos_phi-cos_theta*sin_phi*cos_psi, -sin_psi*sin_phi+cos_theta*cos_phi*cos_psi, cos_psi*sin_theta); // Length axis
+	detZ = Vector3(sin_theta*sin_phi, -sin_theta*cos_phi, cos_theta);  // Depth axis*/
 	
 	double sin_theta = std::sin(theta); double cos_theta = std::cos(theta);
 	double sin_phi = std::sin(phi); double cos_phi = std::cos(phi);
@@ -136,46 +122,45 @@ void Planar::SetBarRotation(double theta_, double phi_, double psi_){
 	// Rotate by angle theta about the y-axis
 	//  angle phi about the z-axis
 	//  angle psi about the x-axis
-	barX = Vector3(cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta); // Width axis
-	barY = Vector3(sin_psi*sin_theta*cos_phi-cos_psi*sin_phi, sin_psi*sin_theta*sin_phi+cos_psi*cos_phi, cos_theta*sin_psi); // Length axis
-	barZ = Vector3(cos_psi*sin_theta*cos_phi+sin_psi*sin_phi, cos_psi*sin_theta*sin_phi-sin_psi*cos_phi, cos_theta*cos_psi); // Depth axis
+	detX = Vector3(cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta); // Width axis
+	detY = Vector3(sin_psi*sin_theta*cos_phi-cos_psi*sin_phi, sin_psi*sin_theta*sin_phi+cos_psi*cos_phi, cos_theta*sin_psi); // Length axis
+	detZ = Vector3(cos_psi*sin_theta*cos_phi+sin_psi*sin_phi, cos_psi*sin_theta*sin_phi-sin_psi*cos_phi, cos_theta*cos_psi); // Depth axis
 	
 	// Normalize the unit vectors
-	barX.Normalize(); barY.Normalize(); barZ.Normalize();
+	detX.Normalize(); detY.Normalize(); detZ.Normalize();
 	need_set = true;    		
 }
 
 // Manually set the local bar unit vectors
-// I would advise against this, use SetBarRotation instead
+// I would advise against this, use SetRotation instead
 // Note: This method does not update the bar rotation values
 //  and should therefore only be used for testing and debugging
 void Planar::SetUnitVectors(const Vector3 &unitX, const Vector3 &unitY, const Vector3 &unitZ){
-	barX = unitX; barY = unitY; barZ = unitZ;
-	barX.Normalize(); barY.Normalize(); barZ.Normalize();
+	detX = unitX; detY = unitY; detZ = unitZ;
+	detX.Normalize(); detY.Normalize(); detZ.Normalize();
 	need_set = true;
 }
 
 // Check if a point (in local coordinates) is within the bounds of the primitive
 // Return true if the coordinates are within the primitive and false otherwise
-bool Planar::CheckBounds(unsigned short face_, double x_, double y_, double z_){
-	if(face_ == 0){ // Front face (upstream)
-		if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
+bool Planar::CheckBounds(unsigned int face_, double x_, double y_, double z_){
+	if(!is_cylinder){ // Standard planar detector
+		if(face_ == 0 || face_ == 2){ // Front face (upstream) or back face (downstream)
+			if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
+		}
+		else if(face_ == 1 || face_ == 3){ // Right face (beam-right) or left face (beam-left)
+			if((z_ >= -depth/2.0 && z_ <= depth/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
+		}
+		else if(face_ == 4 || face_ == 5){ // Top face (+y) or bottom face (-y)
+			if((x_ >= -width/2.0 && x_ <= width/2.0) && (z_ >= -depth/2.0 && z_ <= depth/2.0)){ return true; }
+		}
 	}
-	else if(face_ == 1){ // Right face (beam-right)
-		if((z_ >= -depth/2.0 && z_ <= depth/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
+	else{
+		if(face_ == 0 || face_ == 2){
+			if(std::sqrt(x_*x_+y_*y_) <= width/2.0){ return true; }
+		}
 	}
-	else if(face_ == 2){ // Back face (downstream)
-		if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
-	}
-	else if(face_ == 3){ // Left face (beam-left)
-		if((z_ >= -depth/2.0 && z_ <= depth/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
-	}
-	else if(face_ == 4){ // Top face (+y)
-		if((x_ >= -width/2.0 && x_ <= width/2.0) && (z_ >= -depth/2.0 && z_ <= depth/2.0)){ return true; }
-	}
-	else if(face_ == 5){ // Bottom face (-y)
-		if((x_ >= -width/2.0 && x_ <= width/2.0) && (z_ >= -depth/2.0 && z_ <= depth/2.0)){ return true; }
-	}
+	
 	return false;	
 }
 
@@ -187,7 +172,7 @@ bool Planar::CheckBounds(unsigned short face_, double x_, double y_, double z_){
 // face 3 is along the -x local axis
 // face 4 is along the +y local axis
 // face 5 is along the -y local axis
-bool Planar::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned short face_, Vector3 &P){
+bool Planar::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
 	if(need_set){ _set_face_coords(); }
 	
 	Vector3 unit;
@@ -195,6 +180,9 @@ bool Planar::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, u
 	
 	// The ray vector has the parametric form ray = offset_ + t*direction_
 	// First find the intersection points between the ray and a plane containing the face polygon
+	//double denom = direction_.Dot(unit);
+	//if(denom < 1E-8){ return false; }
+	
 	double t = (GlobalFace[face_].Dot(unit)-offset_.Dot(unit))/(direction_.Dot(unit));
 	P = offset_ + direction_*t; // The intersection point on the plane
 	
@@ -204,7 +192,7 @@ bool Planar::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, u
 
 // Determine if a ray from the origin intersected a face of the bar
 // and return the face id number. Return -1 if no intersection was found
-short Planar::FaceIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, double &px, double &py, double &pz){
+int Planar::FaceIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, double &px, double &py, double &pz){
 	if(need_set){ _set_face_coords(); }
 	
 	// Check the Front face (Normal to local +z axis)
@@ -245,7 +233,7 @@ short Planar::FaceIntersect(const Vector3 &offset_, const Vector3 &direction_, V
 // Check for an intersect with the top or bottom faces.
 // In order to save time, you would normally not want to check
 // this because the PMTs will block the top and bottom faces
-short Planar::TopBotIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, double &px, double &py, double &pz){
+int Planar::TopBotIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, double &px, double &py, double &pz){
 	if(need_set){ _set_face_coords(); }
 	
 	// Check the Top face (Normal to local +y axis)
@@ -273,31 +261,35 @@ short Planar::TopBotIntersect(const Vector3 &offset_, const Vector3 &direction_,
 // P1 is the first intersection point in global coordinates
 // P2 is the second intersection point in global coordinates
 // Return true if the primitive is intersected, and false otherwise
-bool Planar::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2, short &face1, short &face2){
+bool Planar::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2, 
+								int &face1, int &face2, double &px, double &py, double &pz){
 	if(need_set){ _set_face_coords(); }
 	
-	short face_count = 0;
-	double px, py, pz;
+	double px2, py2, pz2;
+	int face_count = 0;
 	Vector3 ray, unit;
-	for(unsigned short i = 0; i < 6; i++){
+	for(unsigned int i = 0; i < 6; i++){
 		GetUnitVector(i, unit);
 		if(PlaneIntersect(offset_, direction_, i, ray)){ // The ray intersects the plane containing this face
 			// Transform the intersection point into local coordinates and check if they're within the bounds
-			GetLocalCoords(ray, px, py, pz);
-			if(CheckBounds(i, px, py, pz)){ // The face was struck
+			GetLocalCoords(ray, px2, py2, pz2);
+			if(CheckBounds(i, px2, py2, pz2)){ // The face was struck
 				if(face_count == 0){ 
+					px = px2; py = py2; pz = pz2;
 					P1 = ray; 
 					face1 = i; 
 				}
 				else if(face_count == 1){ 
 					P2 = ray; 
 					face2 = i; 
+					
+					if(P2.Length() < P1.Length()){ px = px2; py = py2; pz = pz2; } // Ensure we get the hit on the plane facing the target
 					//break;
 				}
 				face_count++;
 			}
 		} // if(PlaneIntersect(offset_, direction_, i, ray))
-	} // for(unsigned short i = 0; i < 6; i++)
+	} // for(unsigned int i = 0; i < 6; i++)
 	
 	if(face_count == 2){ return true; }
 	else if(face_count == 0){ return false; }
@@ -307,7 +299,7 @@ bool Planar::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction
 
 // Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
 // Return -1 if the ray does not travel through both faces
-double Planar::GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, unsigned short f1_, unsigned short f2_, Vector3 &intersect1, Vector3 &intersect2){
+double Planar::GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, unsigned int f1_, unsigned int f2_, Vector3 &intersect1, Vector3 &intersect2){
 	if(f1_ > 5 || f2_ > 5){ return -1; } // Invalid face number
 	if(need_set){ _set_face_coords(); }
 	double px, py, pz;
@@ -334,7 +326,7 @@ double Planar::GetApparentThickness(const Vector3 &offset_, const Vector3 &direc
 std::string Planar::DumpVertex(){
 	if(need_set){ _set_face_coords(); }
 	std::string output = "";
-	for(unsigned short i = 0; i < 6; i++){
+	for(unsigned int i = 0; i < 6; i++){
 		output += to_str(GlobalFace[i].axis[0]) + "\t" + to_str(GlobalFace[i].axis[1]) + "\t" + to_str(GlobalFace[i].axis[2]) + "\n";
 	}
 	output += to_str(position.axis[0]) + "\t" + to_str(position.axis[1]) + "\t" + to_str(position.axis[2]);
@@ -345,13 +337,12 @@ std::string Planar::DumpVertex(){
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
 std::string Planar::DumpDet(){
 	if(need_set){ _set_face_coords(); }
-	std::string output = to_str(position.axis[0]) + "\t" + to_str(position.axis[1]) + "\t" + to_str(position.axis[2]);
-	output += "\t" + to_str(theta) + "\t" + to_str(phi) + "\t" + to_str(psi);
-	if(large){ output += "\tlarge\n"; }
-	else if(med){ output += "\tmedium\n"; }
-	else if(small){ output += "\tsmall\n"; }
-	else{ output += "\tunknown\t" + to_str(length) + "\t" + to_str(width) + "\t" + to_str(depth) + "\n"; }
-	return output;
+	std::stringstream stream;
+	stream << position.axis[0] << "\t" << position.axis[1] << "\t" << position.axis[2];
+	stream << "\t" << theta << "\t" << phi << "\t" << psi;
+	stream << "\t" << type << "\t" << subtype;
+	stream << "\t" << length << "\t" << width << "\t" << depth;
+	return stream.str();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -363,7 +354,7 @@ std::string Planar::DumpDet(){
 // Spacing is the physical distance between the edges of bars.
 // This method leaves a distance of spacing/2 on each side of the wall
 // so that walls having the same bar spacing will align properly
-void Wall::Initialize(unsigned short num_bars_, double spacing, double bar_length, double bar_width, double bar_depth){
+void Wall::Initialize(unsigned int num_bars_, double spacing, double bar_length, double bar_width, double bar_depth){
 	// Bar spacing for Large bar walls = 0.01350 m (4 bars per 10" = 0.254 m)
 	// Bar spacing for Small bar ribs = 0.01488 m (7 bars per 36 deg @ 0.5 m)
 	if(init){ 
@@ -381,10 +372,10 @@ void Wall::Initialize(unsigned short num_bars_, double spacing, double bar_lengt
 	length = bar_length;
 	width = num_bars*(spacing + bar_width);  
 	depth = bar_depth;
-	for(unsigned short i = 0; i < num_bars; i++){
+	for(unsigned int i = 0; i < num_bars; i++){
 		bars[i].SetSize(bar_length, bar_width, bar_depth);
-		bars[i].SetBarRotation(theta, phi, psi);
-		bars[i].SetPosition(position + barX*((-width/2.0+spacing/2.0+bar_width/2.0)+i*(bar_width+spacing)));
+		bars[i].SetRotation(theta, phi, psi);
+		bars[i].SetPosition(position + detX*((-width/2.0+spacing/2.0+bar_width/2.0)+i*(bar_width+spacing)));
 	}
 
 	init = true;
@@ -392,7 +383,7 @@ void Wall::Initialize(unsigned short num_bars_, double spacing, double bar_lengt
 
 // Return a pointer to a bar in this wall
 // Return null if the bar does not exist
-Planar* Wall::GetBar(unsigned short bar){ 
+Planar* Wall::GetBar(unsigned int bar){ 
 	if(init && bar < num_bars){ return &bars[bar]; }
 	return NULL;
 }
@@ -417,7 +408,7 @@ std::string Wall::DumpDetWall(){
 	}
 	
 	// Get detector strings for all detectors in wall
-	for(unsigned short i = 0; i < num_bars; i++){
+	for(unsigned int i = 0; i < num_bars; i++){
 		output += bars[i].DumpDet();
 	}
 	
@@ -428,41 +419,38 @@ std::string Wall::DumpDetWall(){
 // Returns the number of detectors loaded from the file
 // Assumes the following detector file format for each bar in file
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
-unsigned short ReadDetFile(const char* fname, Planar *bar_array){
+unsigned int ReadDetFile(const char* fname, Planar **bar_array){
 	std::ifstream detfile(fname);
 	if(!detfile.good()){ return 0; }
 		
 	std::vector<NewVIKARDet> detectors;
-	std::string bar_type;
-	float values[9];
+	std::string line;
 	
 	while(true){
-		for(unsigned short i = 0; i < 6; i++){ 
-			detfile >> values[i];
-		}
-		
-		// Set the size of the bar
-		detfile >> bar_type;
-		if(!(bar_type == "small" || bar_type == "medium" || bar_type == "large")){
-			for(unsigned short i = 6; i < 9; i++){ detfile >> values[i]; }
-		}
-		
-		detectors.push_back(NewVIKARDet(values, bar_type));
+		getline(detfile, line);
 		if(detfile.eof()){ break; }
+		if(line[0] == '#'){ continue; } // Commented line
+		
+		detectors.push_back(NewVIKARDet(line));
 	}	
 	detfile.close();
 	
 	// Generate the Planar bar array
-	bar_array = new Planar[detectors.size()];
-	for(unsigned short i = 0; i < detectors.size(); i++){
+	bar_array = new Planar*[detectors.size()];
+	unsigned int current_index = 0;
+	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
 		// Set the size of the bar
-		if(detectors[i].bar_type == "small"){ bar_array[i].SetSmall(); }
-		else if(detectors[i].bar_type == "medium"){ bar_array[i].SetMedium(); }
-		else if(detectors[i].bar_type == "large"){ bar_array[i].SetLarge(); }
-		else{ bar_array[i].SetSize(detectors[i].data[6],detectors[i].data[7],detectors[i].data[8]); }
+		bar_array[current_index] = new Planar();
+		if(iter->subtype == "small"){ bar_array[current_index]->SetSmall(); }
+		else if(iter->subtype == "medium"){ bar_array[current_index]->SetMedium(); }
+		else if(iter->subtype == "large"){ bar_array[current_index]->SetLarge(); }
+		else{ bar_array[current_index]->SetSize(iter->data[6],iter->data[7],iter->data[8]); }
 		
-		bar_array[i].SetPosition(detectors[i].data[0],detectors[i].data[1],detectors[i].data[2]); // Set the x,y,z position of the bar
-		bar_array[i].SetBarRotation(detectors[i].data[3],detectors[i].data[4],detectors[i].data[5]); // Set the 3d rotation of the bar
+		bar_array[current_index]->SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+		bar_array[current_index]->SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+		bar_array[current_index]->SetType(iter->type);
+		bar_array[current_index]->SetSubtype(iter->subtype);
+		current_index++;
 	}
 	
 	return detectors.size();
@@ -472,31 +460,54 @@ unsigned short ReadDetFile(const char* fname, Planar *bar_array){
 // of VANDLE bars from an array. Returns the number of hits detected
 // Generates two files...
 //  xyz.dat - Contains 3-tuples of (x,y,z) for all detected hits
-//  faces.dat - Contains 4-tuples of (bar#,face_x,face_y,face_z) for all detected hits
-unsigned int TestDetSetup(Planar *bar_array, unsigned short num_bars, unsigned int num_trials){
+//  faces.dat - Contains 3-tuples of (face_x,face_y,face_z) for all detected hits
+unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials){
 	std::ofstream xyz("xyz.dat");
 	std::ofstream faces("faces.dat");
 	
 	double tempx, tempy, tempz;
-	unsigned int count;
-	unsigned short bar;
-	Vector3 temp_vector;
+	unsigned int count, total;
+	unsigned int bar;
+	Vector3 flight_path;
+	Vector3 temp_vector1;
+	Vector3 temp_vector2;
 	Vector3 temp_ray;
+	int face1, face2;
 	
-	count = 0;
-	for(unsigned int i = 0; i < num_trials; i++){
+	double penetration, dist_traveled;
+	double fpath1, fpath2;
+		
+	total = 0; count = 0;
+	while(count < num_trials){
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		for(bar = 0; bar < num_bars; bar++){
-			if(bar_array[bar].FaceIntersect(zero_vector, temp_ray, temp_vector, tempx, tempy, tempz) != -1){
-				// A hit was detected on one of the faces
-				xyz << temp_vector.axis[0] << "\t" << temp_vector.axis[1] << "\t" << temp_vector.axis[2] << "\n"; // Position data
-				faces << bar << "\t" << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
+			if(bar_array[bar].IntersectPrimitive(zero_vector, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
+				flight_path = (temp_vector1-temp_vector2); // The vector pointing from the first intersection point to the second
+				penetration = frand(); // The fraction of the bar which the neutron travels through
+				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
+				fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
+				fpath2 = temp_vector2.Length(); // Distance from reaction to second intersection point
+			
+				// Calculate the total distance traveled and the interaction point inside the detector
+				if(fpath1 <= fpath2){ 
+					dist_traveled += fpath1; 
+					flight_path = temp_vector1 + flight_path*penetration;
+				}
+				else{ 
+					dist_traveled += fpath2; 
+					flight_path = temp_vector2 + flight_path*penetration;
+				}
+		
+				xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
+				faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
 				count++;
-				break;
 			}
 		}
+		total++;
 	}
 	xyz.close();
 	faces.close();
-	return count;
+	
+	std::cout << " Found " << count << " events in " << total << " trials (" << 100.0*count/total << "%)\n";
+	return total;
 }

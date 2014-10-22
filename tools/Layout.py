@@ -500,24 +500,27 @@ def RawRead(fname, pt_size):
 	return visual.points(pos=tuples, size=pt_size, color=visual.color.black)
 
 # Read a standard VIKAR detector file
-def DetRead(fname, opacity=0.5):
+def DetRead(fname, opacity=0.25):
 	f = open(fname,"r")
 	lines = f.readlines()
+	num_det = 0
 	output = []
 	for i in range(len(lines)):
+		if lines[i][0] == "#": continue
 		arr = lines[i].strip().split("\t")
-		if len(arr) >= 7:
-			if arr[6] == "small": output.append(VandleBar(bar_length=0.6, bar_width=0.03, bar_height=0.03))
-			elif arr[6] == "medium": output.append(VandleBar(bar_length=1.2, bar_width=0.05, bar_height=0.03))
-			elif arr[6] == "large": output.append(VandleBar(bar_length=2.0, bar_width=0.05, bar_height=0.05))
-			else: output.append(VandleBar(bar_length=float(arr[7]), bar_width=float(arr[8]), bar_height=float(arr[9])))
-			output[i].SetX(float(arr[2]))
-			output[i].SetY(float(arr[1]))
-			output[i].SetZ(float(arr[0]))
-			output[i].SetTheta(-1*float(arr[3]))
-			output[i].SetPhi(float(arr[4]))
-			output[i].SetPsi(float(arr[5]))
-			output[i].body.opacity = opacity
+		if len(arr) >= 8:
+			if arr[7] == "small": output.append(VandleBar(bar_length=0.6, bar_width=0.03, bar_height=0.03))
+			elif arr[7] == "medium": output.append(VandleBar(bar_length=1.2, bar_width=0.05, bar_height=0.03))
+			elif arr[7] == "large": output.append(VandleBar(bar_length=2.0, bar_width=0.05, bar_height=0.05))
+			else: output.append(VandleBar(bar_length=float(arr[8]), bar_width=float(arr[9]), bar_height=float(arr[10])))
+			output[num_det].SetX(float(arr[2]))
+			output[num_det].SetY(float(arr[1]))
+			output[num_det].SetZ(float(arr[0]))
+			output[num_det].SetTheta(-1*float(arr[3]))
+			output[num_det].SetPhi(float(arr[4]))
+			output[num_det].SetPsi(float(arr[5]))
+			output[num_det].body.opacity = opacity
+			num_det += 1
 	f.close()
 	return output
 
@@ -602,18 +605,16 @@ def Hist3D(det_fname, data_fname):
 
 def main2():  
 	labScene = visual.display(title="7Be(d,n)8B Experiment", width=800, height=600, background=GetRGBcode(153,204,255))
-	axisx = visual.box(pos=(0,0,0), axis=(10.0,0,0), width=0.02, height=0.02, color=visual.color.red, opacity=0.5)
-	axisy = visual.box(pos=(0,0,0), axis=(0,10.0,0), width=0.02, height=0.02, color=visual.color.blue, opacity=0.5)
-	axisz = visual.box(pos=(0,0,0), axis=(0,0,10.0), width=0.02, height=0.02, color=visual.color.green, opacity=0.5)
-	labelx = visual.label(pos=(5.0,0,0), text="Z-Axis")
-	labely = visual.label(pos=(0,5.0,0), text="Y-Axis")
-	labelz = visual.label(pos=(0,0,5.0), text="X-Axis")
+	#axisx = visual.box(pos=(0,0,0), axis=(10.0,0,0), width=0.005, height=0.005, color=visual.color.red, opacity=0.5)
+	#axisy = visual.box(pos=(0,0,0), axis=(0,10.0,0), width=0.005, height=0.005, color=visual.color.blue, opacity=0.5)
+	#axisz = visual.box(pos=(0,0,0), axis=(0,0,10.0), width=0.005, height=0.005, color=visual.color.green, opacity=0.5)
+	#labelx = visual.label(pos=(5.0,0,0), text="Z-Axis")
+	#labely = visual.label(pos=(0,5.0,0), text="Y-Axis")
+	#labelz = visual.label(pos=(0,0,5.0), text="X-Axis")
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
-	#RawRead("/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat", 1)
-	#RawRead("/home/cory/Research/Test/dump.dat", 4)
-	#RawRead("/home/cory/Research/Test/xyz.dat", 1)
-	VBars = DetRead("/home/cory/Research/VANDLE/vikar2/detectors/7BeExp.det")
-	#VBars = DetRead("/home/cory/Research/VANDLE/vikar2/detectors/VANDLE.det")
+	#RawRead("/home/cory/Research/VANDLE/Vikar/xyz.dat", 2)
+	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
+	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det")
 
 	while True:
 		visual.rate(60)
@@ -622,5 +623,5 @@ def main2():
 		
 			if(s_ == "esc"): wx.Exit()
 
-#main2() 
-main()
+main2() 
+#main()

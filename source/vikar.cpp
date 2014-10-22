@@ -12,32 +12,7 @@
 #include "vikar_core.h"
 #include "materials.h"
 #include "detectors.h"
-
-struct ejectileData{
-	double hitX, hitY, hitZ; // Hit X, Y, and Z in meters
-	double hitTheta, hitPhi; // Hit theta and phi in degrees
-	double energy, tof; // Ejectile energy in MeV and TOF in seconds
-	double faceX, faceY, faceZ; // Bar face hit data
-	int face, bar;
-	
-	void Set(double hitX_, double hitY_, double hitZ_, double hitTheta_, double hitPhi_, double energy_, 
-			 double tof_, double faceX_, double faceY_, double faceZ_, int bar_, int face_){
-		hitX = hitX_; hitY = hitY_; hitZ = hitZ_;
-		hitTheta = hitTheta_; hitPhi = hitPhi_;
-		energy = energy_; tof = tof_;
-		faceX = faceX_; faceY = faceY_; faceZ = faceZ_;
-		face = face_; bar = bar_;
-	}
-};
-
-struct recoilData{
-	double theta, phi; // Theta and phi in degrees
-	double energy; // Recoil energy in MeV
-	
-	void Set(double theta_, double phi_, double energy_){
-		theta = theta_; phi = phi_; energy = energy_;
-	}
-};
+#include "structures.h"
 
 struct debugData{
 	double var1, var2, var3;
@@ -46,15 +21,6 @@ struct debugData{
 		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
-
-std::string Parse(std::string input){
-	std::string output = "";
-	for(unsigned int i = 0; i < input.size(); i++){
-		if(input[i] == ' ' || input[i] == '\t'){ break; }
-		output += input[i];
-	}
-	return output;
-}
 
 // Get a random vector inside a cone approximating the beam shape
 // spot_ is the beamspot size in m
@@ -127,7 +93,9 @@ int main(int argc, char* argv[]){
 	// temporary variables
 	double hit_x, hit_y, hit_z;
 	
-	Vector3 Ejectile, Gamma, HitDetect, HitDetectSphere, RecoilSphere;
+	Vector3 Ejectile, Recoil, Gamma;
+	Vector3 HitDetect1, HitDetect2;
+	Vector3 EjectSphere, RecoilSphere;
 	Vector3 beam_focus; // The focus point for the beam. Beam particles will originate from this point (wrt the origin)
 	Vector3 beam_free; // The original trajectory of the beam particle before it enters the target
 	Vector3 beam_react; // The position of the reaction inside the target
@@ -146,23 +114,25 @@ int main(int argc, char* argv[]){
 	Target targ;
 	
 	// Physics Variables
-	unsigned int NRecoilStates;
+	unsigned int NRecoilStates = 0;
 	std::vector<std::string> AngDist_fname; 
-	double *ExRecoilStates, gsQvalue; 
-	double *totXsect; 
-	double Ebeam, Ebeam0, Erecoil, Eeject, Abeam, Zbeam;
-	double Arecoil, Zrecoil, Aeject, Zeject;
+	double *ExRecoilStates = NULL;
+	double *totXsect = NULL; 
+	double gsQvalue = 0.0;
+	
+	double Ebeam = 0.0, Ebeam0 = 0.0;
+	double Erecoil = 0.0, Eeject = 0.0;
+	double Abeam = 0.0, Zbeam = 0.0;
+	double Arecoil = 0.0, Zrecoil = 0.0;
+	double Aeject = 0.0, Zeject = 0.0;
 	
 	// Beam variables
-	double thetaBeam, phiBeam; // Incident beam particle direction
-	double thetaReact, phiReact; // Direction of beam particle at reaction (after straggling)
-	double beamspot; // Beamspot diameter (m) (on the surface of the target)
-	double beamEspread; // Beam energy spread (MeV)
-	double beamAngdiv; // Beam angular divergence (radians)
+	double beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
+	double beamEspread = 0.0; // Beam energy spread (MeV)
+	double beamAngdiv = 0.0; // Beam angular divergence (radians)
 
 	double timeRes = 3E-9;
-	double energyRes;
-	double BeamRate;
+	double BeamRate = 0.0;
 	
 	// Detector variables
 	std::string det_fname; 
@@ -171,18 +141,25 @@ int main(int argc, char* argv[]){
 	std::string output_fname_prefix = "VIKAR";
 	
 	// Input/output variables
-	short face;
-	int Ndetected, Nwanted;
-	int Nsimulated, NbarHit;
-	int Nreactions;
+	int face1, face2; // Detect which detector faces are hit
+	int Ndetected = 0; // Total number of particles detected in VANDLE
+	int Nwanted = 0; // Number of desired detections
+	int Nsimulated = 0; // Total number of simulated particles
+	int NbarHit = 0; // Total number of particles which collided with a bar
+	int Nreactions = 0; // Total number of particles which react with the target
 	clock_t timer;
 
-	bool SimGamma, WriteRecoil, WriteDebug;
+	bool SimGamma = false;
+	bool InCoincidence = true;
+	bool WriteDebug = false;
 
-	unsigned int Ndet;
-	bool PerfectDet, DetSetup, ADists;
-	bool SupplyRates, use_beam_focus;
-	short idummy;
+	unsigned int Ndet = 0;
+	bool PerfectDet = true;
+	bool DetSetup = true;
+	bool ADists = false;
+	bool SupplyRates = false;
+	bool use_beam_focus = false;
+	int idummy = 0;
 
 	// Error reporting variables
 	std::string SRIM_fName, SRIM_fName_beam, SRIM_fName_targ_eject, SRIM_fName_targ_recoil;
@@ -232,9 +209,11 @@ int main(int argc, char* argv[]){
 		while(true){
 			getline(input_file, input); input = Parse(input);
 			if(input_file.eof()){ break; }
+			if(input == ""){ continue; }
+			
 			if(count == 0){ 
 				std::cout << "  Version: " << input << std::endl;
-				if(input != "1.11"){ 
+				if(input != "1.12"){ 
 					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
 				}
 			}
@@ -426,12 +405,12 @@ int main(int argc, char* argv[]){
 				else{ std::cout << "No\n"; }
 			}
 			else if(count == 22){
-				// Write Recoil data to file?
+				// Require ejectile and recoil particle coincidence?
 				idummy = atoi(input.c_str());
-				if(idummy == 1){ WriteRecoil = true; }
-				else{ WriteRecoil = false; }
-				std::cout << "  Write Recoil: ";
-				if(WriteRecoil){ std::cout << "Yes\n"; }
+				if(idummy == 1){ InCoincidence = true; }
+				else{ InCoincidence = false; }
+				std::cout << "  Require particle coincidence: ";
+				if(InCoincidence){ std::cout << "Yes\n"; }
 				else{ std::cout << "No\n"; }
 			}
 			else if(count == 23){
@@ -448,7 +427,7 @@ int main(int argc, char* argv[]){
 		}
 		
 		input_file.close();
-		if(count < 22){
+		if(count < 23){
 			std::cout << " Error: The input file is invalid\n";
 			return 1;
 		}
@@ -475,10 +454,6 @@ int main(int argc, char* argv[]){
 	if(beamAngdiv >= pi/100.0){
 		beam_focus = Vector3(0.0, 0.0, -(beamspot/std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
 		use_beam_focus = true;
-	}
-	else{
-		std::cout << " Note: Beam angular divergence is too small, using a cylindrical beam instead\n";
-		use_beam_focus = false;
 	}
 
 	// Calculate the stopping power table for the beam particles in the target
@@ -524,56 +499,50 @@ int main(int argc, char* argv[]){
 	// Read VIKAR detector setup file or manually setup simple systems
 	if(DetSetup){
 		std::cout << " Reading in NewVIKAR detector setup file...\n";
-
 		std::ifstream detfile(det_fname.c_str());
-		if(!detfile.good()){
-			std::cout << " Warning: Failed to load detector file " << det_fname << std::endl;
-			return 1;
-		}
-
+		if(!detfile.good()){ return 0; }
+		
 		std::vector<NewVIKARDet> detectors;
-		std::string bar_type;
-		float values[9];
-
+		std::string line;
+	
 		while(true){
-			for(unsigned int i = 0; i < 6; i++){ 
-				detfile >> values[i];
-			}
-
-			// Set the size of the bar
-			detfile >> bar_type;
-			if(!(bar_type == "small" || bar_type == "medium" || bar_type == "large")){
-				for(unsigned int i = 6; i < 9; i++){ detfile >> values[i]; }
-			}
-
-			detectors.push_back(NewVIKARDet(values, bar_type));
+			getline(detfile, line);
 			if(detfile.eof()){ break; }
+			if(line[0] == '#'){ continue; } // Commented line
+		
+			detectors.push_back(NewVIKARDet(line));
 		}	
 		detfile.close();
-
-		// Generate the Planar bar array
+	
+		// Generate the Planar bar arrays
 		vandle_bars = new Planar[detectors.size()];
-		for(unsigned int i = 0; i < detectors.size(); i++){
-			// Set the size of the bar
-			if(detectors[i].bar_type == "small"){ vandle_bars[i].SetSmall(); }
-			else if(detectors[i].bar_type == "medium"){ vandle_bars[i].SetMedium(); }
-			else if(detectors[i].bar_type == "large"){ vandle_bars[i].SetLarge(); }
-			else{ vandle_bars[i].SetSize(detectors[i].data[6],detectors[i].data[7],detectors[i].data[8]); }
-
-			vandle_bars[i].SetPosition(detectors[i].data[0],detectors[i].data[1],detectors[i].data[2]); // Set the x,y,z position of the bar
-			vandle_bars[i].SetBarRotation(detectors[i].data[3],detectors[i].data[4],detectors[i].data[5]); // Set the 3d rotation of the bar
+		
+		// Fill the detector arrays
+		Ndet = 0;
+		for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
+			if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
+			else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
+			else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
+			else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+		
+			vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+			vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+			vandle_bars[Ndet].SetType(iter->type);
+			vandle_bars[Ndet].SetSubtype(iter->subtype);
+			if(iter->subtype == "cylinder"){ vandle_bars[Ndet].SetCylinder(); }
+			Ndet++;
 		}
 
-		Ndet = detectors.size();
-
-		// Report on how many detectors were read in
-		std::cout << " Found " << Ndet << " VANDLE detectors in file " << det_fname << std::endl;
+		// Report on how many detectors were read in*/
+		std::cout << " Found " << Ndet << " detectors in file " << det_fname << std::endl;
 
 		// Check there's at least 1 detector!
-		if(Ndet < 1){
+		if(Ndet< 1){
 			std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
 			return 1;
 		}
+		//TestDetSetup(vandle_bars, Ndet, Nwanted);
+		//return 1;
 	}
 	else{
 		// Manual detector setup (fix later)
@@ -603,22 +572,18 @@ int main(int argc, char* argv[]){
 	//---------------------------------------------------------------------------
 	// End of Input Section
 	//---------------------------------------------------------------------------
-	Ndetected = 0; // Total number of particles detected in VANDLE
-	NbarHit = 0; // Total number of particles which collided with a bar
-	Nsimulated = 0; // Total number of simulated particles
-	Nreactions = 0; // Total number of particles which react with the target
 		
 	// Root stuff
 	TFile *file = new TFile("VIKAR.root", "RECREATE");
 	TTree *VIKARtree = new TTree("VIKAR", "VIKAR output tree");
 	TTree *DEBUGtree = NULL;
 	
-	ejectileData EJECTdata;
-	recoilData RECOILdata;
+	EjectObject EJECTdata;
+	RecoilObject RECOILdata;
 	debugData DEBUGdata;
 	
-	VIKARtree->Branch("Eject", &EJECTdata, "hitX/D:hitY/D:hitZ/D:hitTheta/D:hitPhi/D:energy/D:tof/D:faceX/D:faceY/D:faceZ/D:face/i:bar/i");
-	if(WriteRecoil){ VIKARtree->Branch("Recoil", &RECOILdata, "theta/D:phi/D:energy/D"); }
+	VIKARtree->Branch("Eject", &EJECTdata);
+	VIKARtree->Branch("Recoil", &RECOILdata);
 	if(WriteDebug){ 
 		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
 		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
@@ -634,6 +599,10 @@ int main(int argc, char* argv[]){
 	// (Just to make it obvious)
 	//---------------------------------------------------------------------------
 
+	Vector3 temp_vector;
+	Vector3 temp_vector_sphere;
+	double dist_traveled, QDC;
+	double penetration, fpath1, fpath2;
 	int chunk = Nwanted/10;
 	float totTime = 0.0;
 	char counter = 1;
@@ -702,18 +671,12 @@ int main(int argc, char* argv[]){
 		else{ targ.AngleStraggling(Vector3(0.0, 0.0, 1.0), Abeam, Zbeam, Ebeam, Zdepth, beam_react_direction); }
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
-		if(WriteRecoil || SimGamma){ 
-			// Need to calculate parameters for the recoil
-			if(kind.FillVars(Ereact, Eeject, Erecoil, HitDetectSphere, RecoilSphere)){ Nreactions++; }
-			else{ continue; } // A reaction did not occur
-		}
-		else{ 
-			// Only interested in the ejectile	
-			if(kind.FillVars(Ereact, Eeject, HitDetectSphere)){ Nreactions++; }
-			else{ continue; } // A reaction did not occur
-		}
-		
-		Sphere2Cart(HitDetectSphere, Ejectile); // HitDetectSphere is a unit vector (no need to normalize)
+		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere)){ Nreactions++; }
+		else{ continue; } // A reaction did not occur
+
+		// EjectSphere is a unit vector (no need to normalize)
+		Sphere2Cart(EjectSphere, Ejectile); 
+		Sphere2Cart(RecoilSphere, Recoil);
 		if(WriteDebug){ 
 			DEBUGdata.Set(beam_react.axis[0], beam_react.axis[1], beam_react.axis[2]);
 			DEBUGtree->Fill();
@@ -726,15 +689,17 @@ int main(int argc, char* argv[]){
 			UnitSphereRandom(gamma_theta, gamma_phi);
 		}*/
 
-		// Process the ejectile
+		// Process the reaction products
 		for(unsigned int bar = 0; bar < Ndet; bar++){
-			face = -1;
-			face = vandle_bars[bar].FaceIntersect(beam_react, Ejectile, HitDetect, hit_x, hit_y, hit_z);
-			if(face != -1){
-				// Geometric hit detected
-				NbarHit++;
-				hit = true;
-				
+			if(!vandle_bars[bar].IsRecoilDet()){ // This is a detector used to detect ejectiles (VANDLE)
+				hit = vandle_bars[bar].IntersectPrimitive(beam_react, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z);
+				if(hit){ NbarHit++; } // Geometric hit detected
+			}
+			else{ // This is a detector used to detect recoils (ION, SCINT, etc)
+				hit = vandle_bars[bar].IntersectPrimitive(beam_react, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z);
+			}
+			
+			if(hit){			
 				// Check for a "true" hit
 				if(!PerfectDet){
 					// Detector is not perfect, hit is based on the efficiency
@@ -751,42 +716,83 @@ int main(int argc, char* argv[]){
 						if(frand() > bar_eff.GetLargeEfficiency(Eeject)){ hit = false; }
 					}
 				}
-				
+			
 				if(hit){
 					// The neutron hit a bar and was detected
 					// The time of flight is the time it takes the neutron to traverse the distance
-					// from the target (origin) to the intersection point ON THE FACE of the bar
-					tof = HitDetect.Length()*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); // Neutron ToF (s)
+					// from the target (origin) to the intersection point inside the bar
+					fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
+					fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
+					penetration = frand(); // The fraction of the bar which the neutron travels through
+					temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
+					dist_traveled = temp_vector.Length()*penetration; // Random distance traveled through bar
+
+					// Calculate the total distance traveled and the interaction point inside the detector
+					if(fpath1 <= fpath2){ 
+						dist_traveled += fpath1; 
+						temp_vector = beam_react + HitDetect1 + temp_vector*penetration;
+					}
+					else{ 
+						dist_traveled += fpath2; 
+						temp_vector = beam_react + HitDetect2 - temp_vector*penetration;
+					}
+				
+					// Calculate the neutron ToF (ns)
+					//dist_traveled = HitDetect1.Length();
+					//temp_vector = HitDetect1;
+					if(!vandle_bars[bar].IsRecoilDet()){
+						tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26));
+						QDC = Eeject*frand(); // The ejectile may leave any portion of its energy inside the detector
+					}
+					else{
+						tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26));
+						QDC = Erecoil*frand(); // The recoil may leave any portion of its energy inside the detector
+					}
 
 					// Smear ToF and Energy if the detector is not perfect
 					if(!PerfectDet){
 						tof += rndgauss0(timeRes); // Smear tof due to VANDLE resolution
-						energyRes = std::sqrt(pow((0.03/HitDetect.Length()), 2.0)+pow((timeRes/tof), 2.0));
-						Eeject += rndgauss0(energyRes*Eeject); // Smear energy due to VANDLE resolution
+						//QDC += rndgauss0(qdcRes); // Smear the VANDLE QDC value
+						//energyRes = std::sqrt(pow((0.03/HitDetect.Length()), 2.0)+pow((timeRes/tof), 2.0));
+						//Eeject += rndgauss0(energyRes*Eeject); // Smear energy due to VANDLE resolution
 					}
-				
-					// Main output
-					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) EjectileE(MeV) EjectileToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-					if(Eeject >= 0.1 && Eeject <= 5.0){
-						EJECTdata.Set(HitDetect.axis[0], HitDetect.axis[1], HitDetect.axis[2], HitDetectSphere.axis[1]*rad2deg,
-									  HitDetectSphere.axis[2]*rad2deg, Eeject, tof*(1E9), hit_x, hit_y, hit_z, bar, face);
-						if(WriteRecoil){ 
-							RECOILdata.Set(RecoilSphere.axis[1], RecoilSphere.axis[2], Erecoil);
-						}
-						VIKARtree->Fill();
 			
-						Ndetected++;
-						if(!flag){ flag = true; }
+					// Main output
+					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
+					if(QDC >= 0.1 && QDC <= 5.0){
+						if(!vandle_bars[bar].IsRecoilDet()){
+							Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
+							EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
+											 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+						}
+						else{
+							Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
+							RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
+											  RecoilSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+						}
 					}
 				} // if(hit)
-
-				break;
-			} // if(face != -1)
+			} // if(vandle_bars[bar].IntersectPrimitive())
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
-
+		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
+			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
+				if(!flag){ flag = true; }
+				VIKARtree->Fill(); 
+				Ndetected++;
+			}
+		}
+		else{ // Coincidence is not required between reaction particles
+			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
+				if(!flag){ flag = true; }
+				VIKARtree->Fill(); 
+				Ndetected++;
+			}
+		}
+		EJECTdata.Zero();
+		RECOILdata.Zero();
 	} // Main simulation loop
 	// ==  ==  ==  ==  ==  ==  == 
- 
+	
 	// Information output and cleanup
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
@@ -802,8 +808,8 @@ int main(int argc, char* argv[]){
 	if(DEBUGtree){ DEBUGtree->Write(); }
 	
 	std::cout << "  Wrote file " << output_fname_prefix << ".root\n";
-	if(WriteRecoil){ std::cout << "   Wrote " << VIKARtree->GetEntries() << " events for VIKAR\n"; }
-	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " events for DEBUG\n"; }
+	std::cout << "   Wrote " << VIKARtree->GetEntries() << " tree entries for VIKAR\n";
+	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " tree entries for DEBUG\n"; }
 	file->Close();
 	delete file;
 } 
