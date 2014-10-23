@@ -3,6 +3,8 @@
 *.root
 *.dat
 *.out 
+RootDict.cpp
+RootDict.h
 
 # C++ object files #
 ####################
@@ -14,5 +16,7 @@
 vikar
 vikarFront
 angleConvert
-Kinematics
-Kindist
+kinematics
+kindist
+dump
+test

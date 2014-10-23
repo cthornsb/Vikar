@@ -44,6 +44,22 @@ struct Vector3{
 	std::string Dump() const ;
 };
 
+struct Matrix3{
+	double components[3][3];
+	
+	Matrix3();
+	void SetRow1(double p1, double p2, double p3){ components[0][0] = p1; components[0][1] = p2; components[0][2] = p3; }
+	void SetRow2(double p1, double p2, double p3){ components[1][0] = p1; components[1][1] = p2; components[1][2] = p3; }
+	void SetRow3(double p1, double p2, double p3){ components[2][0] = p1; components[2][1] = p2; components[2][2] = p3; }
+	void SetRotationMatrixSphere(double theta_, double phi_);
+	void SetRotationMatrixSphere(const Vector3 &vector_);
+	void SetRotationMatrixCart(double x_, double y_, double z_);
+	void SetRotationMatrixCart(const Vector3 &vector_);
+	Vector3 Transform(Vector3 &vector_);
+	Vector3 Transpose(Vector3 &vector_);
+	void Dump();
+};
+
 class AngularDist{
   private:
 	std::vector<double> com_theta, dsigma_domega, integral;
@@ -118,7 +134,6 @@ class Kindeux{
 	bool FillVars(double, double&, double&, Vector3&, Vector3&);
 	bool FillVars(double, double, double*, double*, double*, double*, double*, double*, double*);
 	double ConvertAngle2Lab(double, double, double);
-	double ConvertAngle2CoM(double, double, double, double precision=1E-12);
 	double GetEnergies(double, double, unsigned int, double*, double*);
 	void Sample(double*);
 	void Print();
@@ -128,6 +143,7 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+std::string to_str(double);
 std::string Parse(std::string input);
 void Parse(std::string input, float *arr, unsigned int num_values);
 double Dist3d(const Vector3&, const Vector3&);
@@ -154,7 +170,6 @@ double range(double, double, double, double, double);
 double algip(double);
 void ncdedx(double, double, double, double, double, double, double&, double&, double&);
 double de(double, double, double, double, double);
-double linear(double, double, double, double, double);
 double momentum(double, double);
 double radlength(unsigned int, unsigned int);
 double rndgauss0(double);
@@ -164,13 +179,7 @@ void Sphere2Cart(double, double, double, Vector3&);
 void Sphere2Cart(const Vector3&, Vector3&);
 double velocity(double, double);
 void straggleA(double&, double, double, double, double, double);
-void transform(const Vector3&, double, double, Vector3&);
-void strag_targ(double, double, double, double, double, double, double&, double&, double);
-void targ_thick(double, double, double, double, double, double&);
-void unitV(double, double, double, double&, double&, double&, double&);
-void AngDist_read(std::string, unsigned int&, double*, double*, double&);
-void SRIMread(std::string, bool&, unsigned int&, double*, double*, double*, double*, double*, bool);
-std::string to_str(double);
+void transform(double, double, double, double, double, double);
 double Interpolate(double, double, double, double, double);
 
 #endif

@@ -106,6 +106,63 @@ std::string Vector3::Dump() const {
 	return stream.str();
 }
 
+/////////////////////////////////////////////////////////////////////
+// Matrix3 Struct
+/////////////////////////////////////////////////////////////////////
+
+Matrix3::Matrix3(){
+	for(unsigned int i = 0; i < 3; i++){ 
+		components[i][0] = 0.0; 
+		components[i][1] = 0.0; 
+		components[i][2] = 0.0; 
+	}
+}
+
+void Matrix3::SetRotationMatrixSphere(double theta_, double phi_){
+	double sin_theta = std::sin(theta_), cos_theta = std::cos(theta_);
+	double sin_phi = std::sin(phi_), cos_phi = std::cos(phi_);
+
+	SetRow1(cos_theta*cos_phi, -sin_phi, sin_theta*cos_phi);
+	SetRow2(cos_theta*sin_phi, cos_phi, sin_theta*sin_phi);
+	SetRow3(-sin_phi, 0.0, cos_theta);
+}
+
+void Matrix3::SetRotationMatrixSphere(const Vector3 &vector_){
+	SetRotationMatrixSphere(vector_.axis[1], vector_.axis[2]);
+}
+
+void Matrix3::SetRotationMatrixCart(double x_, double y_, double z_){
+	double r, theta, phi;
+	Cart2Sphere(x_, y_, z_, r, theta, phi);
+	SetRotationMatrixSphere(theta, phi);
+}
+
+void Matrix3::SetRotationMatrixCart(const Vector3 &vector_){
+	SetRotationMatrixCart(vector_.axis[0], vector_.axis[1], vector_.axis[2]);
+}
+
+// Transform an input vector by this matrix
+// Note: Expects the input vector to be in cartesian coordinates
+Vector3 Matrix3::Transform(Vector3 &vector_){
+	vector_.axis[0] = components[0][0]*vector_.axis[0] + components[0][1]*vector_.axis[1] + components[0][2]*vector_.axis[2];
+	vector_.axis[1] = components[1][0]*vector_.axis[0] + components[1][1]*vector_.axis[1] + components[1][2]*vector_.axis[2];
+	vector_.axis[2] = components[2][0]*vector_.axis[0] + components[2][1]*vector_.axis[1] + components[2][2]*vector_.axis[2];
+}
+
+// Transform an input vector by the transpose of this matrix
+// Note: Expects the input vector to be in cartesian coordinates
+Vector3 Matrix3::Transpose(Vector3 &vector_){
+	vector_.axis[0] = components[0][0]*vector_.axis[0] + components[1][0]*vector_.axis[1] + components[2][0]*vector_.axis[2];
+	vector_.axis[1] = components[0][1]*vector_.axis[0] + components[1][1]*vector_.axis[1] + components[2][1]*vector_.axis[2];
+	vector_.axis[2] = components[0][2]*vector_.axis[0] + components[1][2]*vector_.axis[1] + components[2][2]*vector_.axis[2];
+}
+
+void Matrix3::Dump(){
+	std::cout << " [" << components[0][0] << "\t" << components[0][1] << "\t" << components[0][2] << "]\n";
+	std::cout << " [" << components[1][0] << "\t" << components[1][1] << "\t" << components[1][2] << "]\n";
+	std::cout << " [" << components[2][0] << "\t" << components[2][1] << "\t" << components[2][2] << "]\n";
+}
+
 // Load the differential cross section from a file.
 // Return true if the file is correctly loaded and contains a non-zero number
 // of data points. Does nothing if AngularDist has already been initialized
@@ -633,7 +690,7 @@ void ncdedx(double tgtdens, double atarget, double ztarget, double abeam, double
 
 	dedxmg = (eloss*0.001)/tgtdens; //return
 	tgtionpot = avip*1000000.0; // The target ionization potential (MeV)
-	rangemg = range2(0.5/eloss,abeam*931.4812,energy,zbeam,eloss)*tgtdens*1000.0; //return
+	rangemg = range(0.5/eloss,abeam*931.4812,energy,zbeam,eloss)*tgtdens*1000.0; //return
 } 
 
 /////////////////////////////////////////////////////////////////////
@@ -650,19 +707,6 @@ double de(double dx, double emass, double epart, double zpart, double sp){
 	
 	double spges = dedx(emass, enew, zpart); 
 	return dx*(0.750*sp+(0.250*spges/sp)*spges); 
-} 
-
-/////////////////////////////////////////////////////////////////////
-// linear.f
-/////////////////////////////////////////////////////////////////////
-
-double linear(double xmin, double xmax, double ymin, double ymax, double x){
-	// linear 1.0 written by S.D.Pain on 24/11/2004
-	// Function for linear interpolation between two points
-
-	double grad = (ymax-ymin)/(xmax-xmin); 
-	double cint = ymin - grad*xmin; 
-	return x*grad + cint; 
 } 
 
 /////////////////////////////////////////////////////////////////////
@@ -723,74 +767,6 @@ double rndgauss0(double w){
 	return widthfact*w*t; 
 } 
 
-// rndgauss1 : Generate random numbers with a Gaussian distribution *
-void rndgauss1(double &u, double &x, double &f, double &c, double &s){ 
-	//     a subroutine to calculate one random deviate
-	//     for a normal distribution with centroid c and
-	//     standard deviation s
-	//
-	//     see chapter 26 of Abramowitz and Stegun
-	//      equn 26.2.23
-	//
-	//      on exit u contains the random number ( deviate)
-	//       -calculated by call to drand
-	//
-	//      on exit  x contains the deviate with a normal distribution
-	//
-	//      on exit the  f contains the probability function ( a gaussian)
-	//
-	//      of the form f(x) = 1/(s *sqrt(2*pi)) * exp(- (x-c)**2/(2*s**2))
-	//
-	//      The physical problem is  f(x) = u where u is a random deviate
-	//      and we wish to find  x  = f**-1 ( u)
-	//
-	//      an inverse Chebyshev polynomial expansion is used
-	//
-	//      ***************************************************************
-	//
-	//      initial calculations assuming c=0.0, s=1.0
-	//
-	//       get random probability , u, in the range 0 < u <= 0.5
-	//
-	//     u=drand(0) *0.50
-	//     usq=u*u
-	//     if (usq.lt.1.0d-60) usq=1.0d-60
-	//     t= sqrt(log(1.00/usq))
-	//     tsq=t*t
-	//     tcube=tsq*t
-	
-	const double c0=2.5155170, c1=0.8028530, c2=0.0103280; 
-	const double d1=1.4327880, d2=0.1892690, d3=0.0013080; 
-	const double rcpsqr2pi=0.398942280, sqrt2=1.4142135620; 
-
-	double t, tsq; 
-
-	u = frand(); 
-	if(u > 0.5){ u = u-0.5; }
-	if(u < 1e-30){
-		t = 11.7539400024; 
-		tsq = 138.1550558; 
-	} 
-	else{ 
-		tsq = -std::log(u*u); 
-		t = std::sqrt(tsq); 
-	} 
-
-	//       compute inverse by equn 26.2.23
-	x = t-(c0+c1*t+c2*tsq)/(1.00+d1*t+(d2+d3*t)*tsq); 
-
-	//     now randomize x in positive and negative direction
-	//     x=x* (2* nshort(drand(0)) -1)
-	if(u > 0.5){ x=-x; }
-
-	//     compute function
-	f = rcpsqr2pi*std::exp(-(x*x)); 
-
-	//     now correct for centroid and standard deviation
-	x = sqrt2*s*x+c; 
-	f = f/s; 
-} 
-
 /////////////////////////////////////////////////////////////////////
 // velocity.f
 /////////////////////////////////////////////////////////////////////
@@ -828,25 +804,27 @@ void straggleA(double &theta, double energy, double Z, double A, double thicknes
 // transform.f
 /////////////////////////////////////////////////////////////////////
 
-// direction_ and new_direction should be in cartesian. CRT
-void transform(const Vector3 &direction_, double theta2, double phi2, Vector3 &new_direction){ 
+void transform(double theta1, double phi1, double theta2, double phi2, double theta, double phi){ 
 	// transform 2.0 written by S.D.Pain on 4/03/2005
 	//
 	// Subroutine for transforming the a spherical polar vector
 	// from one refernce frame to another.
 	// (theta2,phi2) is a vector in the master frame
-	// (direction_.axis[1],direction_.axis[2]) is measured relative to (theta2,phi2).
-	// (theta,phi) is (direction_.axis[1],direction_.axis[2]) in the master frame
-
+	// (theta1,phi1) is measured relative to (theta2,phi2).
+	// (theta,phi) is (theta1,phi1) in the master frame
+	
 	double term1, term2, temp, x1, y1, x2, y2, x, y; 
 	double beamX, beamY, beamZ, dummy; 
 	double dumtheta1, dumphi1, dumtheta2, dumphi2; 
-	bool swap = false; 
+	bool swap; 
+	
+	swap = false; 
+	dummy = 1.0; 
 	
 	// copy the input angles to different variables, and use the copies in
 	// the subroutine, as they get modified.
-	dumtheta1 = direction_.axis[1]; 
-	dumphi1 = direction_.axis[2]; 
+	dumtheta1 = theta1; 
+	dumphi1 = phi1; 
 	dumtheta2 = theta2; 
 	dumphi2 = phi2; 
 	
@@ -854,14 +832,10 @@ void transform(const Vector3 &direction_, double theta2, double phi2, Vector3 &n
 	// If so, reflect its direction around, so that it points forwards.
 	// The transformation can then be computed, and the vector reflected
 	// back again. This avoids edge-of-the-world effects.
-	
 	if (dumtheta1 > (0.5*pi)){
 		swap = true; 
-		
 		Sphere2Cart(dummy,dumtheta1,dumphi1,beamX,beamY,beamZ); 
-		beamX = -beamX; 
-		beamY = -beamY; 
-		beamZ = -beamZ; 
+		beamX = -beamX; beamY = -beamY; beamZ = -beamZ; 
 		Cart2Sphere(beamX,beamY,beamZ,dummy,dumtheta1,dumphi1); 
 	} 
 	
@@ -869,7 +843,7 @@ void transform(const Vector3 &direction_, double theta2, double phi2, Vector3 &n
 	// effective polar angle.
 	term1 = dumtheta1 + dumtheta2*(cos(dumphi2-dumphi1)); 
 	term2 = dumtheta2*(sin((dumphi2-dumphi1))); 
-	new_direction.axis[1] = sqrt(pow(term1, 2 )+pow( term2, 2) ); 
+	theta = sqrt(pow(term1, 2 )+pow( term2, 2) ); 
 	
 	x1 = dumtheta1*sin(dumphi1); 
 	y1 = dumtheta1*cos(dumphi1); 
@@ -880,248 +854,21 @@ void transform(const Vector3 &direction_, double theta2, double phi2, Vector3 &n
 	y = y1+y2; 
 	
 	temp = x/(sqrt(pow(x, 2)+pow(y, 2)) ); 
-	new_direction.axis[2] = asin(temp); 
+	phi = asin(temp); 
 	
-	if (x>=0.0){ new_direction.axis[2] = acos(y/(std::sqrt(pow(x, 2)+pow(y, 2)))); } 
-	else{ new_direction.axis[2] = 2.0*3.14159-acos(y/(sqrt(pow(x, 2)+pow(y, 2)))); }
+	if (x>=0.0){ phi = acos(y/(std::sqrt(pow(x, 2)+pow(y, 2)))); } 
+	else{ phi = 2.0*3.14159-acos(y/(sqrt(pow(x, 2)+pow(y, 2)))); }
 	
 	// If a reflection was made, reflect back again.
 	if (swap){
-		Sphere2Cart(dummy,new_direction.axis[1],new_direction.axis[2],beamX,beamY,beamZ); 
-		beamX = -beamX; 
-		beamY = -beamY; 
-		beamZ = -beamZ; 
-		Cart2Sphere(beamX,beamY,beamZ,dummy,new_direction.axis[1],new_direction.axis[2]); 
+		Sphere2Cart(dummy,theta,phi,beamX,beamY,beamZ); 
+		beamX = -beamX; beamY = -beamY; beamZ = -beamZ; 
+		Cart2Sphere(beamX,beamY,beamZ,dummy,theta,phi); 
 	} 
 } 
 
 /////////////////////////////////////////////////////////////////////
-// strag_targ.f
-/////////////////////////////////////////////////////////////////////
-
-void strag_targ(double A, double Z, double targ_thick, double theta_old, double phi_old, double energy, double &theta_new, double &phi_new, double X){ 
-	// strag_targ 1.0 written by S.D.Pain on 20/01/2004
-	//
-	// strag_targ 1.1 modified by S.D.Pain on 7/03/2005
-	// to untilise transform2.0
-	//
-	// Subroutine to calculate the angular straggling of an ion in
-	// the target. The A,Z of the ion are read in, along with the
-	// theta,phi and energy of the ion. The average radiation length
-	// of the target material is read in as X.
-	//
-	// The calculation of the width of the scattering distribution
-	// is calculated by straggleA. A Gaussian weighted scattering angle
-	// based on this width is calculated, using rndgauss0
-	//
-	// The new theta,phi to which the ion is scattered is returned.
-	
-	double theta_scatW; 
-	double theta_scat, phi_scat; 
-	
-	// Calculate the straggling width
-	straggleA(theta_scatW, energy, Z, A, targ_thick, X); 
-	
-	// Select the scattering angle of the ion wrt its initial direction
-	theta_scat = rndgauss0(theta_scatW); 
-	theta_scat = std::sqrt(pow(theta_scat, 2)*2.0); 
-	phi_scat = frand()*2.0*pi; 
-	
-	// Determine the std::absolute lab angle to which the ion is scattered
-	//transform(theta_old, phi_old, theta_scat, phi_scat, theta_new, phi_new); 
-	Vector3 temp;
-	transform(Vector3(1.0, theta_old, phi_old), theta_scat, phi_scat, temp);
-	theta_new = temp.axis[1];
-	phi_new = temp.axis[2];
-}
-
-/////////////////////////////////////////////////////////////////////
-// targ_thick.f
-/////////////////////////////////////////////////////////////////////
-
-void targ_thick(double theta_in, double phi_in, double thicknessZ, double depth, double theta_targ, double &thickness){ 
-	// targ_thick 1.0 written by S.D.Pain on 2/2/2005
-	//
-	//   theta_in = polar angle of particle in lab
-	//   phi_in = azimuthal angle of particle in lab
-	//   thicknessZ = total target thickness (mg/cm^2)
-	//   depth = depth through target for interaction, perpendicular to target plane
-	//   theta_targ = angle of target (rotated clockwise about y axis, viewed from above)
-	//   thickness = thickness of material the particle must pass through
-
-	double x, y, z; 
-	double newx, newy, newz; 
-	double dummyr, dummytheta, dummyphi; 
-	
-	// Convert the ion's direction to cartesian coordinates
-	Sphere2Cart(1.0,theta_in,phi_in,x,y,z); 
-	//length = sqrt(pow(x, 2)+pow(y, 2)+pow(z, 2)); 
-	
-	// Rotate the ion's vector so it is measured wrt to the target
-	newx = x*cos(theta_targ) - z*sin(theta_targ); 
-	newz = z*cos(theta_targ) + x*sin(theta_targ); 
-	newy = y; 
-	
-	// Convert the ion's vector back to spherical polars, now wrt the
-	// target
-	Cart2Sphere(newx, newy, newz, dummyr, dummytheta, dummyphi); 
-	
-	// Calculate the thickness seen by the ion. Bloody marvelous.
-	if(dummytheta <= (pi/2.0)){ thickness = (thicknessZ-depth)/std::cos(dummytheta); }
-	else{ thickness = (-depth)/std::cos(dummytheta); }
-	
-	// This line was added to account for an occasion where dummytheta was greater
-	// than 0.5*pi (only just), but for some reason, cos(dummytheta) was positive
-	// which gave a negative thickness.
-	if(thickness < 0){ thickness = -thickness; }
-}
-
-/////////////////////////////////////////////////////////////////////
-// unitV.f
-/////////////////////////////////////////////////////////////////////
-
-void unitV(double xl, double yl, double zl, double &x, double &y, double &z, double &length){ 
-	// unitV 1.0 written by S.D.Pain on 20/11/2004
-	//
-	// Subroutine to read in a cartesian vector (xl,yl,zl)
-	// and calculate and return its unit vector (x,y,z) and length
-	
-	// Put in check of length > 0    ?????
-	length = std::sqrt(pow(xl, 2)+pow(yl, 2)+pow(zl, 2)); 
-	x = xl/length; 
-	y = yl/length; 
-	z = zl/length; 
-}
-
-/////////////////////////////////////////////////////////////////////
-// AngDist_read.f
-/////////////////////////////////////////////////////////////////////
-
-void AngDist_read(std::string fName, unsigned int &Npoints, double *angle, double *integral, double &max_integral){ 
-	// AngDist_read 1.0 written by S.D.Pain on 5/05/2006
-	//
-	// Subroutine for reading in an angular distribution profile from
-	// from fName.
-	// An angular distribution profile is a cumulative integration of
-	// the angular distribution.
-	// The input file should be of the form:
-	// [angle (deg)] [cumulative integral(0-angle)]
-	// where the angles must span the range 0 to 180 degrees.	
-	
-	unsigned int i; 
-	max_integral = 0.0; 
-	// DetSet_stat stores error status - T = good, F = bad
-
-	std::ifstream file10(fName.c_str()); 
-	Npoints = 0; // Zero the points counter
-	
-	// Read in the main data points from the SRIM output file
-	while(!file10.eof()){
-		Npoints = Npoints+1; 
-		file10 >> angle[Npoints] >> integral[Npoints]; 
-	} // Read in data loop
-	
-	if(Npoints > 0){ Npoints = Npoints-1; }
-	file10.close(); 
-	
-	for (i = 0; i < Npoints; i++){
-		max_integral = integral[Npoints]; 
-	} 
-}
-
-/////////////////////////////////////////////////////////////////////
-// srim-read.f
-/////////////////////////////////////////////////////////////////////
-
-void SRIMread(std::string fName, bool &SRIM_stat, unsigned int &Npoints, double *energy, double *dedx, double *range, double *longitude, double *latitude, bool convert){ 
-	// SRIMread 1.0 written by S.D.Pain on 24/11/2004
-	//
-	// Subroutine for reading in data from a SRIM output file fName
-	// The material density is read in, and all data in the main table
-	// are read in.
-	// Conversions are made to ensure all measurements are in um
-	// Ranges (and widths) are converted from um to mg/cm^2,
-	// using the density read from the SRIM file
-	// SRIM_stat provides limited error reporting (!)
-	// SRIM_stat onwards are retunred variables	
- 
-	std::string dummyC, unit_E, unit_range, unit_longitude, unit_latitude; 
-	double dedxE, dedxN, density, conv;
-	std::string junk;
-	
-	// SRIM_stat stores error status - T = good, F = bad
-	SRIM_stat = true; 
-	
-	std::ifstream file10(fName.c_str()); 
-	for(short i = 1; i <= 10; i++){
-		file10 >> junk; 
-	} 
-	
-	// Read in density in g/cm^3
-	file10 >> dummyC >> dummyC >> dummyC >> density; 
-	density = density*1000.0; // *16.0/14.0 // Convert density to mg/cm^3
-	conv = 1.0e-4*density; 
-	for(short i = 1; i <= 4; i++){
-		file10 >> junk; 
-	} 
-	
-	while(dummyC == "------"){
-		file10 >> dummyC; 
-	} 
-	
-	Npoints = 0; // Zero the data pounsigned int counter
-	
-	// Read in the main data points from the SRIM output file
-	while(!file10.eof() && SRIM_stat){
-		Npoints=Npoints+1; 
-		file10 >> energy[Npoints] >> unit_E >> dedxE >> dedxN >> range[Npoints] >> unit_range;
-		file10 >> longitude[Npoints] >> unit_longitude >> latitude[Npoints] >> unit_latitude; 
-		
-		// Add the dedx for electric and nuclear effects
-		dedx[Npoints] = dedxE + dedxN; 
-		
-		// Make sure the energies are in MeV
-		if(unit_E == "eV"){ energy[Npoints] = energy[Npoints]/1000000.0; }
-		else if(unit_E == "keV"){ energy[Npoints] = energy[Npoints]/1000.0; }
-		else if(unit_E == "MeV"){  } 
-		else{ SRIM_stat = false; } 
-		
-		// Make sure the range values are in um
-		if(unit_range ==  "A"){ range[Npoints] = range[Npoints]*0.0001; }
-		else if(unit_range ==  "mm"){ range[Npoints] = range[Npoints]*1000.0; }
-		else if(unit_range ==  "um"){  } 
-		else{ SRIM_stat = false; } 
-		
-		// Make sure the longitude values are in um
-		if(unit_longitude ==  "A"){ longitude[Npoints] = longitude[Npoints]*0.0001; }
-		else if(unit_longitude ==  "mm"){ longitude[Npoints] = longitude[Npoints]*1000.0; }
-		else if(unit_longitude ==  "um"){  } 
-		else{ SRIM_stat = false; } 
-		
-		// Make sure the latitude values are in um
-		if(unit_latitude ==  "A"){ latitude[Npoints] = latitude[Npoints]*0.0001; }
-		else if(unit_latitude ==  "mm"){ latitude[Npoints] = latitude[Npoints]*1000.0; }
-		else if(unit_latitude ==  "um"){  } 
-		else{ SRIM_stat = false; } 
-		
-		// Convert from length to mg/cm^2 if necessary
-		if (convert){
-			range[Npoints] = range[Npoints]*conv; 
-			longitude[Npoints] = longitude[Npoints]*conv; 
-			latitude[Npoints] = latitude[Npoints]*conv; 
-		} 
-	} // Read in data loop
-	
-	Npoints = Npoints-1; 
-	file10.close(); 
-
-	if(!SRIM_stat){
-		std::cout << "Arse Biscuits!!";
-	} 
-} 
-
-/////////////////////////////////////////////////////////////////////
-// kindeux.f
+// Kindeux
 /////////////////////////////////////////////////////////////////////
     	
 // Mass values are input as AMU

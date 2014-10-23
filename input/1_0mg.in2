@@ -1,4 +1,4 @@
-1.12		# Vikar input file version number
+1.13		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -7,7 +7,7 @@
 1			# Ejectile A
 30.30		# Beam energy (MeV)
 10.00		# Beam spot size diameter (mm)
-0.00		# Beam angular divergence (degrees)
+90.00		# Beam angular divergence (degrees)
 0.8			# Beam energy spread (MeV)
 -2.085		# Ground state Q-value
 2			# Number of excited states
@@ -37,3 +37,4 @@
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
 0			# Write debug info to output?
+0			# Perform Monte Carlo test on detector setup?

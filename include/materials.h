@@ -112,15 +112,6 @@ class Target{
 
 	// Determine the new direction of a particle inside the target due to angular straggling
 	void AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, double depth_, Vector3 &new_direction);
-	
-	// Return the stopping power of the target
-	double GetStoppingPower(double, double, double);
-	
-	// Return the adjusted energy for a charged particle traversing the target
-	double GetEnergy(double, double, double, double);
-	
-	// Return the maximum range for a charged particle traversing the target
-	double GetRange(double, double, double);
 };
 
 /////////////////////////////////////////////////////////////////////

@@ -353,7 +353,11 @@ void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_
 double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){	
 	Vector3 temp;
 	double zdist = physical.GetApparentThickness(offset_, direction_, 0, 2, intersect, temp); // The target thickness the ray sees
-	if(zdist == -1.0){ std::cout << " Negative apparent thickness!\n"; }
+	if(thickness == -1){ 
+		std::cout << " Beam does not travel through target!\n"; 
+		return -1;
+	}
+	
 	zdist *= frand(); // Reaction occurs at a random depth into the target
 	interact = intersect + direction_*zdist;
 	return zdist; 
@@ -390,37 +394,5 @@ void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, do
 	phi_scat = frand()*2.0*pi; 
 	
 	// Determine the std::absolute lab angle to which the ion is scattered
-	transform(direction_, theta_scat, phi_scat, new_direction);
-}
-
-// This function returns the stopping power of the target for a given energy in units of MeV/m
-// energy is the energy of the beam in MeV
-// depth is the depth traversed through the target in cm
-// atomic_mass is the mass of the particle in AMU
-double Target::GetStoppingPower(double energy, double atomic_mass, double atomic_number){
-	double beta = std::sqrt(2.0*energy/(atomic_mass*1000.0)); beta *= beta;
-	double stopping_power;
-	double total_power = 0.0;
-	for(unsigned int i = 0; i < num_elements; i++){
-		stopping_power = bethe_coefficient*pow(atomic_number, 2.0)*element_Z[i]/(beta*element_A[i]);
-		stopping_power *= std::log(2.0*e_mass*beta/(mean_excitations[i]*(1-beta))-beta);
-		total_power += (num_per_molecule[i]/num_elements)*stopping_power; // Total stopping power in units of MeV*m^2/g
-	}
-	return(total_power*density*100*100); // Total stopping power in units of MeV/m
-}
-
-// This function returns the energy of a charged particle which moves a distance through the target
-// energy is the energy of the beam in MeV
-// depth is the depth traversed through the target in cm
-// atomic_mass is the mass of the particle in AMU
-double Target::GetEnergy(double energy, double depth, double atomic_mass, double atomic_number){
-	return(energy - (depth/100.0)*GetStoppingPower(energy, atomic_mass, atomic_number)); // Residual in MeV
-}
-
-// This function returns the maximum range of a charged particle moving through the target
-// energy is the energy of the beam in MeV
-// depth is the depth traversed through the target in cm
-// atomic_mass is the mass of the particle in AMU
-double Target::GetRange(double energy, double atomic_mass, double atomic_number){
-	return(energy / GetStoppingPower(energy, atomic_mass, atomic_number));
+	//transform(direction_, theta_scat, phi_scat, new_direction);
 }

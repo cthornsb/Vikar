@@ -100,6 +100,9 @@ dump: $(TOOL_DIR)/dump.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	@echo " Done making "$@	
 
+test: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/test.cpp
+	$(COMPILER) $(CFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/test.cpp
+
 $(PROG): dictionary $(OBJECTS)
 	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
 	@echo " Done making "$(PROG)

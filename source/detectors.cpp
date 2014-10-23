@@ -105,18 +105,10 @@ void Planar::SetPolarPosition(double r, double theta, double phi){
 // X and Y are face axes, Z is the axis into or out of the bar
 void Planar::SetRotation(double theta_, double phi_, double psi_){
 	theta = theta_; phi = phi_; psi = psi_;
-
-	/*double sin_theta = std::sin(theta); double cos_theta = std::cos(theta);
-	double sin_phi = std::sin(phi); double cos_phi = std::cos(phi);
-	double sin_psi = std::sin(psi); double cos_psi = std::cos(psi);
-	
-	detX = Vector3(cos_psi*cos_phi-cos_theta*sin_phi*sin_psi, cos_psi*sin_phi+cos_theta*cos_phi*sin_psi, sin_psi*sin_theta); // Width axis
-	detY = Vector3(-sin_psi*cos_phi-cos_theta*sin_phi*cos_psi, -sin_psi*sin_phi+cos_theta*cos_phi*cos_psi, cos_psi*sin_theta); // Length axis
-	detZ = Vector3(sin_theta*sin_phi, -sin_theta*cos_phi, cos_theta);  // Depth axis*/
 	
 	double sin_theta = std::sin(theta); double cos_theta = std::cos(theta);
 	double sin_phi = std::sin(phi); double cos_phi = std::cos(phi);
-	double sin_psi = std::sin(psi); double cos_psi = std::cos(psi);
+	double sin_psi = std::sin(psi); double cos_psi = std::cos(psi);	
 	
 	// Pitch-Roll-Yaw convention
 	// Rotate by angle theta about the y-axis
@@ -482,7 +474,7 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].IntersectPrimitive(zero_vector, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
-				flight_path = (temp_vector1-temp_vector2); // The vector pointing from the first intersection point to the second
+				flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
 				penetration = frand(); // The fraction of the bar which the neutron travels through
 				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
 				fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
@@ -507,7 +499,6 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 	}
 	xyz.close();
 	faces.close();
-	
-	std::cout << " Found " << count << " events in " << total << " trials (" << 100.0*count/total << "%)\n";
+
 	return total;
 }
