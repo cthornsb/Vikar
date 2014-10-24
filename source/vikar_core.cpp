@@ -110,12 +110,24 @@ std::string Vector3::Dump() const {
 // Matrix3 Struct
 /////////////////////////////////////////////////////////////////////
 
-Matrix3::Matrix3(){
+void Matrix3::_initialize(){
 	for(unsigned int i = 0; i < 3; i++){ 
 		components[i][0] = 0.0; 
 		components[i][1] = 0.0; 
 		components[i][2] = 0.0; 
 	}
+}
+
+Matrix3::Matrix3(){ _initialize(); }
+
+Matrix3::Matrix3(double theta_, double phi_){
+	_initialize();
+	SetRotationMatrixSphere(theta_, phi_);
+}
+
+Matrix3::Matrix3(const Vector3 &vector_){
+	_initialize();
+	SetRotationMatrixSphere(vector_);
 }
 
 void Matrix3::SetRotationMatrixSphere(double theta_, double phi_){
@@ -180,46 +192,67 @@ bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickne
 		if(!inFile.good()){ return false; }
 		
 		double x, y;
+		std::vector<double> xvec, yvec;
 		while(true){
-			if(inFile.eof()){ break; }
 			inFile >> x >> y;
-			com_theta.push_back(x*deg2rad);
-			dsigma_domega.push_back(y);
+			if(inFile.eof()){ break; }
+			xvec.push_back(x);
+			yvec.push_back(y);
 			num_points++;
 		}
 		
 		// Need at least two points to calculate total reaction X-section
 		if(num_points > 1){		
 			init = true;
+
+			com_theta = new double[num_points];
+			dsigma_domega = new double[num_points];
+			integral = new double[num_points];
+
+			unsigned int index = 0;
+			std::vector<double>::iterator iter1, iter2;
+			for(iter1 = xvec.begin(), iter2 = yvec.begin(); iter1 != xvec.end() && iter2 != yvec.end(); iter1++, iter2++){
+				com_theta[index] = *iter1;
+				dsigma_domega[index] = *iter2;
+				index++;
+			}
+
 			reaction_xsection = 0.0;
-			integral.push_back(0.0);
+			integral[0] = 0.0;
 			
 			// Calculate the reaction cross-section from the differential cross section
+			double x1, x2, y1, y2;
 			for(unsigned int i = 0; i < num_points-1; i++){
-				//reaction_xsection += (com_theta[i+1]-com_theta[i])*(dsigma_domega[i]+dsigma_domega[i+1])/2.0; // Trapezoidal integration
-				reaction_xsection += (com_theta[i+1]-com_theta[i])*(dsigma_domega[i]*std::sin(com_theta[i])+dsigma_domega[i+1]*std::sin(com_theta[i+1]))/2.0; // Trapezoidal integration
-				integral.push_back(reaction_xsection*2*pi);
+				x1 = com_theta[i]*pi/180.0; y1 = dsigma_domega[i]*std::sin(x1);
+				x2 = com_theta[i+1]*pi/180.0; y2 = dsigma_domega[i+1]*std::sin(x2);
+				reaction_xsection += 0.5*(x2-x1)*(y2+y1);
+				integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
 			}
+			
 			reaction_xsection *= 2*pi;
 			rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
 			rate *= beam_current; // Reaction rate (pps)
+			return true;
 		}
 		else{ 
 			inFile.close();
 			return false; 
 		}
 	}
-	return true;
+	return false;
 }
 
 // Get a random angle from the distribution
-// Returns 0.0 if a match is not found for whatever reason
-double AngularDist::Sample(){
+// Returns false if a match is not found for whatever reason
+bool AngularDist::Sample(double &com_angle){
+	if(!init){ return false; }
 	double rand_xsect = frand()*reaction_xsection;
 	for(unsigned int i = 0; i < num_points-1; i++){
-		if(integral[i] <= rand_xsect && rand_xsect <= integral[i+1]){ return (com_theta[i]+com_theta[i+1])/2.0; }
+		if(integral[i] <= rand_xsect && rand_xsect <= integral[i+1]){ 
+			com_angle = com_theta[i] + (rand_xsect-integral[i])*(com_theta[i+1]-com_theta[i])/(integral[i+1]-integral[i]);
+		}
 	}
-	return 0.0;
+	return false;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -901,21 +934,26 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 			return false;
 		}
 		
-		NDist = fnames.size();
 		ang_dist = true;
-		distributions = new AngularDist[NDist];
+		distributions = new AngularDist[NrecoilStates];
+		Xsections = new double[NrecoilStates];
 	
 		// Load all distributions from file
-		for(unsigned int i = 0; i < NDist; i++){
+		total_xsection = 0.0;
+		for(unsigned int i = 0; i < NrecoilStates; i++){
 			if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness, incident_beam_current)){
+				std::cout << "  Failed to load angular distribution file '" << fnames[i] << "'\n";
 				ang_dist = false;
 				break;
 			}
+			Xsections[i] = total_xsection;
+			total_xsection += distributions[i].GetReactionXsection();
 		}
 	
 		// Encountered some problem with one or more of the distributions
 		if(!ang_dist){ 
 			delete[] distributions; 
+			delete[] Xsections;
 			return false;
 		}
 		return true;
@@ -925,31 +963,43 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 
 // Calculate recoil excitation energies
 // Returns true if there was a reaction and false otherwise
-bool Kindeux::get_excitations(double& recoil){
+bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 	if(NrecoilStates == 0){
-		recoil = RecoilExStates[0];
+		state = 0;
+		recoilE = RecoilExStates[state];
 		return true;
 	}
 	else if(ang_dist){	
 		// Angular dist weighted
-		// This allows for the possibility that no reaction occurs
-		// Because of this, we can actually calculate the reaction rate
-		recoil = RecoilExStates[int(frand()*NrecoilStates)]; // Temporary, for testing
-		if(frand() >= 0.5){ return true; }
-		else{ return false; }
+		double rand_xsection = frand()*total_xsection;
+		for(unsigned int i = 0; i < NrecoilStates-1; i++){
+			if(rand_xsection >= Xsections[i] && rand_xsection <= Xsections[i+1]){
+				// State i has been selected
+				state = i;
+				recoilE = RecoilExStates[state];
+				return true;
+			}
+		}
+		// rand_xsection falls in the range (Xsections[NrecoilStates-1], total_xsection]
+		// State NrecoilStates-1 has been selected
+		state = NrecoilStates-1;
+		recoilE = RecoilExStates[state];
+		return true;
 	}
 	else{ 
 		// Isotropic
-		recoil = RecoilExStates[int(frand()*NrecoilStates)];
-		return true;
+		state = (unsigned int)(frand()*NrecoilStates);
+		recoilE = RecoilExStates[state];
 	}
+	return true;
 }
 
 // See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
 // to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251
 bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile){
+	unsigned int state;
 	double Recoil_Ex;
-	if(!get_excitations(Recoil_Ex)){ 
+	if(!get_excitations(Recoil_Ex, state)){ 
 		// No reaction occured
 		return false; 
 	}
@@ -961,7 +1011,12 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile){
 	
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
 	double temp_angle; // Ejectile angle in the center of mass frame
-	UnitSphereRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
+	if(ang_dist){
+		// Sample the angular distributions for the CoM angle of the ejectile
+		if(distributions[state].Sample(temp_angle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
+		else{ UnitSphereRandom(temp_angle, EjectPhi); } // Failed to sample the distribution
+	}
+	else{ UnitSphereRandom(temp_angle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
 	
 	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
@@ -985,8 +1040,9 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile){
 
 // Overloaded version which also calculates data for the recoil particle
 bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil){
+	unsigned int state;
 	double Recoil_Ex;
-	if(!get_excitations(Recoil_Ex)){ 
+	if(!get_excitations(Recoil_Ex, state)){ 
 		// No reaction occured
 		return false; 
 	}
@@ -998,7 +1054,12 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vect
 	
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
 	double temp_angle; // Ejectile and recoil angle in the center of mass frame
-	UnitSphereRandom(temp_angle, EjectPhi); // Randomly select a uniformly distributed point on the unit sphere
+	if(ang_dist){
+		// Sample the angular distributions for the CoM angle of the ejectile
+		if(distributions[state].Sample(temp_angle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
+		else{ UnitSphereRandom(temp_angle, EjectPhi); } // Failed to sample the distribution
+	}
+	else{ UnitSphereRandom(temp_angle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
 	
 	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
@@ -1024,41 +1085,6 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vect
 	return true;
 }
 
-// Overloaded version which also calculates data for the recoil particle
-bool Kindeux::FillVars(double Beam_E, double beam_theta_com, double *EjectTheta, double *RecoilTheta, double *RecoilTheta2, double *Ejectile_E, double *Ejectile_E2, double *Recoil_E, double *Recoil_E2){
-	for(unsigned int i = 0; i < NrecoilStates; i++){
-		// In the center of mass frame
-		double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass
-		double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass
-		double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+RecoilExStates[i]))); // Ejectile CoM velocity after reaction
-	
-		EjectTheta[i] = std::atan2(std::sin(beam_theta_com),(std::cos(beam_theta_com)+(Vcm/VejectCoM))); // Ejectile angle in the lab
-		double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta[i]),2.0));
-		double Ejectile_V = Vcm*std::cos(EjectTheta[i]) + temp_value; // Ejectile velocity in the lab frame
-		double Ejectile_V2 = Vcm*std::cos(EjectTheta[i]) - temp_value; // Ejectile velocity for double valued solutions
-		
-		Ejectile_E[i] = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
-		Recoil_E[i] = (Beam_E+Qvalue-(0.0+RecoilExStates[i])) - Ejectile_E[i]; // Recoil calculations (now in the lab frame)
-		RecoilTheta[i] = std::asin(((std::sqrt(2*Meject*Ejectile_E[i]))/(std::sqrt(2*Mrecoil*Recoil_E[i])))*std::sin(EjectTheta[i])); // Recoil angle in the lab
-	
-		if(VejectCoM >= Vcm){ 
-			// Veject is single valued	
-			Ejectile_E2[i] = -1;
-			Recoil_E2[i] = -1;
-			RecoilTheta2[i] = -1;
-		} 
-		else{ 
-			// Veject is double valued
-			Ejectile_E2[i] = 0.5*Meject*Ejectile_V2*Ejectile_V2; // Ejectile energy in the lab frame
-			Recoil_E2[i] = (Beam_E+Qvalue-(0.0+RecoilExStates[i])) - Ejectile_E2[i]; // Recoil calculations (now in the lab frame)
-			RecoilTheta2[i] = std::asin(((std::sqrt(2*Meject*Ejectile_E2[i]))/(std::sqrt(2*Mrecoil*Recoil_E2[i])))*std::sin(EjectTheta[i])); // Recoil angle in the lab		
-		}
-	
-
-	} // over NrecoilStates
-	return true;
-}
-
 // Convert ejectile CoM angle to Lab angle
 double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_CoM_angle){
 	// In the center of mass frame
@@ -1069,22 +1095,11 @@ double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_C
 	return(std::atan2(std::sin(Eject_CoM_angle),(std::cos(Eject_CoM_angle)+(Vcm/VejectCoM)))); // Ejectile angle in the lab
 }
 
-// Sample the angular distributions and load them into an array.
-// This function assumes values is at least large enough to
-// accept a number of doubles equal to the number of distributions
-void Kindeux::Sample(double *values){
-	if(ang_dist){
-		for(unsigned int i = 0; i < NDist; i++){
-			values[i] = distributions[i].Sample();
-		}
-	}
-}
-
 // Print debug information
 // Does nothing if angular distributions are not set
 void Kindeux::Print(){
 	if(ang_dist){
-		for(unsigned int i = 0; i < NDist; i++){
+		for(unsigned int i = 0; i < NrecoilStates; i++){
 			std::cout << "  State " << i+1 << ":";
 			std::cout << " Reaction X-Section: " << distributions[i].GetReactionXsection() << " mb";
 			std::cout << "\tExpected Rate: " << distributions[i].GetRate() << " pps\n";

@@ -44,10 +44,16 @@ struct Vector3{
 	std::string Dump() const ;
 };
 
-struct Matrix3{
+class Matrix3{
+  private:
 	double components[3][3];
 	
+	void _initialize();
+	
+  public:
 	Matrix3();
+	Matrix3(double theta_, double phi_);
+	Matrix3(const Vector3 &vector_);
 	void GetUnitX(Vector3 &vector){ vector.axis[0] = components[0][0];  vector.axis[1] = components[1][0];  vector.axis[2] = components[2][0]; }
 	void GetUnitY(Vector3 &vector){ vector.axis[0] = components[0][1];  vector.axis[1] = components[1][1];  vector.axis[2] = components[2][1]; }
 	void GetUnitZ(Vector3 &vector){ vector.axis[0] = components[0][2];  vector.axis[1] = components[1][2];  vector.axis[2] = components[2][2]; }
@@ -68,7 +74,7 @@ struct Matrix3{
 
 class AngularDist{
   private:
-	std::vector<double> com_theta, dsigma_domega, integral;
+	double *com_theta, *dsigma_domega, *integral;
 	double reaction_xsection, rate;
 	unsigned int num_points;
 	bool init;
@@ -80,6 +86,11 @@ class AngularDist{
 		init = false;
 	}
 	~AngularDist(){
+		if(init){
+			delete[] com_theta;
+			delete[] dsigma_domega;
+			delete[] integral;
+		}
 	}
 	
 	bool Initialize(const char*, double, double, double);
@@ -88,7 +99,7 @@ class AngularDist{
 	unsigned int GetNumPoints(){ return num_points; }
 	double GetReactionXsection(){ return reaction_xsection; }
 	
-	double Sample();
+	bool Sample(double &com_angle);
 };
 
 class Kindeux{
@@ -96,13 +107,14 @@ class Kindeux{
 	double Mbeam, Mtarg, Mrecoil;
 	double Meject, Qvalue, tgt_thickness;
 	double *RecoilExStates;
+	double *Xsections;
+	double total_xsection;
 	
 	unsigned int NDist, NrecoilStates;
 	AngularDist *distributions;
 	bool ang_dist, init;
 	
-	bool get_excitations(double&);
-   	void prod_proc();
+	bool get_excitations(double &recoilE, unsigned int &state);
 	
   public:
 	Kindeux(){
@@ -114,7 +126,10 @@ class Kindeux{
 		Qvalue = 0.0;
 	}
 	~Kindeux(){ 
-		if(ang_dist){ delete[] distributions; } 
+		if(ang_dist){ 
+			delete[] distributions; 
+			delete[] Xsections;
+		} 
 	}
 
 	double GetMbeam(bool in_kg=false){ 
@@ -138,10 +153,7 @@ class Kindeux{
 	bool SetDist(std::vector<std::string>&, double, double);
 	bool FillVars(double, double&, Vector3&);
 	bool FillVars(double, double&, double&, Vector3&, Vector3&);
-	bool FillVars(double, double, double*, double*, double*, double*, double*, double*, double*);
 	double ConvertAngle2Lab(double, double, double);
-	double GetEnergies(double, double, unsigned int, double*, double*);
-	void Sample(double*);
 	void Print();
 };
 

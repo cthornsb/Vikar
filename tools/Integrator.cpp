@@ -3,6 +3,8 @@
 #include <iostream>
 #include <cmath>
 
+#define PI 3.1415926540
+
 int main(int argc, char* argv[]){
 	if(argc < 2){ 
 		std::cout << " Error: No filename specified\n";
@@ -15,8 +17,11 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 	
+	// X should be angle in degrees
+	// Y should be dsigma/domega in mb/sr
 	std::vector<float> valx, valy;
 	float fvalx, fvaly;
+	unsigned int count = 0;
 	
 	// Load the data values
 	while(true){
@@ -25,28 +30,23 @@ int main(int argc, char* argv[]){
 		
 		valx.push_back(fvalx);
 		valy.push_back(fvaly);
+		count++;
 	}
 	inFile.close();
-	
-	unsigned int count = valx.size();
-	if(valx.size() < valy.size()){
-		std::cout << " Warning! Found more Y values than X values\n";
-		count = valx.size();
-	}
-	else if(valx.size() > valy.size()){
-		std::cout << " Warning! Found more X values than Y values\n";
-		count = valy.size();
-	}
-	
+
 	std::cout << " Loaded " << count << " values from file\n";
 	double integral = 0.0;
 	
 	// Integrate using the trapezoidal rule
-	for(unsigned int i = 0; i < count-1; i++){
-		integral += (valx[i+1]-valx[i])*(valy[i]*std::sin(valx[i])+valy[i+1]*std::sin(valx[i+1]))/2.0;
+	double x1, x2, y1, y2;
+	for(unsigned int i = 0; i < valx.size()-1; i++){
+		x1 = valx[i]*PI/180.0; y1 = valy[i]*std::sin(x1);
+		x2 = valx[i+1]*PI/180.0; y2 = valy[i+1]*std::sin(x2);
+		integral += 0.5*(x2-x1)*(y2+y1);
 	}
 	
-	std::cout << " The integral is " << integral*2*3.14156 << std::endl;
+	if(integral < 0.0){ integral *= -1; }
+	std::cout << " The cross section is " << integral*2*3.14159 << " mb\n";
 	
 	return 0;
 }

@@ -91,7 +91,7 @@ class Target{
 	double GetA(){ return A; } // Return the A of the target element of interest
 	double GetAverageZ(){ return avgZ; } // Return the average atomic number of the elements in the molecule
 	double GetAverageA(){ return avgA; } // Return the average atomic mass of the elements in the molecule
-	double GetRadLength(){ return rad_length; } // Return the radiation length of the target
+	double GetRadLength(){ return rad_length; } // Return the radiation length of the target (mg/cm^2)
 	double GetDensity(){ return density; } // Return the density of the target (g/cm^3)
 	double GetThickness(){ return thickness; } // Return the thickness of the target (mg/cm^2)
 	double GetZthickness(){ return Zthickness; } // Return the thickness the beam sees (mg/cm^2)
@@ -111,7 +111,7 @@ class Target{
 	double GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact);
 
 	// Determine the new direction of a particle inside the target due to angular straggling
-	void AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, double depth_, Vector3 &new_direction);
+	void AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, Vector3 &new_direction);
 };
 
 /////////////////////////////////////////////////////////////////////

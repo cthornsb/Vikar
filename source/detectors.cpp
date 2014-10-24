@@ -474,25 +474,27 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].IntersectPrimitive(zero_vector, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
-				flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
-				penetration = frand(); // The fraction of the bar which the neutron travels through
-				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
-				fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
-				fpath2 = temp_vector2.Length(); // Distance from reaction to second intersection point
+				if(!bar_array[bar].IsRecoilDet()){
+					flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
+					penetration = frand(); // The fraction of the bar which the neutron travels through
+					dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
+					fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
+					fpath2 = temp_vector2.Length(); // Distance from reaction to second intersection point
 			
-				// Calculate the total distance traveled and the interaction point inside the detector
-				if(fpath1 <= fpath2){ 
-					dist_traveled += fpath1; 
-					flight_path = temp_vector1 + flight_path*penetration;
-				}
-				else{ 
-					dist_traveled += fpath2; 
-					flight_path = temp_vector2 + flight_path*penetration;
-				}
+					// Calculate the total distance traveled and the interaction point inside the detector
+					if(fpath1 <= fpath2){ 
+						dist_traveled += fpath1; 
+						flight_path = temp_vector1 + flight_path*penetration;
+					}
+					else{ 
+						dist_traveled += fpath2; 
+						flight_path = temp_vector2 + flight_path*penetration;
+					}
 		
-				xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
-				faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
-				count++;
+					xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
+					faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
+					count++;
+				}
 			}
 		}
 		total++;

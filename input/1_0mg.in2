@@ -1,4 +1,4 @@
-1.13b		# Vikar input file version number
+1.13c		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -7,13 +7,16 @@
 1			# Ejectile A
 30.30		# Beam energy (MeV)
 10.00		# Beam spot size diameter (mm)
-90.00		# Beam angular divergence (degrees)
+90.00		# Beam angular divergence (degrees) (90 degrees is perfectly cylindrical)
 0.8			# Beam energy spread (MeV)
 -2.085		# Ground state Q-value
 2			# Number of excited states
 0.7695		# Energy of excited state 1
 2.3200		# Energy of excited state 2
-0			# Supply angular distributions?
+1			# Supply angular distributions?
+/home/cory/Research/VANDLE/Vikar/xsections/ground.test
+/home/cory/Research/VANDLE/Vikar/xsections/first.test
+/home/cory/Research/VANDLE/Vikar/xsections/second.test
 #/home/cory/Research/VANDLE/Vikar/xsections/ground_state.xsect		# Distribution for ground state
 #/home/cory/Research/VANDLE/Vikar/xsections/first_excited.xsect		# Distribution for first excited state
 #/home/cory/Research/VANDLE/Vikar/xsections/second_excited.xsect	# Distribution for second excited state

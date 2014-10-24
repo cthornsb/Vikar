@@ -6,7 +6,7 @@ LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump
+TOOLS = vikarFront angleConvert kinematics kindist dump energy
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
@@ -100,8 +100,12 @@ dump: $(TOOL_DIR)/dump.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	@echo " Done making "$@	
 
+energy: $(TOOL_DIR)/energy.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	@echo " Done making "$@	
+
 test: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/test.cpp
-	$(COMPILER) $(CFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/test.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)
 
 $(PROG): dictionary $(OBJECTS)
 	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)

@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.13b"
+#define VERSION "1.13c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -565,6 +565,7 @@ int main(int argc, char* argv[]){
 		std::cout << " Loading state angular distribution files...\n";
 		if(kind.SetDist(AngDist_fname, targ.GetTotalElements(), BeamRate)){
 			// Successfully set the angular distributions
+			std::cout << " Successfully loaded angular distributions\n";
 			kind.Print();
 		}
 		else{
@@ -614,7 +615,9 @@ int main(int argc, char* argv[]){
 	bool flag = false;
 	bool hit = false;
 	unsigned int chunk = Nwanted/10;
-	unsigned int stopped = 0;
+	unsigned int beam_stopped = 0;
+	unsigned int recoil_stopped = 0;
+	unsigned int eject_stopped = 0;
 	timer = clock();
 	
 	while(Ndetected < Nwanted){
@@ -666,13 +669,13 @@ int main(int argc, char* argv[]){
 		
 		// Calculate the new energy
 		if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
-			if(stopped == 10000){
+			if(beam_stopped == 10000){
 				std::cout << " ATTENTION!\n";
-				std::cout << "  A large number of beam particles (" << 100.0*stopped/Nsimulated << "%) have stopped in the target!\n";
+				std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
 				std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
 				std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
 			}
-			stopped++;
+			beam_stopped++;
 			
 			continue; 
 		}
@@ -680,7 +683,7 @@ int main(int argc, char* argv[]){
 		
 		// Determine the angle of the beam particle's trajectory at the
 		// interaction point, due to angular straggling and the incident trajectory.
-		//targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, Zdepth, lab_beam_stragtraject);
+		targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
 		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere)){ Nreactions++; }
@@ -692,7 +695,9 @@ int main(int argc, char* argv[]){
 		Sphere2Cart(RecoilSphere, Recoil);
 		
 		// Transform the ejectile and recoil vectors (cartesian) from the beam trajectory frame into the Lab frame
-		rotation_matrix.SetRotationMatrixCart(lab_beam_trajectory);
+		// This transformation will overwrite the Ejectile and Recoil vectors
+		//rotation_matrix.SetRotationMatrixCart(lab_beam_trajectory); // Turn OFF angular straggling effects
+		rotation_matrix.SetRotationMatrixCart(lab_beam_stragtraject); // Turn ON angular straggling effects
 		rotation_matrix.Transform(Ejectile);
 		rotation_matrix.Transform(Recoil);
 
@@ -823,11 +828,14 @@ int main(int argc, char* argv[]){
 	// Information output and cleanup
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
-	if(!PerfectDet){
-		std::cout << " Geometric Efficiency: " << NbarHit*100.0/Nreactions << "%\n";
-		std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
+	std::cout << " Geometric Efficiency: " << NbarHit*100.0/Nreactions << "%\n";
+	std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n";
+	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
+		std::cout << " Particles Stopped in Target:\n";
+		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << "(" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
+		if(eject_stopped > 0){ std::cout << "  Ejectiles: " << eject_stopped << "(" << 100.0*eject_stopped/Nsimulated << "%)\n"; }
+		if(recoil_stopped > 0){ std::cout << "  Recoils: " << recoil_stopped << "(" << 100.0*recoil_stopped/Nsimulated << "%)\n"; }
 	}
-	else{ std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
 	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 	
 	file->cd();

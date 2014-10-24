@@ -1,7 +1,7 @@
 // dump.cpp
 // Cory Thornsberry
 // Oct. 16th, 2014
-// Dump entries from a root file with branches of vectors to a text file
+// Calculate the energy spectrum for a VIKAR data set
 
 #include <fstream>
 #include <iostream>
@@ -20,6 +20,12 @@ int main(int argc, char *argv[]){
 		std::cout << " Syntax: ./dump filename treename N branch1 branch2... branchN\n";
 		return 1; 
 	}
+
+	unsigned int num_vars = (unsigned int)atoi(argv[3]);
+	if(num_vars == 0){
+		std::cout << " Error! Attempt to load zero branches from input file\n";
+		return 1;
+	}
 	
 	TFile *file = new TFile(argv[1], "READ");
 	if(!file->IsOpen()){
@@ -33,12 +39,9 @@ int main(int argc, char *argv[]){
 		return 1;
 	}
 	tree->SetMakeClass(1);
-	
-	unsigned int num_vars = (unsigned int)atoi(argv[3]);
-	std::cout << " Loading " << num_vars << " root branches\n";
-	
+		
 	if((unsigned int)argc < (4+num_vars)){
-		std::cout << " Error! Received " << argc-4 << " branch names, expected " << 4+num_vars << "\n";
+		std::cout << " Error! Received " << argc-4 << " branch names, expected " << num_vars << "\n";
 		file->Close();
 		return 1;
 	}
@@ -46,10 +49,26 @@ int main(int argc, char *argv[]){
 	std::vector<double> vars[num_vars];
 	std::vector<double>::iterator iters[num_vars];
 	TBranch *branches[num_vars];
+	bool switches[num_vars];
+	bool temp = false;
 	
+	std::cout << " Loading " << num_vars << " root branches\n";
 	for(unsigned int i = 0; i < num_vars; i++){
 		tree->SetBranchAddress(argv[4+i], &vars[i], &branches[i]);
-		if(!branches[i]){ std::cout << " Warning! Failed to load branch '" << argv[4+i] << "'\n"; }
+		if(!branches[i]){ 
+			std::cout << " Warning! Failed to load branch '" << argv[4+i] << "'\n"; 
+			switches[i] = false;
+		}
+		else{ 
+			switches[i] = true; 
+			if(!temp){ temp = true; }
+		}
+	}
+	
+	if(!temp){
+		std::cout << " Error! Failed to load any input branches\n";
+		file->Close();
+		return 1;
 	}
 	
 	std::ofstream output_file("dump.out");
@@ -69,8 +88,9 @@ int main(int argc, char *argv[]){
 		
 		good_entry = true;
 		for(unsigned int j = 0; j < num_vars; j++){
+			if(!switches[j]){ continue; }
 			if(vars[j].size() != size){ 
-				std::cout << "  Problem with entry no. " << i << std::endl;
+				std::cout << "  vars[" << j << "].size() != " << size << std::endl;
 				good_entry = false; 
 				break;
 			}
@@ -80,9 +100,10 @@ int main(int argc, char *argv[]){
 		if(good_entry){
 			count = 0;
 			while(count < size){
-				output_file << *iters[0];
-				for(unsigned int j = 1; j < num_vars; j++){
-					output_file << "\t" << *iters[j];
+				for(unsigned int j = 0; j < num_vars; j++){
+					if(switches[j]){ output_file << *iters[j]; }
+					else{ output_file << "-1"; }
+					if(j != num_vars-1){ output_file << "\t"; }
 					iters[j]++;
 				}
 				output_file << "\n";

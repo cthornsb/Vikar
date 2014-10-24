@@ -365,7 +365,7 @@ double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direct
 
 // Determine the new direction of a particle inside the target due to angular straggling
 // direction_ and new_direction have x,y,z format and are measured in meters
-void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, double E_, double depth_, Vector3 &new_direction){
+void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, double E_, Vector3 &new_direction){
 	// strag_targ 1.0 written by S.D.Pain on 20/01/2004
 	//
 	// strag_targ 1.1 modified by S.D.Pain on 7/03/2005
@@ -393,6 +393,8 @@ void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, do
 	theta_scat = std::sqrt(pow(theta_scat, 2.0)*2.0); 
 	phi_scat = frand()*2.0*pi; 
 	
-	// Determine the std::absolute lab angle to which the ion is scattered
-	//transform(direction_, theta_scat, phi_scat, new_direction);
+	// Determine the absolute lab angle to which the ion is scattered
+	Matrix3 matrix(theta_scat, phi_scat);
+	new_direction = direction_;
+	matrix.Transform(new_direction);
 }
