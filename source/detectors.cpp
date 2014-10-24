@@ -449,7 +449,7 @@ unsigned int ReadDetFile(const char* fname, Planar **bar_array){
 }
 
 // Perform a monte carlo simulation on an arbitrary configuration
-// of VANDLE bars from an array. Returns the number of hits detected
+// of detectors from an array. Returns the number of hits detected
 // Generates two files...
 //  xyz.dat - Contains 3-tuples of (x,y,z) for all detected hits
 //  faces.dat - Contains 3-tuples of (face_x,face_y,face_z) for all detected hits

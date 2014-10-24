@@ -14,6 +14,8 @@
 #include "detectors.h"
 #include "structures.h"
 
+#define VERSION "1.13b"
+
 struct debugData{
 	double var1, var2, var3;
 	
@@ -214,7 +216,7 @@ int main(int argc, char* argv[]){
 	std::cout << "     ## ##         ##     ##      ##     ##         ##   ##      ##    ##\n";
 	std::cout << "      ###       ######## ####      ###  ####       #### ####      ### ###########\n";
 
-	std::cout << "\n VIKAR v 1.13\n"; 
+	std::cout << "\n VIKAR v " << VERSION << "\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
 	
 	std::cout << " Welcome to NewVIKAR, the Virtual Instrumentation for Kinematics\n"; 
@@ -247,7 +249,7 @@ int main(int argc, char* argv[]){
 			
 			if(count == 0){ 
 				std::cout << "  Version: " << input << std::endl;
-				if(input != "1.13"){ 
+				if(input != VERSION){ 
 					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
 				}
 			}

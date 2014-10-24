@@ -1,22 +1,32 @@
 #include <iostream>
+#include <fstream>
 
 #include "vikar_core.h"
 
 int main(){
-	/*Matrix3 pizza;
-	pizza.SetRow1(1, 0, 0);
-	pizza.SetRow2(0, 0, 1);
-	pizza.SetRow3(0, 1, 0);
-	pizza.Dump();*/
+	Vector3 vector(0.0, 0.0, 0.5); // Start along the z-axis
+	Matrix3 matrix;
 	
-	Vector3 taco(0, 1, 0);
-	Vector3 burrito(1, 0, 0);
+	std::ofstream output("test.dat");
 	
-	taco.TransformSpherical(0, 0, 0);
-	burrito.TransformSpherical(3.14159/2.0, 3.14159, 0);
+	double theta_step = pi/10.0;
+	double phi_step = 2*pi/10.0;
+	double current_theta;
+	double current_phi;
+	for(unsigned int i = 0; i <= 10; i++){
+		current_theta = i*theta_step;
+		for(unsigned int j = 0; j <= 10; j++){
+			vector = Vector3(0.0, 0.0, 0.5);
+			current_phi = j*phi_step;
+			
+			matrix.SetRotationMatrixSphere(current_theta, current_phi);	
+			matrix.Transform(vector);
+			output << vector.axis[0] << "\t" << vector.axis[1] << "\t" << vector.axis[2] << "\n";
+		}
+	}
 	
-	std::cout << taco.Dump() << std::endl;
-	std::cout << burrito.Dump() << std::endl;
+	std::cout << " Done!\n";
+	output.close();
 
 	return 0;
 }

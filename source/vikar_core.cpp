@@ -121,10 +121,11 @@ Matrix3::Matrix3(){
 void Matrix3::SetRotationMatrixSphere(double theta_, double phi_){
 	double sin_theta = std::sin(theta_), cos_theta = std::cos(theta_);
 	double sin_phi = std::sin(phi_), cos_phi = std::cos(phi_);
-
-	SetRow1(cos_theta*cos_phi, -sin_phi, sin_theta*cos_phi);
-	SetRow2(cos_theta*sin_phi, cos_phi, sin_theta*sin_phi);
-	SetRow3(-sin_phi, 0.0, cos_theta);
+	
+	// Rz(phi)Ry(theta) rotation matrix
+	SetRow1(cos_phi*cos_theta, -sin_phi, cos_phi*sin_theta);
+	SetRow2(sin_phi*cos_theta, cos_phi, sin_phi*sin_theta);
+	SetRow3(-sin_theta, 0.0, cos_theta);
 }
 
 void Matrix3::SetRotationMatrixSphere(const Vector3 &vector_){
@@ -143,18 +144,20 @@ void Matrix3::SetRotationMatrixCart(const Vector3 &vector_){
 
 // Transform an input vector by this matrix
 // Note: Expects the input vector to be in cartesian coordinates
-Vector3 Matrix3::Transform(Vector3 &vector_){
-	vector_.axis[0] = components[0][0]*vector_.axis[0] + components[0][1]*vector_.axis[1] + components[0][2]*vector_.axis[2];
-	vector_.axis[1] = components[1][0]*vector_.axis[0] + components[1][1]*vector_.axis[1] + components[1][2]*vector_.axis[2];
-	vector_.axis[2] = components[2][0]*vector_.axis[0] + components[2][1]*vector_.axis[1] + components[2][2]*vector_.axis[2];
+void Matrix3::Transform(Vector3 &vector){
+	double x = vector.axis[0], y = vector.axis[1], z = vector.axis[2];
+	vector.axis[0] = components[0][0]*x + components[0][1]*y + components[0][2]*z;
+	vector.axis[1] = components[1][0]*x + components[1][1]*y + components[1][2]*z;
+	vector.axis[2] = components[2][0]*x + components[2][1]*y + components[2][2]*z;
 }
 
 // Transform an input vector by the transpose of this matrix
 // Note: Expects the input vector to be in cartesian coordinates
-Vector3 Matrix3::Transpose(Vector3 &vector_){
-	vector_.axis[0] = components[0][0]*vector_.axis[0] + components[1][0]*vector_.axis[1] + components[2][0]*vector_.axis[2];
-	vector_.axis[1] = components[0][1]*vector_.axis[0] + components[1][1]*vector_.axis[1] + components[2][1]*vector_.axis[2];
-	vector_.axis[2] = components[0][2]*vector_.axis[0] + components[1][2]*vector_.axis[1] + components[2][2]*vector_.axis[2];
+void Matrix3::Transpose(Vector3 &vector){
+	double x = vector.axis[0], y = vector.axis[1], z = vector.axis[2];
+	vector.axis[0] = components[0][0]*x + components[1][0]*y + components[2][0]*z;
+	vector.axis[1] = components[0][1]*x + components[1][1]*y + components[2][1]*z;
+	vector.axis[2] = components[0][2]*x + components[1][2]*y + components[2][2]*z;
 }
 
 void Matrix3::Dump(){
