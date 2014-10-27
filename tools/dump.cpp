@@ -49,6 +49,7 @@ int main(int argc, char *argv[]){
 	std::vector<double> vars[num_vars];
 	std::vector<double>::iterator iters[num_vars];
 	TBranch *branches[num_vars];
+	unsigned int good_branch = 0;
 	bool switches[num_vars];
 	bool temp = false;
 	
@@ -60,6 +61,7 @@ int main(int argc, char *argv[]){
 			switches[i] = false;
 		}
 		else{ 
+			good_branch++;
 			switches[i] = true; 
 			if(!temp){ temp = true; }
 		}
@@ -70,6 +72,8 @@ int main(int argc, char *argv[]){
 		file->Close();
 		return 1;
 	}
+	
+	std::cout << " Successfully loaded " << good_branch << " branches\n";
 	
 	std::ofstream output_file("dump.out");
 	if(!output_file.good()){

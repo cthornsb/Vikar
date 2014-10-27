@@ -3,6 +3,7 @@
 ///////////////////////////////////////////////////////////
 // RecoilObject
 ///////////////////////////////////////////////////////////
+
 void RecoilObject::Append(const double &hitX_, const double &hitY_, const double &hitZ_, const double &hitTheta_, const double &hitPhi_,
 						  const double &qdc_, const double &tof_, const double &faceX_, const double &faceY_, const double &faceZ_, const int &loc_){
 	recoil_hitX.push_back(hitX_);
@@ -38,7 +39,8 @@ void RecoilObject::Zero(){
 ///////////////////////////////////////////////////////////
 // EjectObject
 ///////////////////////////////////////////////////////////
-void EjectObject::Append(const double &hitX_, const double &hitY_, const double &hitZ_, const double &hitTheta_, const double &hitPhi_,
+
+void EjectObject::Append(const double &hitX_, const double &hitY_, const double &hitZ_, const double &hitTheta_, const double &hitPhi_, 
 						 const double &qdc_, const double &tof_, const double &faceX_, const double &faceY_, const double &faceZ_, const int &loc_){
 	eject_hitX.push_back(hitX_);
 	eject_hitY.push_back(hitY_);
@@ -68,4 +70,32 @@ void EjectObject::Zero(){
     eject_faceZ.clear();
     eject_loc.clear();
 	eject_mult = 0;
+}
+
+///////////////////////////////////////////////////////////
+// ReactionObject
+///////////////////////////////////////////////////////////
+
+void ReactionObject::Append(const double &reactE_, const double &reactX_, const double &reactY_, const double &reactZ_,
+							const double &trajectoryX_, const double &trajectoryY_, const double &trajectoryZ_){
+	reactE.push_back(reactE_);
+	reactX.push_back(reactX_);
+	reactY.push_back(reactY_);
+	reactZ.push_back(reactZ_);
+	trajectoryX.push_back(trajectoryX_);
+	trajectoryY.push_back(trajectoryY_);
+	trajectoryZ.push_back(trajectoryZ_);
+	reaction_mult++;
+}
+
+void ReactionObject::Zero(){
+	if(reaction_mult == 0){ return ; } // Structure is already empty
+	reactE.clear();
+	reactX.clear();
+	reactY.clear();
+	reactZ.clear();
+	trajectoryX.clear();
+	trajectoryY.clear();
+	trajectoryZ.clear();
+	reaction_mult = 0;
 }

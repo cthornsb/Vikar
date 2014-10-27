@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.13c"
+#define VERSION "1.13d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -185,6 +185,7 @@ int main(int argc, char* argv[]){
 
 	bool SimGamma = false;
 	bool InCoincidence = true;
+	bool WriteReaction = false;
 	bool WriteDebug = false;
 
 	unsigned int Ndet = 0;
@@ -412,10 +413,14 @@ int main(int argc, char* argv[]){
 				SetBool(input, "  Require particle coincidence", InCoincidence);
 			}
 			else if(count == 23){
+				// Write Reaction data to file?
+				SetBool(input, "  Write Reaction Info", WriteReaction);
+			}
+			else if(count == 24){
 				// Write Debug data to file?
 				SetBool(input, "  Write Debug Info", WriteDebug);
 			}
-			else if(count == 24){
+			else if(count == 25){
 				// Perform monte carlo simulation on detector setup?
 				SetBool(input, "  Test Detector Setup", TestSetup);
 			}
@@ -587,10 +592,14 @@ int main(int argc, char* argv[]){
 	
 	EjectObject EJECTdata;
 	RecoilObject RECOILdata;
+	ReactionObject REACTIONdata;
 	debugData DEBUGdata;
 	
 	VIKARtree->Branch("Eject", &EJECTdata);
 	VIKARtree->Branch("Recoil", &RECOILdata);
+	if(WriteReaction){
+		VIKARtree->Branch("Reaction", &REACTIONdata);
+	}
 	if(WriteDebug){ 
 		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
 		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
@@ -750,14 +759,14 @@ int main(int argc, char* argv[]){
 				}
 			
 				if(hit){
-					// The neutron hit a bar and was detected
-					// The time of flight is the time it takes the neutron to traverse the distance
-					// from the target (origin) to the intersection point inside the bar
+					// The particle hit a detector and was detected
+					// The time of flight is the time it takes the particle to traverse the distance
+					// from the target to the intersection point inside the detector
 					fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
 					fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
 					penetration = frand(); // The fraction of the bar which the neutron travels through
 					temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
-					dist_traveled = temp_vector.Length()*penetration; // Random distance traveled through bar
+					dist_traveled = temp_vector.Length()*penetration; // Random distance traveled through detector
 
 					// Calculate the total distance traveled and the interaction point inside the detector
 					if(fpath1 <= fpath2){ 
@@ -769,9 +778,7 @@ int main(int argc, char* argv[]){
 						temp_vector = lab_beam_interaction + HitDetect2 - temp_vector*penetration;
 					}
 				
-					// Calculate the neutron ToF (ns)
-					//dist_traveled = HitDetect1.Length();
-					//temp_vector = HitDetect1;
+					// Calculate the particle ToF (ns)
 					if(!vandle_bars[bar].IsRecoilDet()){
 						tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26));
 						QDC = Eeject*frand(); // The ejectile may leave any portion of its energy inside the detector
@@ -783,7 +790,7 @@ int main(int argc, char* argv[]){
 
 					// Smear ToF and Energy if the detector is not perfect
 					if(!PerfectDet){
-						tof += rndgauss0(timeRes); // Smear tof due to VANDLE resolution
+						tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
 						//QDC += rndgauss0(qdcRes); // Smear the VANDLE QDC value
 						//energyRes = std::sqrt(pow((0.03/HitDetect.Length()), 2.0)+pow((timeRes/tof), 2.0));
 						//Eeject += rndgauss0(energyRes*Eeject); // Smear energy due to VANDLE resolution
@@ -799,8 +806,8 @@ int main(int argc, char* argv[]){
 						}
 						else{
 							Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
-							RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-											  RecoilSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+							RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
+											 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
 						}
 					}
 				} // if(hit)
@@ -809,6 +816,10 @@ int main(int argc, char* argv[]){
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
+				if(WriteReaction){
+					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+				}
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}
@@ -816,12 +827,17 @@ int main(int argc, char* argv[]){
 		else{ // Coincidence is not required between reaction particles
 			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
+				if(WriteReaction){
+					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+				}
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}
 		}
 		EJECTdata.Zero();
 		RECOILdata.Zero();
+		if(WriteReaction){ REACTIONdata.Zero(); }
 	} // Main simulation loop
 	// ==  ==  ==  ==  ==  ==  == 
 	
@@ -832,9 +848,9 @@ int main(int argc, char* argv[]){
 	std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";
-		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << "(" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
-		if(eject_stopped > 0){ std::cout << "  Ejectiles: " << eject_stopped << "(" << 100.0*eject_stopped/Nsimulated << "%)\n"; }
-		if(recoil_stopped > 0){ std::cout << "  Recoils: " << recoil_stopped << "(" << 100.0*recoil_stopped/Nsimulated << "%)\n"; }
+		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << " (" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
+		if(eject_stopped > 0){ std::cout << "  Ejectiles: " << eject_stopped << " (" << 100.0*eject_stopped/Nsimulated << "%)\n"; }
+		if(recoil_stopped > 0){ std::cout << "  Recoils: " << recoil_stopped << " (" << 100.0*recoil_stopped/Nsimulated << "%)\n"; }
 	}
 	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 	

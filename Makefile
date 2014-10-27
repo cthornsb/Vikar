@@ -6,7 +6,7 @@ LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump energy
+TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
@@ -113,5 +113,8 @@ $(PROG): dictionary $(OBJECTS)
 
 clean:
 	rm -f obj/*.o
-	rm -f $(PROG) $(TOOLS)
+	rm -f $(PROG)
 	rm -f dict/obj/* dict/RootDict.*
+	
+tidy:
+	rm -f $(TOOLS)
