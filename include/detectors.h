@@ -18,6 +18,12 @@
 extern const Vector3 zero_vector;
 
 /////////////////////////////////////////////////////////////////////
+// Class declarations
+/////////////////////////////////////////////////////////////////////
+
+class Material;
+
+/////////////////////////////////////////////////////////////////////
 // NewVIKARDet
 /////////////////////////////////////////////////////////////////////
 
@@ -25,11 +31,13 @@ struct NewVIKARDet{
 	float data[9];
 	std::string type;
 	std::string subtype;
+	std::string material;
 	
 	NewVIKARDet(){ 
 		for(unsigned int i = 0; i < 9; i++){ data[i] = 0.0; }
 		type = "unknown";
 		subtype = "unknown"; 
+		material = "none";
 	}
 	NewVIKARDet(std::string input_){
 		for(unsigned int i = 0; i < 9; i++){ data[i] = 0.0; }
@@ -53,7 +61,10 @@ struct NewVIKARDet{
 				if(current_index <= 5){ data[current_index] = atof(temp_str.c_str()); }
 				else if(current_index == 6){ type = temp_str; }
 				else if(current_index == 7){ subtype = temp_str; }
-				else if(current_index <= 10){ data[current_index-2] = atof(temp_str.c_str()); }
+				else if(current_index == 8){ data[6] = atof(temp_str.c_str()); }
+				else if(current_index == 9){ data[7] = atof(temp_str.c_str()); }
+				else if(current_index == 10){ data[8] = atof(temp_str.c_str()); }
+				else if(current_index == 11){ material = temp_str; }
 				else{ break; }
 				current_index++;
 				temp_str = "";
@@ -70,6 +81,10 @@ struct NewVIKARDet{
 	}
 };
 
+/////////////////////////////////////////////////////////////////////
+// Planar
+/////////////////////////////////////////////////////////////////////
+
 class Planar{  
     private:
 	bool need_set;
@@ -77,6 +92,8 @@ class Planar{
 	void _set_face_coords();
 	 	
     protected:
+    bool use_material;
+    unsigned int material_id;
 	Vector3 position; // Center, cartesian position
 	Vector3 detX, detY, detZ; // Local face unit vectors
 	Vector3 GlobalFace[6]; // 6 global face coordinates
@@ -89,7 +106,8 @@ class Planar{
     
     public:
 	Planar();
-	~Planar(){  }
+	
+	unsigned int GetMaterial(){ return material_id; }
 	void GetUnitVector(unsigned int face_, Vector3 &unit);
 	void GetPosition(Vector3 &pos){ pos = position; }
 	double GetX(){ return position.axis[0]; }
@@ -100,18 +118,18 @@ class Planar{
 	double GetDepth(){ return depth; }
 	std::string GetType(){ return type; }
 	std::string GetSubtype(){ return subtype; }
+	void GetLocalCoords(const Vector3&, double&, double&, double&);
+	
 	bool IsCylinder(){ return is_cylinder; }
 	bool IsSmall(){ return small; }
 	bool IsMedium(){ return med; }
 	bool IsLarge(){ return large; }
 	bool IsRecoilDet(){ return use_recoil; }
-	void GetLocalCoords(const Vector3&, double&, double&, double&);
+	bool UseMaterial(){ return use_material; }
+	
+	void SetMaterial(unsigned int material_id_){ material_id = material_id_; }
 	void SetCylinder(){ is_cylinder = true; }
-	void SetType(std::string type_){ 
-		type = type_; 
-		if(type == "recoil"){ use_recoil = true; }
-		else{ use_recoil = false; }
-	}
+	void SetType(std::string type_){ type = type_; }
 	void SetSubtype(std::string subtype_){ subtype = subtype; }
 	void SetSmall(){ length = 0.60; width = 0.03; depth = 0.03; small = true; med = false; large = false; need_set = true; }
 	void SetMedium(){ length = 1.20; width = 0.05; depth = 0.03; small = false; med = true; large = false; need_set = true; }
@@ -122,6 +140,8 @@ class Planar{
 	void SetPolarPosition(double, double, double);
 	void SetRotation(double, double, double);
 	void SetUnitVectors(const Vector3&, const Vector3&, const Vector3&);
+	void SetRecoil(bool input_=true){ use_recoil = input_; }
+	
 	bool CheckBounds(unsigned int face_, double x_, double y_, double z_);
 	bool PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
 	int FaceIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, double &px, double &py, double &pz);
@@ -131,6 +151,10 @@ class Planar{
 	std::string DumpVertex();
 	std::string DumpDet();
 };
+
+/////////////////////////////////////////////////////////////////////
+// Wall
+/////////////////////////////////////////////////////////////////////
 
 class Wall: public Planar{
     private:
@@ -152,11 +176,5 @@ class Wall: public Planar{
 unsigned int ReadEffFile(const char*, double*, double*);
 unsigned int ReadDetFile(const char*, Planar**);
 unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials);
-void DetAng_plan(double, double, unsigned int, double, double, double, bool, bool, double*, double*, double*, double*);
-void DetHit_plan(double**, double**, double**, double**, unsigned int, unsigned int*, double*, double, double, unsigned int&, unsigned int&, unsigned int&);
-void DetSet_plan_read(const char*, unsigned int, unsigned int*, double*, double*, double*, double*, double*, bool*, bool*, double*, double*, double*, double*, double*, double*, double*, double*);
-void det_thick_plan(double, double, double, double&);
-void resolution_plan(double, double, double, double, double, double, double, bool, bool, double, double, double, double, unsigned int, unsigned int, double, double, double);
-void strag_dE_plan(double, double, double, double, double, double, double, double&, double&, double, double);
 
 #endif

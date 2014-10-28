@@ -21,6 +21,7 @@ const Vector3 zero_vector = Vector3(0.0, 0.0, 0.0);
 
 // Default constructor
 Planar::Planar(){
+	material_id = 0;
 	detX = Vector3(1.0, 0.0, 0.0);
 	detY = Vector3(0.0, 1.0, 0.0);
 	detZ = Vector3(0.0, 0.0, 1.0);
@@ -33,6 +34,7 @@ Planar::Planar(){
 	need_set = true;
 	is_cylinder = false;
 	use_recoil = false;
+	use_material = false;
 	type = "unknown";
 	subtype = "unknown";
 }

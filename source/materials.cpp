@@ -248,53 +248,48 @@ double Efficiency::GetLargeEfficiency(double Energy){
 }
 
 /////////////////////////////////////////////////////////////////////
-// Target
+// Material
 /////////////////////////////////////////////////////////////////////
 
-void Target::_initialize(){
+void Material::_initialize(){
+	vikar_name = "unknown";
 	density = 1.0;
-	thickness = 0.0;
-	Zthickness = 0.0;
-	angle = 0.0;
-	Z = 0.0;
-	A = 0.0;
+	rad_length = 0.0;
+	avgZ = 0.0;
+	avgA = 0.0;
 	num_elements = 0;
 	total_elements = 0;
 	num_per_molecule = NULL;
-	mean_excitations = NULL;
 	element_Z = NULL;
 	element_A = NULL;
 	init = false;
 }
 
-Target::Target(){
+Material::Material(){
 	_initialize();
 }
 
-Target::Target(unsigned int num_elements_){
+Material::Material(unsigned int num_elements_){
 	_initialize();
 	Init(num_elements_);
 }
 
-Target::~Target(){
+Material::~Material(){
 	if(init){
 		delete[] num_per_molecule;
-		delete[] mean_excitations;
 		delete[] element_Z;
 		delete[] element_A;
 	}
 }
 
-bool Target::Init(unsigned int num_elements_){
+bool Material::Init(unsigned int num_elements_){
 	if(init){ return false; }
 	num_elements = num_elements_;
 	num_per_molecule = new unsigned int[num_elements];
-	mean_excitations = new double[num_elements];
 	element_Z = new double[num_elements];
 	element_A = new double[num_elements];
 	for(unsigned int i = 0; i < num_elements; i++){
 		num_per_molecule[i] = 0;
-		mean_excitations[i] = 0.0;
 		element_Z[i] = 0.0;
 		element_A[i] = 0.0;
 	}
@@ -305,22 +300,10 @@ bool Target::Init(unsigned int num_elements_){
 	return true;
 }
 
-void Target::SetThickness(double thickness_){ 
-	thickness = thickness_;	
-	physical.SetSize(1.0, 1.0, (thickness/density)*1E-5); // Only the thickness matters
-}
-
-void Target::SetAngle(double angle_){
-	angle = angle_;	
-	Zthickness = dabs(thickness / std::cos(angle));
-	physical.SetRotation(angle, 0.0, 0.0);
-}
-
-void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_){
+void Material::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_){
 	for(unsigned int i = 0; i < num_elements; i++){
 		num_per_molecule[i] = num_per_molecule_[i];
 		total_elements += num_per_molecule_[i];
-		mean_excitations[i] = (1E-5) * Z_[i];
 		element_Z[i] = Z_[i];
 		element_A[i] = A_[i];
 	}
@@ -345,14 +328,89 @@ void Target::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_
 	rad_length = 1.0/rad_length; 
 }
 
+bool Material::ReadMatFile(const char* filename_){
+	if(init){ return false; }
+	std::ifstream input_file(filename_);
+	if(!input_file.good()){ return false; }
+
+	unsigned int num_elements;
+	unsigned int *num_per_molecule;
+	double *element_Z;
+	double *element_A;
+	
+	unsigned int count = 0;
+	std::string line;
+	while(true){
+		getline(input_file, line);
+		if(input_file.eof()){ break; }
+		if(line[0] == '#'){ continue; } // Commented line
+		line = Parse(line);
+		
+		if(count == 0){ vikar_name = line; }
+		else if(count == 1){ density = (double)atof(line.c_str()); }
+		else if(count == 2){ 
+			num_elements = (unsigned int)atoi(line.c_str());
+			num_per_molecule = new unsigned int[num_elements];
+			element_Z = new double[num_elements];
+			element_A = new double[num_elements];
+			
+			for(unsigned int i = 0; i < num_elements; i++){
+				getline(input_file, line); line = Parse(line); element_Z[i] = (double)atof(line.c_str()); 
+				getline(input_file, line); line = Parse(line); element_A[i] = (double)atof(line.c_str());  
+				getline(input_file, line); line = Parse(line); num_per_molecule[i] = (unsigned int)atoi(line.c_str()); 
+			}
+		}
+		count++;
+	}
+	if(count <= 2){ return false; }
+
+	Init(num_elements);
+	SetElements(num_per_molecule, element_Z, element_A);
+
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Target
+/////////////////////////////////////////////////////////////////////
+
+Target::Target(){
+	thickness = 0.0;
+	Zthickness = 0.0;
+	density = 1.0;
+	rad_length = 0.0;
+	angle = 0.0;
+	physical = new Planar();
+}
+
+Target::Target(unsigned int num_elements_){
+	thickness = 0.0;
+	Zthickness = 0.0;
+	density = 1.0;
+	rad_length = 0.0;
+	angle = 0.0;
+	physical = new Planar();
+}
+
+void Target::SetThickness(double thickness_){ 
+	thickness = thickness_;	
+	physical->SetSize(1.0, 1.0, (thickness/density)*1E-5); // Only the thickness matters
+}
+
+void Target::SetAngle(double angle_){
+	angle = angle_;	
+	Zthickness = dabs(thickness / std::cos(angle));
+	physical->SetRotation(angle, 0.0, 0.0);
+}
+
 // Get the depth into the target at which the reaction occurs
 // offset_ is the global position where the beam particle originates
 // direction_ is the direction of the beam particle entering the target
 // intersect is the global position where the beam particle intersects the front face of the target
 // interact is the global position where the beam particle reacts inside the target
-double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){	
+double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){
 	Vector3 temp;
-	double zdist = physical.GetApparentThickness(offset_, direction_, 0, 2, intersect, temp); // The target thickness the ray sees
+	double zdist = physical->GetApparentThickness(offset_, direction_, 0, 2, intersect, temp); // The target thickness the ray sees
 	if(thickness == -1){ 
 		std::cout << " Beam does not travel through target!\n"; 
 		return -1;
@@ -365,7 +423,7 @@ double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direct
 
 // Determine the new direction of a particle inside the target due to angular straggling
 // direction_ and new_direction have x,y,z format and are measured in meters
-void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, double E_, Vector3 &new_direction){
+bool Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, double E_, Vector3 &new_direction){
 	// strag_targ 1.0 written by S.D.Pain on 20/01/2004
 	//
 	// strag_targ 1.1 modified by S.D.Pain on 7/03/2005
@@ -397,4 +455,5 @@ void Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, do
 	Matrix3 matrix(theta_scat, phi_scat);
 	new_direction = direction_;
 	matrix.Transform(new_direction);
+	return true;
 }

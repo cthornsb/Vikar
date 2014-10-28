@@ -1,4 +1,4 @@
-1.13d		# Vikar input file version number
+1.13e		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -13,30 +13,20 @@
 2			# Number of excited states
 0.7695		# Energy of excited state 1
 2.3200		# Energy of excited state 2
-1			# Supply angular distributions?
-/home/cory/Research/VANDLE/Vikar/xsections/ground.test
-/home/cory/Research/VANDLE/Vikar/xsections/first.test
-/home/cory/Research/VANDLE/Vikar/xsections/second.test
-#/home/cory/Research/VANDLE/Vikar/xsections/ground_state.xsect		# Distribution for ground state
-#/home/cory/Research/VANDLE/Vikar/xsections/first_excited.xsect		# Distribution for first excited state
-#/home/cory/Research/VANDLE/Vikar/xsections/second_excited.xsect	# Distribution for second excited state
+0			# Supply angular distributions?
+#/home/cory/Research/VANDLE/Vikar/xsections/ground.test		# Distribution for ground state
+#/home/cory/Research/VANDLE/Vikar/xsections/first.test		# Distribution for first excited state
+#/home/cory/Research/VANDLE/Vikar/xsections/second.test		# Distribution for second excited state
+CD2			# Target material type name
 1.0			# Target thickness (mg/cm^2)
-1.06300		# Target density (g/cm^3)
 0.0000		# Target angle wrt beam axis (degrees)
-2			# Number of target elements per molecule
-6			# Element 1 Z
-12			# Element 1 A
-1			# Number of element 1 per target molecule
-1			# Element 2 Z
-2			# Element 2 A
-2			# Number of element 2 per target molecule
 1			# Perfect detectors?
 #/home/cory/Research/VANDLE/Vikar/efficiency/Small.eff	# Small bar efficiency file
 #/home/cory/Research/VANDLE/Vikar/efficiency/Medium.eff	# Medium bar efficiency file
 #/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff	# Large bar efficiency file
 1			# Supply detector setup file?
 /home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det	# Detector setup filename
-10000		# Number of detections
+1000		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
 1			# Write reaction data to output?

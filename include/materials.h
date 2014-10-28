@@ -14,6 +14,12 @@ extern const double e_charge, e_mass, e_radius;
 extern const double bethe_coefficient;
 
 /////////////////////////////////////////////////////////////////////
+// Class declarations
+/////////////////////////////////////////////////////////////////////
+
+class Planar;
+
+/////////////////////////////////////////////////////////////////////
 // Efficiency
 /////////////////////////////////////////////////////////////////////
 
@@ -48,60 +54,84 @@ class Efficiency{
 };
 
 /////////////////////////////////////////////////////////////////////
+// Material
+/////////////////////////////////////////////////////////////////////
+
+class Material{
+  protected:
+	std::string vikar_name; // The name vikar uses to search for this material
+  	unsigned int num_elements; // Number of unique elements per molecule of the material
+  	unsigned int total_elements; // Total number of elements per molecule in the material
+  	unsigned int *num_per_molecule; // Number of each element per molecule
+  	double *element_Z, *element_A; // Atomic numbers and atomic masses (u) for each element
+  	double avgZ, avgA; // Average Z and A of the elements within the material molecule
+	double density; // Density of the material (g/cm^3)
+	double rad_length; // The radiation length of the material (mg/cm^2)
+	bool init;
+	
+	void _initialize();
+		
+  public:
+  	Material();
+  	Material(unsigned int);
+	~Material();
+	
+	bool Init(unsigned int);
+	
+	void SetDensity(double density_){ density = density_; }
+	void SetElements(unsigned int*, double*, double*);
+	void SetName(std::string name_){ vikar_name = name_; }
+
+	bool IsInit(){ return init; }
+	
+	double GetAverageZ(){ return avgZ; } // Return the average atomic number of the elements in the molecule
+	double GetAverageA(){ return avgA; } // Return the average atomic mass of the elements in the molecule
+	double GetRadLength(){ return rad_length; } // Return the radiation length of the material (mg/cm^2)
+	double GetDensity(){ return density; } // Return the density of the material (g/cm^3)
+	std::string GetName(){ return vikar_name; }
+
+	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the material molecule
+	unsigned int GetNumElements(){ return num_elements; } // Return the number of unique elements per material molecule
+	
+	bool ReadMatFile(const char* filename_);
+};
+
+/////////////////////////////////////////////////////////////////////
 // Target
 /////////////////////////////////////////////////////////////////////
 
 class Target{
   private:
-  	unsigned int num_elements; // Number of unique elements per molecule of the target
-  	unsigned int total_elements; // Total number of elements per molecule in the target
-  	unsigned int *num_per_molecule; // Number of each element per molecule
-  	double *mean_excitations; // Mean excitations (MeV) for each element
-  	double *element_Z, *element_A; // Atomic numbers and atomic masses (u) for each element
-  	double Z, A; // Z and A of the target isotope of interest
-  	double avgZ, avgA; // Average Z and A of the elements within the target molecule
-	double density; // Density of the target (g/cm^3)
 	double thickness; // Thickness of the target (mg/cm^2)
 	double Zthickness; // Thickness of the target in the z-direction (mg/cm^2)
+	double density; // Density of the target (g/cm^3)
+	double rad_length; // The radiation length of the material (mg/cm^2)
 	double angle; // Angle of target wrt the beam axis (rad)
-	double rad_length; // The radiation length of the target (mg/cm^2)
-	bool init;
+  	double Z, A; // Z and A of the material isotope of interest
 	
-	void _initialize();
-	
-	Planar physical; // The physical target geometry
+	Planar *physical; // The physical target geometry
 	
   public:
 	Target();
 	Target(unsigned int);
-	~Target();
-	
-	bool Init(unsigned int);
-	
+
 	void SetZ(double Z_){ Z = Z_; }
-	void SetA(double A_){ A = A_; }
-	void SetDensity(double density_){ density = density_; }
+	void SetA(double A_){ A = A_; }		
 	void SetThickness(double thickness_);
-	void SetElements(unsigned int*, double*, double*);
 	void SetAngle(double angle_);
+	void SetDensity(double density_){ density = density_; }
+	void SetRadLength(double rad_length_){ rad_length = rad_length_; }
 	
-	bool IsInit(){ return init; }
-	
-	double GetZ(){ return Z; } // Return the Z of the target element of interest
-	double GetA(){ return A; } // Return the A of the target element of interest
-	double GetAverageZ(){ return avgZ; } // Return the average atomic number of the elements in the molecule
-	double GetAverageA(){ return avgA; } // Return the average atomic mass of the elements in the molecule
-	double GetRadLength(){ return rad_length; } // Return the radiation length of the target (mg/cm^2)
-	double GetDensity(){ return density; } // Return the density of the target (g/cm^3)
+	double GetZ(){ return Z; } // Return the Z of the material element of interest
+	double GetA(){ return A; } // Return the A of the material element of interest
 	double GetThickness(){ return thickness; } // Return the thickness of the target (mg/cm^2)
 	double GetZthickness(){ return Zthickness; } // Return the thickness the beam sees (mg/cm^2)
 	double GetRealThickness(){ return thickness/(density*1E5); } // Return the physical thickness of the target (m)
 	double GetRealZthickness(){ return Zthickness/(density*1E5); } // Return the physical thickness the beam sees (m)
 	double GetAngle(){ return angle; } // Return the angle of the target wrt the beam axis
-	Planar *GetPlanar(){ return &physical; } // Return a pointer to the 3d geometry object
-
-	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the target molecule
-	unsigned int GetNumElements(){ return num_elements; } // Return the number of unique elements per target molecule
+	double GetDensity(){ return density; }
+	double GetRadLength(){ return rad_length; }
+	Planar *GetPlanar(){ return physical; } // Return a pointer to the 3d geometry object
 	
 	// Get the depth into the target at which the reaction occurs
 	// offset_ is the global position where the beam particle originates
@@ -111,7 +141,7 @@ class Target{
 	double GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact);
 
 	// Determine the new direction of a particle inside the target due to angular straggling
-	void AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, Vector3 &new_direction);
+	bool AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, Vector3 &new_direction);
 };
 
 /////////////////////////////////////////////////////////////////////

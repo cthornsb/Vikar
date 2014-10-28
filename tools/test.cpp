@@ -6,10 +6,14 @@
 #include "TApplication.h"
 #include "TSystem.h"
 #include "TCanvas.h"
-#include "TH1D.h"
+#include "TFile.h"
+#include "TTree.h"
 
 int main(){
 	gSystem->Load("libTree");
+	//char* dummy[0]; 
+	//TApplication* rootapp = new TApplication("rootapp",0,dummy);
+	
 	/*Vector3 vector(0.0, 0.0, 0.5); // Start along the z-axis
 	Matrix3 matrix;
 	
@@ -34,26 +38,22 @@ int main(){
 	std::cout << " Done!\n";
 	output.close();*/
 
-	char* dummy[0]; 
-	TApplication* rootapp = new TApplication("rootapp",0,dummy);
-
-	AngularDist dist;
-	dist.Initialize("/home/cory/Research/VANDLE/Vikar/angdist.dat", 0.0, 0.0, 0.0);
-	std::cout << " Num Points: " << dist.GetNumPoints() << std::endl;
-	std::cout << " X-section: " << dist.GetReactionXsection() << " mb\n";
-	
-	TH1D *hist = new TH1D("hist", "hist", 180, 0, 180.0);
-	for(unsigned int i = 0; i < 100000; i++){
-		hist->Fill(dist.Sample());
-	}
+	TFile *file = new TFile("VIKAR.root","READ");
+	TTree *tree = (TTree*)file->Get("VIKAR");
 
 	TCanvas *can = new TCanvas("can");
 	can->cd();
-	hist->Draw();
-	can->WaitPrimitive();
+		
+	for(unsigned int i = 0; i < 42; i++){
+		std::cout << " Processing eject_loc = " << i << std::endl;
+		std::stringstream stream; stream << i;
+		tree->Draw("recoil_faceY:recoil_faceX>>(100,-0.025,0.015,100,-0.02,0.02)",("eject_loc=="+stream.str()).c_str(),"COLZ");
+		can->Print("out.gif+10");
+	}
+
 	can->Close();
 
-	rootapp->Delete();
+	//rootapp->Delete();
 
 	return 0;
 }

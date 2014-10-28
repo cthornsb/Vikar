@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.13d"
+#define VERSION "1.13e"
 
 struct debugData{
 	double var1, var2, var3;
@@ -23,27 +23,6 @@ struct debugData{
 		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
-
-// Get a random vector inside a cone approximating the beam shape
-// spot_ is the beamspot size in m
-// thick_ is the target thickness in m
-// Zoffset_ is the distance from the center of the target to the beam focus point in cm
-// beam is the vector pointing from the beam focus to the intersect point at the surface of the target
-void RandomCone(double spot_, double Zoffset_, double thick_, Vector3 &beam){
-	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
-	double ranT = 2*pi*frand(); // Random angle about the beam axis
-	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), Zoffset_-thick_/2.0);
-}
-
-// Get a random vector inside a perfectly cylindrical beam
-// spot_ is the beamspot size in m
-// thick_ is the target thickness in m
-// beam is a 2d vector (z=0) pointing from the z-axis to the target surface intersect
-void RandomCylinder(double spot_, Vector3 &beam){
-	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
-	double ranT = 2*pi*frand(); // Random angle about the beam axis
-	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -100);
-}
 
 // Get a random point on a circle
 // spot_ is the beamspot size in m
@@ -142,9 +121,13 @@ int main(int argc, char* argv[]){
 	double Ereact; // Energy at which the reaction occurs (MeV)
 	double range_beam;
 	
-	RangeTable beam_targ, eject_targ;
-	RangeTable eject_det, recoil_targ;
+	RangeTable beam_targ, eject_targ, recoil_targ;
 	
+	unsigned int num_materials = 0;
+	Material *materials = NULL;
+	
+	unsigned int targ_mat_id;
+	std::string targ_mat_name;
 	Target targ;
 	
 	// Physics Variables
@@ -249,10 +232,12 @@ int main(int argc, char* argv[]){
 			if(input == ""){ continue; }
 			
 			if(count == 0){ 
-				std::cout << "  Version: " << input << std::endl;
+				std::cout << "  Version: " << input;
 				if(input != VERSION){ 
+					std::cout << " (FAIL)\n";
 					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
 				}
+				else{ std::cout << " (PASS)\n"; }
 			}
 			else if(count == 1){ 
 				Zbeam = atof(input.c_str());  
@@ -339,15 +324,14 @@ int main(int argc, char* argv[]){
 				}
 				else{ SupplyRates = false; }
 			}
-			else if(count == 14){ 
+			else if(count == 14){
+				// Target material
+				targ_mat_name = input;
+			}
+			else if(count == 15){ 
 				// Target thickness
 				targ.SetThickness((double)atof(input.c_str()));
 				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";			
-			}
-			else if(count == 15){ 
-				// Target density
-				targ.SetDensity((double)atof(input.c_str()));
-				std::cout << "  Target Density: " << targ.GetDensity() << " g/cm^3\n";
 			}
 			else if(count == 16){ 
 				// Target angle wrt beam axis
@@ -355,25 +339,6 @@ int main(int argc, char* argv[]){
 				std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
 			}
 			else if(count == 17){ 
-				// Target information
-				unsigned int num_elements = (unsigned int)atoi(input.c_str());
-				unsigned int num_per_molecule[num_elements];
-				double element_Z[num_elements];
-				double element_A[num_elements];
-				
-				std::cout << "  No. Target Elements: " << num_elements << std::endl;
-				for(unsigned int i = 0; i < num_elements; i++){
-					getline(input_file, input); input = Parse(input); element_Z[i] = (double)atof(input.c_str()); 
-					getline(input_file, input); input = Parse(input); element_A[i] = (double)atof(input.c_str());  
-					getline(input_file, input); input = Parse(input); num_per_molecule[i] = (unsigned int)atoi(input.c_str()); 
-					std::cout << "   Element " << i+1 << ": " << num_per_molecule[i] << " per molecule of Z = " << element_Z[i] << ", A = " << element_A[i] << std::endl;
-				}
-				
-				targ.Init(num_elements);
-				targ.SetElements(num_per_molecule, element_Z, element_A);
-				std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
-			}
-			else if(count == 18){ 
 				// Load the small, medium, and large bar efficiencies
 				// Efficiency index 0 is the underflow efficiency (for energies below E[0])
 				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
@@ -391,7 +356,7 @@ int main(int argc, char* argv[]){
 					std::cout << "   Found " << bar_eff.ReadLarge(input.c_str()) << " large bar data points in file " << input << "\n";
 				}
 			}
-			else if(count == 19){ 
+			else if(count == 18){ 
 				// Supply detector setup file?
 				if(SetBool(input, "  Detector Setup File", DetSetup)){
 					// Load detector setup from a file
@@ -399,28 +364,28 @@ int main(int argc, char* argv[]){
 					std::cout << "   Path: " << det_fname << std::endl;
 				}
 			}
-			else if(count == 20){ 
+			else if(count == 19){ 
 				// Desired number of detections
 				Nwanted = atol(input.c_str());
 				std::cout << "  Desired Detections: " << Nwanted << std::endl; 
 			}
-			else if(count == 21){
+			else if(count == 20){
 				// Simulate prompt gamma flash?
 				SetBool(input, "  Detect Prompt Gammas", SimGamma);
 			}
-			else if(count == 22){
+			else if(count == 21){
 				// Require ejectile and recoil particle coincidence?
 				SetBool(input, "  Require particle coincidence", InCoincidence);
 			}
-			else if(count == 23){
+			else if(count == 22){
 				// Write Reaction data to file?
 				SetBool(input, "  Write Reaction Info", WriteReaction);
 			}
-			else if(count == 24){
+			else if(count == 23){
 				// Write Debug data to file?
 				SetBool(input, "  Write Debug Info", WriteDebug);
 			}
-			else if(count == 25){
+			else if(count == 24){
 				// Perform monte carlo simulation on detector setup?
 				SetBool(input, "  Test Detector Setup", TestSetup);
 			}
@@ -429,13 +394,10 @@ int main(int argc, char* argv[]){
 		}
 		
 		input_file.close();
-		if(count < 24){
-			std::cout << " Error: The input file is invalid. Check to make sure input is correct\n";
-			return 1;
-		}
+		if(count <= 24){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
-		std::cout << " Error: Missing required variable\n";
+		std::cout << " Error! Missing required variable\n";
 		return 1;
 	}
 		
@@ -446,6 +408,64 @@ int main(int argc, char* argv[]){
 		std::cout << "  ABORTING...\n";
 		return 1;
 	}
+
+	// Load VIKAR material files
+	targ_mat_id = 0;
+	std::ifstream material_names("materials/names.in");
+	if(material_names.good()){
+		std::cout << "\n Loading VIKAR material files...\n";
+		std::vector<std::string> names;
+		std::string line;
+		while(true){
+			getline(material_names, line);
+			if(material_names.eof()){ break; }
+			if(line[0] == '#'){ continue; } // Commented line
+			
+			line = Parse(line);
+			names.push_back(line);
+		}
+		
+		materials = new Material[names.size()+1];
+		num_materials = 1; // Default CD2 material
+		for(std::vector<std::string>::iterator iter = names.begin(); iter != names.end(); iter++){
+			materials[num_materials].ReadMatFile(iter->c_str());
+			num_materials++;
+		}
+		
+		std::cout << " Successfully loaded " << num_materials-1 << " materials\n";
+		if(targ_mat_name != "CD2"){
+			std::cout << "  Target Material: " << targ_mat_name;
+			for(unsigned int i = 1; i < num_materials; i++){
+				if(targ_mat_name == materials[i].GetName()){
+					targ_mat_id = i;
+					break;
+				}
+			}
+			if(targ_mat_id == 0){ std::cout << " (not found)"; }
+			std::cout << std::endl;
+		}
+	}
+	else{ 
+		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
+		materials = new Material[1];
+	}
+
+	materials[0].SetName("CD2");
+	materials[0].Init(2);
+	materials[0].SetDensity(1.06300);
+	
+	unsigned int num_per_molecule[2] = {1, 2};
+	double element_Z[2] = {6, 1};
+	double element_A[2] = {12, 2};
+	materials[0].SetElements(num_per_molecule, element_Z, element_A);
+	
+	if(targ_mat_id == 0){
+		std::cout << "  Target Material: CD2\n";
+	}
+	
+	targ.SetDensity(materials[targ_mat_id].GetDensity());
+	targ.SetRadLength(materials[targ_mat_id].GetRadLength());
+	std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
 
 	// Read VIKAR detector setup file or manually setup simple systems
 	if(DetSetup){
@@ -468,23 +488,35 @@ int main(int argc, char* argv[]){
 		// Generate the Planar bar arrays
 		vandle_bars = new Planar[detectors.size()];
 		
-		// Fill the detector arrays
+		// Fill the detector
 		Ndet = 0;
 		for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
-			if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
-			else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
-			else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
-			else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-		
+			if(iter->type == "vandle"){
+				if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
+				else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
+				else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
+				else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+			}
+			else if(iter->type == "recoil"){
+				vandle_bars[Ndet].SetRecoil();
+				vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
+				
+				if(iter->subtype == "cylinder"){ vandle_bars[Ndet].SetCylinder(); }
+				for(unsigned int i = 0; i < num_materials; i++){
+					if(iter->material == materials[i].GetName()){
+						vandle_bars[Ndet].SetMaterial(i);
+						break; 
+					}
+				}				
+			}		
 			vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
 			vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
 			vandle_bars[Ndet].SetType(iter->type);
 			vandle_bars[Ndet].SetSubtype(iter->subtype);
-			if(iter->subtype == "cylinder"){ vandle_bars[Ndet].SetCylinder(); }
 			Ndet++;
 		}
 
-		// Report on how many detectors were read in*/
+		// Report on how many detectors were read in
 		std::cout << " Found " << Ndet << " detectors in file " << det_fname << std::endl;
 
 		// Check there's at least 1 detector!
@@ -510,7 +542,7 @@ int main(int argc, char* argv[]){
 		std::cout << "\n Not Implemented!\n";
 		return 1;
 	}
-
+	
 	// Calculate the beam focal point (if it exists)
 	if(beamAngdiv < pi/2.0){
 		lab_beam_focus = Vector3(0.0, 0.0, -((beamspot/2.0)*std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
@@ -518,20 +550,23 @@ int main(int argc, char* argv[]){
 		BeamFocus = true;
 	}
 
-	// For cylindrical beams, the beam direction is givn by the z-axis
+	// For cylindrical beams, the beam direction is given by the z-axis
 	if(!BeamFocus){ lab_beam_trajectory = Vector3(0.0, 0.0, 1.0); }
 
 	// Calculate the stopping power table for the beam particles in the target
 	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
 		std::cout << " Calculating range tables for beam in target...";
-		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Abeam, Zbeam, &targ);
+		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
+					   materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Abeam, Zbeam, &targ);
 		std::cout << " done\n";
 	}
+	else{ std::cout << " Warning! I doubt you intended to use a neutron beam...\n"; }
 	
 	// Calculate the stopping power table for the ejectiles in the target
 	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
 		std::cout << " Calculating range tables for ejectile in target...";
-		eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Aeject, Zeject, &targ);
+		eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
+						materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Aeject, Zeject, &targ);
 		std::cout << " done\n";
 		
 		// NOT IMPLEMENTED!
@@ -557,7 +592,8 @@ int main(int argc, char* argv[]){
 	// Calculate the stopping power table for the recoils in the target
 	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
 		std::cout << " Calculating range tables for recoil in target...";
-		recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), targ.GetDensity(), targ.GetAverageA(), targ.GetAverageZ(), Arecoil, Zrecoil, &targ);
+		recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
+						 materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Arecoil, Zrecoil, &targ);
 		std::cout << " done\n";
 	}
 
@@ -565,10 +601,10 @@ int main(int argc, char* argv[]){
 	std::cout << "\n Initializing main simulation Kindeux object...\n";
 
 	// Initialize kinematics object
-	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates, targ.GetDensity());
+	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates, materials[targ_mat_id].GetDensity());
 	if(ADists){ 
 		std::cout << " Loading state angular distribution files...\n";
-		if(kind.SetDist(AngDist_fname, targ.GetTotalElements(), BeamRate)){
+		if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), BeamRate)){
 			// Successfully set the angular distributions
 			std::cout << " Successfully loaded angular distributions\n";
 			kind.Print();
@@ -798,7 +834,7 @@ int main(int argc, char* argv[]){
 			
 					// Main output
 					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-					if(QDC >= 0.1 && QDC <= 5.0){
+					//if(QDC >= 0.1 && QDC <= 5.0){
 						if(!vandle_bars[bar].IsRecoilDet()){
 							Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 							EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
@@ -809,7 +845,7 @@ int main(int argc, char* argv[]){
 							RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 											 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
 						}
-					}
+					//}
 				} // if(hit)
 			} // if(vandle_bars[bar].IntersectPrimitive())
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
@@ -862,5 +898,12 @@ int main(int argc, char* argv[]){
 	std::cout << "   Wrote " << VIKARtree->GetEntries() << " tree entries for VIKAR\n";
 	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " tree entries for DEBUG\n"; }
 	file->Close();
+	
 	delete file;
+	delete[] materials;
+	delete[] vandle_bars;
+	delete[] ExRecoilStates;
+	delete[] totXsect;
+	
+	return 0;
 } 

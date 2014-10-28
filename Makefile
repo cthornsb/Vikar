@@ -6,7 +6,7 @@ LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test
+TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
@@ -103,6 +103,9 @@ dump: $(TOOL_DIR)/dump.cpp
 energy: $(TOOL_DIR)/energy.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	@echo " Done making "$@	
+
+XYpos: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/XYpos.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/XYpos.cpp $(LDLIBS)
 
 test: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/test.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)

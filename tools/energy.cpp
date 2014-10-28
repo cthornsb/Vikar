@@ -1,4 +1,4 @@
-// dump.cpp
+// energy.cpp
 // Cory Thornsberry
 // Oct. 16th, 2014
 // Calculate the energy spectrum for a VIKAR data set
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
 	gSystem->Load("libTree");
 	if(argc < 4){ 
 		std::cout << " Error! Invalid number of arguments\n";
-		std::cout << " Syntax: ./dump filename treename branch_prefix\n";
+		std::cout << " Syntax: ./energy filename treename branch_prefix\n";
 		return 1; 
 	}
 	
