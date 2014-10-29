@@ -613,8 +613,8 @@ def main2():
 	#labelz = visual.label(pos=(0,0,5.0), text="X-Axis")
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
 	#RawRead("/home/cory/Research/VANDLE/Vikar/xyz.dat", 2)
-	#RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
-	RawRead("/home/cory/Research/VANDLE/Vikar/XYpos.out", 4)
+	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
+	#RawRead("/home/cory/Research/VANDLE/Vikar/XYpos.out", 4)
 	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det")
 
 	while True:

@@ -441,10 +441,6 @@ void Sphere2Cart(double r, double theta, double phi, double &x, double &y, doubl
 	//
 	// (r,theata,phi) are passed in, and (x,y,z) are calculated and
 	// returned
-	
-	/*x = r*std::sin(theta)*std::cos(phi); 
-	y = r*std::sin(theta)*std::sin(phi); 
-	z = r*std::cos(theta);*/
 	x = r*std::sin(theta)*std::cos(phi); 
 	y = r*std::sin(theta)*std::sin(phi); 
 	z = r*std::cos(theta);

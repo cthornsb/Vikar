@@ -7,7 +7,7 @@ BC408		# Vikar name
 2			# Number of target elements per molecule
 6			# Element 1 Z
 12			# Element 1 A
-1			# Number of element 1 per target molecule
+9			# Number of element 1 per target molecule
 1			# Element 2 Z
-2			# Element 2 A
-2			# Number of element 2 per target molecule
+1			# Element 2 A
+10			# Number of element 2 per target molecule

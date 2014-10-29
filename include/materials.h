@@ -162,7 +162,7 @@ class RangeTable{
 	~RangeTable();
 	
 	bool Init(unsigned int); // Initialize arrays but do not fill them
-	bool Init(unsigned int, double, double, double, double, double, double, double, Target*); // Initialize arrays and fill them using ncdedx
+	bool Init(unsigned int, double, double, double, double, double, double, double); // Initialize arrays and fill them using ncdedx
 	bool UseTable(){ return use_table; }
 	bool Set(unsigned int, double, double); // Manually set a data point with an energy and a range
 	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array

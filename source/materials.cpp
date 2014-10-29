@@ -42,7 +42,7 @@ bool RangeTable::Init(unsigned int num_entries_){
 	return _initialize(num_entries_);
 }
 
-bool RangeTable::Init(unsigned int num_entries_, double startE, double stopE, double tgt_dens, double targA, double targZ, double A, double Z, Target *targ){
+bool RangeTable::Init(unsigned int num_entries_, double startE, double stopE, double tgt_dens, double targA, double targZ, double A, double Z){
 	if(!_initialize(num_entries_)){ return false; }
 	
 	double dummy1, dummy2, rangemg;
@@ -53,6 +53,7 @@ bool RangeTable::Init(unsigned int num_entries_, double startE, double stopE, do
 		ncdedx(tgt_dens, targA, targZ, A, Z, (startE+i*step), dummy1, dummy2, rangemg);
 		energy[i] = startE + i*step; // Energy in MeV
 		range[i] = rangemg/(tgt_dens*1E5); // Range in m
+		std::cout << energy[i] << "\t" << range[i] << std::endl;
 	}
 
 	return true;

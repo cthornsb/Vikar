@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.13e"
+#define VERSION "1.13f"
 
 struct debugData{
 	double var1, var2, var3;
@@ -119,9 +119,13 @@ int main(int argc, char* argv[]){
 	double tof; // Neutron time of flight (s)
 	double Zdepth; // Interaction depth inside of the target (cm)
 	double Ereact; // Energy at which the reaction occurs (MeV)
-	double range_beam;
+	double range_beam, range_eject, range_recoil;
 	
-	RangeTable beam_targ, eject_targ, recoil_targ;
+	RangeTable beam_targ;
+	RangeTable *eject_targ = NULL;
+	RangeTable *recoil_targ = NULL;
+	RangeTable *eject_tables = NULL;
+	RangeTable *recoil_tables = NULL;
 	
 	unsigned int num_materials = 0;
 	Material *materials = NULL;
@@ -426,6 +430,8 @@ int main(int argc, char* argv[]){
 		}
 		
 		materials = new Material[names.size()+1];
+		if(Zeject > 0){ eject_tables = new RangeTable[names.size()+1]; }
+		if(Zrecoil > 0){ recoil_tables = new RangeTable[names.size()+1]; }
 		num_materials = 1; // Default CD2 material
 		for(std::vector<std::string>::iterator iter = names.begin(); iter != names.end(); iter++){
 			materials[num_materials].ReadMatFile(iter->c_str());
@@ -448,15 +454,24 @@ int main(int argc, char* argv[]){
 	else{ 
 		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
 		materials = new Material[1];
+		if(Zeject > 0){ eject_tables = new RangeTable[1]; }
+		if(Zrecoil > 0){ recoil_tables = new RangeTable[1]; }
 	}
-
-	materials[0].SetName("CD2");
+	
+	/*materials[0].SetName("CD2");
 	materials[0].Init(2);
 	materials[0].SetDensity(1.06300);
 	
 	unsigned int num_per_molecule[2] = {1, 2};
 	double element_Z[2] = {6, 1};
-	double element_A[2] = {12, 2};
+	double element_A[2] = {12, 2};*/
+	materials[0].SetName("CD2");
+	materials[0].Init(2);
+	materials[0].SetDensity(0.93);
+	
+	unsigned int num_per_molecule[2] = {2, 4};
+	double element_Z[2] = {6, 1};
+	double element_A[2] = {12, 1};
 	materials[0].SetElements(num_per_molecule, element_Z, element_A);
 	
 	if(targ_mat_id == 0){
@@ -466,6 +481,37 @@ int main(int argc, char* argv[]){
 	targ.SetDensity(materials[targ_mat_id].GetDensity());
 	targ.SetRadLength(materials[targ_mat_id].GetRadLength());
 	std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
+
+	// Calculate the stopping power table for the beam particles in the target
+	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
+		std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
+		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
+					   materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Abeam, Zbeam);
+		std::cout << " Done!\n";
+	}
+	
+	// Calculate the stopping power table for the ejectiles in the target
+	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
+		for(unsigned int i = 0; i < num_materials; i++){
+			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
+			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), materials[i].GetDensity(), 
+								 materials[i].GetAverageA(), materials[i].GetAverageZ(), Aeject, Zeject);
+			std::cout << " Done!\n";
+		}
+		eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
+	}
+	
+	
+	// Calculate the stopping power table for the recoils in the target
+	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
+		for(unsigned int i = 0; i < num_materials; i++){
+			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
+			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), materials[i].GetDensity(), 
+								  materials[i].GetAverageA(), materials[i].GetAverageZ(), Arecoil, Zrecoil);
+			std::cout << " Done!\n";
+		}
+		recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
+	}
 
 	// Read VIKAR detector setup file or manually setup simple systems
 	if(DetSetup){
@@ -504,7 +550,12 @@ int main(int argc, char* argv[]){
 				if(iter->subtype == "cylinder"){ vandle_bars[Ndet].SetCylinder(); }
 				for(unsigned int i = 0; i < num_materials; i++){
 					if(iter->material == materials[i].GetName()){
-						vandle_bars[Ndet].SetMaterial(i);
+						if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (!vandle_bars[Ndet].IsRecoilDet() && Zeject > 0)){ 
+							// Only set detector to use material if the particle it is responsible for detecting has
+							// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
+							// and thus cannot use energy loss considerations.
+							vandle_bars[Ndet].SetMaterial(i);  
+						}
 						break; 
 					}
 				}				
@@ -552,50 +603,6 @@ int main(int argc, char* argv[]){
 
 	// For cylindrical beams, the beam direction is given by the z-axis
 	if(!BeamFocus){ lab_beam_trajectory = Vector3(0.0, 0.0, 1.0); }
-
-	// Calculate the stopping power table for the beam particles in the target
-	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
-		std::cout << " Calculating range tables for beam in target...";
-		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
-					   materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Abeam, Zbeam, &targ);
-		std::cout << " done\n";
-	}
-	else{ std::cout << " Warning! I doubt you intended to use a neutron beam...\n"; }
-	
-	// Calculate the stopping power table for the ejectiles in the target
-	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
-		std::cout << " Calculating range tables for ejectile in target...";
-		eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
-						materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Aeject, Zeject, &targ);
-		std::cout << " done\n";
-		
-		// NOT IMPLEMENTED!
-		/*// Set detector material to Si. Add user selection at some point
-		Adet = 28; 
-		Zdet = 14; 
-		density_det = 2.3212; 
-		density_det = density_det*1000.0; // Convert density to mg/cm^3
-		conv_det = 1.0e-4*density_det; 
-		DetRadL = radlength(Adet,Zdet);
-	
-		// Calculate the stopping power table for the ejectiles in the detector
-		std::cout << " Calculating range tables for ejectile in detector..."; 
-		eject_det.Init(100);
-		step = (Ebeam0+2*beamEspread)/99.0;
-		for(unsigned int i = 0; i < 100; i++){ 
-			ncdedx(tgtdens, Adet, Zdet, Aeject, Zeject, i*step, dummy1, dummy2, rangemg);
-			eject_det.Set(i, i*step, rangemg/conv_det);
-		} 
-		std::cout << " done\n";*/
-	}
-	
-	// Calculate the stopping power table for the recoils in the target
-	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
-		std::cout << " Calculating range tables for recoil in target...";
-		recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
-						 materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Arecoil, Zrecoil, &targ);
-		std::cout << " done\n";
-	}
 
 	//std::cout << "\n ==  ==  ==  ==  == \n\n";
 	std::cout << "\n Initializing main simulation Kindeux object...\n";
@@ -653,8 +660,8 @@ int main(int argc, char* argv[]){
 
 	Vector3 temp_vector;
 	Vector3 temp_vector_sphere;
-	double dist_traveled, QDC;
-	double penetration, fpath1, fpath2;
+	double dist_traveled = 0.0, QDC = 0.0;
+	double penetration = 0.0, fpath1 = 0.0, fpath2 = 0.0;
 	float totTime = 0.0;
 	char counter = 1;
 	bool flag = false;
@@ -748,10 +755,10 @@ int main(int argc, char* argv[]){
 
 		// Calculate the energy loss for the ejectile and recoils in the target
 		/*if(Zeject > 0){
-			double range_eject = eject_targ.GetRange(Eeject);
+			range_eject = eject_targ->GetRange(Eeject);
 		}
 		if(Zrecoil > 0){
-			double range_recoil = recoil_targ.GetRange(Erecoil);
+			range_recoil = recoil_targ->GetRange(Erecoil);
 		}*/
 		
 		if(WriteDebug){ 
@@ -776,77 +783,90 @@ int main(int argc, char* argv[]){
 				hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z);
 			}
 			
-			if(hit){			
-				// Check for a "true" hit
-				if(!PerfectDet){
-					// Detector is not perfect, hit is based on the efficiency
-					if(vandle_bars[bar].IsSmall()){
-						// Use the small bar efficiency data
-						if(frand() > bar_eff.GetSmallEfficiency(Eeject)){ hit = false; }
-					}
-					else if(vandle_bars[bar].IsMedium()){
-						// Use the medium bar efficiency data
-						if(frand() > bar_eff.GetMediumEfficiency(Eeject)){ hit = false; }
-					}
-					else if(vandle_bars[bar].IsLarge()){
-						// Use the large bar efficiency data
-						if(frand() > bar_eff.GetLargeEfficiency(Eeject)){ hit = false; }
-					}
-				}
-			
-				if(hit){
-					// The particle hit a detector and was detected
-					// The time of flight is the time it takes the particle to traverse the distance
-					// from the target to the intersection point inside the detector
-					fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
-					fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
-					penetration = frand(); // The fraction of the bar which the neutron travels through
-					temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
-					dist_traveled = temp_vector.Length()*penetration; // Random distance traveled through detector
-
-					// Calculate the total distance traveled and the interaction point inside the detector
-					if(fpath1 <= fpath2){ 
-						dist_traveled += fpath1; 
-						temp_vector = lab_beam_interaction + HitDetect1 + temp_vector*penetration;
+			if(hit){
+				// The time of flight is the time it takes the particle to traverse the distance
+				// from the target to the intersection point inside the detector
+				fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
+				fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
+				temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
+				penetration = temp_vector.Length(); // Total distance traveled through detector	
+				
+				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
+					if(!vandle_bars[bar].IsRecoilDet()){
+						if(Zeject > 0){ // Calculate energy loss for the ejectile in the detector
+							range_eject = eject_tables[vandle_bars[bar].GetMaterial()].GetRange(Eeject);
+							if(range_eject < penetration){ // Ejectile stops in the detector (E)
+								dist_traveled = range_eject;
+								QDC = Eeject; 
+							} 
+							else{ // Ejectile passes through the detector, depositing some energy (dE)
+								dist_traveled = penetration;
+								QDC = eject_tables[vandle_bars[bar].GetMaterial()].GetEnergy(penetration); 
+							}
+						}
+						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else{ 
-						dist_traveled += fpath2; 
-						temp_vector = lab_beam_interaction + HitDetect2 - temp_vector*penetration;
-					}
-				
-					// Calculate the particle ToF (ns)
-					if(!vandle_bars[bar].IsRecoilDet()){
-						tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26));
-						QDC = Eeject*frand(); // The ejectile may leave any portion of its energy inside the detector
-					}
-					else{
-						tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26));
-						QDC = Erecoil*frand(); // The recoil may leave any portion of its energy inside the detector
-					}
+						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
+							range_recoil = recoil_tables[vandle_bars[bar].GetMaterial()].GetRange(Erecoil);
+							if(range_recoil < penetration){ // Recoil stops in the detector (E)
+								dist_traveled = range_recoil;
+								QDC = Erecoil; 
+							} 
+							else{ // Recoil passes through the detector, depositing some energy (dE)
+								dist_traveled = penetration;
+								QDC = recoil_tables[vandle_bars[bar].GetMaterial()].GetEnergy(penetration); 
+							}				
+						}
+						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
+					}	
+				}
+				else{ // Do not do energy loss calculations
+					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
+					if(!vandle_bars[bar].IsRecoilDet()){ QDC = Eeject*frand(); } // The ejectile may leave any portion of its energy inside the detector
+					else{ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
+				}
 
-					// Smear ToF and Energy if the detector is not perfect
-					if(!PerfectDet){
-						tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
-						//QDC += rndgauss0(qdcRes); // Smear the VANDLE QDC value
-						//energyRes = std::sqrt(pow((0.03/HitDetect.Length()), 2.0)+pow((timeRes/tof), 2.0));
-						//Eeject += rndgauss0(energyRes*Eeject); // Smear energy due to VANDLE resolution
-					}
+				// Calculate the total distance traveled and the interaction point inside the detector
+				// Ensure that we use the intersection point on the side facing the target
+				if(fpath1 <= fpath2){ 
+					dist_traveled += fpath1; 
+					temp_vector = lab_beam_interaction + HitDetect1 + temp_vector*penetration;
+				}
+				else{ 
+					dist_traveled += fpath2; 
+					temp_vector = lab_beam_interaction + HitDetect2 - temp_vector*penetration;
+				}
 			
-					// Main output
-					// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-					//if(QDC >= 0.1 && QDC <= 5.0){
-						if(!vandle_bars[bar].IsRecoilDet()){
-							Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
-							EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-											 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
-						}
-						else{
-							Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
-							RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-											 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
-						}
-					//}
-				} // if(hit)
+				// Calculate the particle ToF (ns)
+				if(!vandle_bars[bar].IsRecoilDet()){ tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); }
+				else{ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
+
+				// Smear tof due to PIXIE resolution
+				tof += rndgauss0(timeRes); 
+		
+				// Main output
+				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
+				if(!vandle_bars[bar].IsRecoilDet()){
+					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
+					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
+									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+				}
+				else{
+					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
+					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
+									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+				}
+				
+				// Adjust the particle energies to take energy loss into account
+				if(!vandle_bars[bar].IsRecoilDet()){ 
+					Eeject = Eeject - QDC; 
+					if(Eeject <= 0.0){ break; } // Particle has stopped, no need to trace it further
+				}
+				else{ 
+					Erecoil = Erecoil - QDC; 
+					if(Erecoil <= 0.0){ break; } // Particle has stopped, no need to trace it further
+				}
 			} // if(vandle_bars[bar].IntersectPrimitive())
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
@@ -901,6 +921,8 @@ int main(int argc, char* argv[]){
 	
 	delete file;
 	delete[] materials;
+	if(Zeject > 0){ delete[] eject_tables; }
+	if(Zrecoil > 0){ delete[] recoil_tables; }
 	delete[] vandle_bars;
 	delete[] ExRecoilStates;
 	delete[] totXsect;
