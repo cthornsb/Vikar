@@ -319,12 +319,12 @@ double Planar::GetApparentThickness(const Vector3 &offset_, const Vector3 &direc
 // centers of all six faces of the VANDLE bar and its center coordinate
 std::string Planar::DumpVertex(){
 	if(need_set){ _set_face_coords(); }
-	std::string output = "";
+	std::stringstream stream;
 	for(unsigned int i = 0; i < 6; i++){
-		output += to_str(GlobalFace[i].axis[0]) + "\t" + to_str(GlobalFace[i].axis[1]) + "\t" + to_str(GlobalFace[i].axis[2]) + "\n";
+		stream << GlobalFace[i].axis[0] << "\t" << GlobalFace[i].axis[1] << "\t" << GlobalFace[i].axis[2] << "\n";
 	}
-	output += to_str(position.axis[0]) + "\t" + to_str(position.axis[1]) + "\t" + to_str(position.axis[2]);
-	return output;
+	stream << position.axis[0] << "\t" << position.axis[1] << "\t" << position.axis[2];
+	return stream.str();
 }
 
 // Dump VIKAR detector format string

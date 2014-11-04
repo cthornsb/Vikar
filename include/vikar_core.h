@@ -18,7 +18,7 @@
 /////////////////////////////////////////////////////////////////////
 
 extern const double c, pi, deg2rad;
-extern const double rad2deg, LN2, avagadro;
+extern const double rad2deg, LN2;
 
 /////////////////////////////////////////////////////////////////////
 // Classes
@@ -161,7 +161,6 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
-std::string to_str(double);
 std::string Parse(std::string input);
 void Parse(std::string input, float *arr, unsigned int num_values);
 double Dist3d(const Vector3&, const Vector3&);
@@ -177,27 +176,12 @@ unsigned int GetLines(const char*);
 void Cart2Sphere(double, double, double, double&, double&, double&);
 void Cart2Sphere(double, double, double, Vector3&);
 void Cart2Sphere(const Vector3&, Vector3&);
-double beta2(double, double);
-double btoep(double);
-double zeff(double, double);
-double deff(double);
-double shell(double);
-double dedxp(double, double, double);
-double dedx(double, double, double);
-double range(double, double, double, double, double);
-double algip(double);
-void ncdedx(double, double, double, double, double, double, double&, double&, double&);
-double de(double, double, double, double, double);
-double momentum(double, double);
 double radlength(unsigned int, unsigned int);
 double rndgauss0(double);
-void rndgauss1(double&, double&, double&, double&, double&);
 void Sphere2Cart(double, double, double, double&, double&, double&);
 void Sphere2Cart(double, double, double, Vector3&);
 void Sphere2Cart(const Vector3&, Vector3&);
-double velocity(double, double);
 void straggleA(double&, double, double, double, double, double);
-void transform(double, double, double, double, double, double);
 double Interpolate(double, double, double, double, double);
 
 #endif

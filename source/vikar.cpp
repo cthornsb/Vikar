@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.13f"
+#define VERSION "1.14"
 
 struct debugData{
 	double var1, var2, var3;
@@ -458,20 +458,13 @@ int main(int argc, char* argv[]){
 		if(Zrecoil > 0){ recoil_tables = new RangeTable[1]; }
 	}
 	
-	/*materials[0].SetName("CD2");
+	materials[0].SetName("CD2");
 	materials[0].Init(2);
 	materials[0].SetDensity(1.06300);
 	
 	unsigned int num_per_molecule[2] = {1, 2};
 	double element_Z[2] = {6, 1};
-	double element_A[2] = {12, 2};*/
-	materials[0].SetName("CD2");
-	materials[0].Init(2);
-	materials[0].SetDensity(0.93);
-	
-	unsigned int num_per_molecule[2] = {2, 4};
-	double element_Z[2] = {6, 1};
-	double element_A[2] = {12, 1};
+	double element_A[2] = {12, 2};
 	materials[0].SetElements(num_per_molecule, element_Z, element_A);
 	
 	if(targ_mat_id == 0){
@@ -485,8 +478,7 @@ int main(int argc, char* argv[]){
 	// Calculate the stopping power table for the beam particles in the target
 	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
 		std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), materials[targ_mat_id].GetDensity(), 
-					   materials[targ_mat_id].GetAverageA(), materials[targ_mat_id].GetAverageZ(), Abeam, Zbeam);
+		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Abeam, Zbeam, &materials[targ_mat_id]);
 		std::cout << " Done!\n";
 	}
 	
@@ -494,8 +486,7 @@ int main(int argc, char* argv[]){
 	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), materials[i].GetDensity(), 
-								 materials[i].GetAverageA(), materials[i].GetAverageZ(), Aeject, Zeject);
+			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Aeject, Zeject, &materials[i]);
 			std::cout << " Done!\n";
 		}
 		eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
@@ -506,8 +497,7 @@ int main(int argc, char* argv[]){
 	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), materials[i].GetDensity(), 
-								  materials[i].GetAverageA(), materials[i].GetAverageZ(), Arecoil, Zrecoil);
+			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Arecoil, Zrecoil, &materials[i]);
 			std::cout << " Done!\n";
 		}
 		recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
@@ -623,6 +613,12 @@ int main(int argc, char* argv[]){
 	}
 
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
+
+	// Last chance to abort
+	if(!Prompt(" Setup is complete. Is everything correct?")){
+		std::cout << "  ABORTING...\n";
+		return 1;
+	}
 
 	//---------------------------------------------------------------------------
 	// End of Input Section

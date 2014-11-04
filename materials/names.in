@@ -3,4 +3,4 @@
 # files (.mat) to be used by VIKAR during runtime.
 # CD2 is used as the default and does not need to be loaded.
 ./materials/BC408.mat
-./materials/Silicon.mat
+#./materials/Silicon.mat

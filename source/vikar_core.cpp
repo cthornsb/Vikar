@@ -14,11 +14,6 @@ const double pi = 3.1415926540;
 const double deg2rad = pi/180.0;
 const double rad2deg = 180.0/pi;
 const double LN2 = 0.6931471805;
-const double avagadro = 6.0221413E23; // 1/mol
-double eden = 0.0;
-double elni = 0.0;
-double avip = 0.0;
-double avz = 0.0;
 
 /////////////////////////////////////////////////////////////////////
 // Vector3 Struct
@@ -230,7 +225,8 @@ bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickne
 			}
 			
 			reaction_xsection *= 2*pi;
-			rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
+			//rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
+			rate = 0.0;
 			rate *= beam_current; // Reaction rate (pps)
 			return true;
 		}
@@ -349,13 +345,6 @@ unsigned int GetLines(const char* input){
 	return count;
 }
 
-// Convert arbitrary input to string
-std::string to_str(double input){
-	std::stringstream output;
-	output << input;
-	return output.str();
-}
-
 // Linearly interpolate between points
 // Return the value y = f(x)
 double Interpolate(double x1, double y1, double x2, double y2, double x){
@@ -459,300 +448,6 @@ void Sphere2Cart(const Vector3 &sphere, Vector3 &cart){
 }
 
 /////////////////////////////////////////////////////////////////////
-// dedx.f
-/////////////////////////////////////////////////////////////////////
-
-double beta2(double e, double em){
-	// to calculate beta**2 where beta is the speed of a particle
-	// relative to the speed of light
-	//
-	// input - e energy in mev
-	// em rest mass in mev
-	
-	//double r = e/em + 1.0; 
-	return 1.0-(1.0/(pow(e/em + 1.0, 2.0)));
-} 
-
-double btoep(double dbsq){
-	// to calculate the energy of a proton given beta**2, where
-	// beta is the speed of the proton relative to the speed of light
-	// input:-   dbsq - beta**2 (double precision)
-	 
-	//const double emp = 938.25920; 
-	//double d = std::sqrt(1.0/(1.0-dbsq))-1.0; 
-	return 938.25920*(std::sqrt(1.0/(1.0-dbsq))-1.0);
-} 
-
-double zeff(double z, double beta){
-	//          to calculate the effective charge of a particle in
-	//     stopping power calculations(spar-armstrong & chandler-ornl-
-	//     4869 [1973])
-	//
-	//     input - z nominal charge of nucleus
-	//             beta speed of the particle relative to the speed of light
-	 
-	double zp = pow(z, 0.6666670); 
-	if(beta <= (0.070*zp)){ return z*(1.00 - std::exp(-125.00*beta/zp)); }
-	else{ return z; }
-} 
-
-double deff(double e){ 
-	//          to calculate the density-effect correction term in stopping
-	//     power calculations (spar-armstrong & chandler-ornl-4869 [1973])
-	//
-	//     input - e energy in mev
-	//             elni astd::log(mean ionization potential of medium (mev) )
-	//             eden electron density of stopping medium
-	 
-	
-	double del; 
-	//const double emp1 = 0.00106580356; 
-	//const double emp = 938.25920;
-	 
-	del = e*0.00106580356; 
-	del = std::log(del) + std::log(del+2.00); 
-	del += std::log(1.378E-9*eden) - 2.00*elni - 1.00; 
-	
-	if(del <= 0.00){ return 0.00; }
-	else{ return del; }
-}
-
-double shell(double e){
-	//          to calculate the shell correction term in stopping power
-	//     calculations(spar-armstrong & chandler-ornl-4869 [1973])
-	//
-	//     input - e energy in mev
-	//             avip mean ionization potential of stopping medium (mev)
-	//             avz mean atomic number of stopping medium
-	 
-	double be2; 
-	double gnu2; 
-	double f1, f2, xl, xl1, xl2; 
-	double output, x, xlog;
-	
-	const double a1 = 0.422377E-6, a2 = 3.858019E-9, b1 = 0.304043E-7; 
-	const double b2 = -0.1667989E-9, c1 = -0.38106E-9, c2 = 0.157955E-11; 
-	const double emp = 938.25920, zal = 12.950, zh2o = 3.340; 
-	const double emp1 = 0.00106580356; 
-	
-	const double p1 = 4.774248E-4, p2 = 1.143478E-3, p3 = -5.63392E-2; 
-	const double p4 = 4.763953E-1, p5 = 4.844536E-1; 
-	const double w1 = -1.819954E-6, w2 = -2.232760E-5, w3 = 1.219912E-4; 
-	const double w4 = 1.837873E-3, w5 = -4.457574E-3, w6 = -6.837103E-2; 
-	const double w7 = 5.266586E-1, w8 = 3.743715E-1; 
-	const double const1 = 0.021769515; 
-
-	// originally (E >= 8.0) SDP
-	if(e >= 2008.0){
-		gnu2 = 1.0/((e*emp1)*(e*emp1+2.00)); 
-		f1 =  gnu2*(a1+gnu2*(b1+c1*gnu2)); 
-		f2 =  gnu2*(a2+gnu2*(b2+c2*gnu2)); 
-		return avip*avip*(f1 + f2*avip)/avz; 
-	} 
-
-	be2 = beta2(e, emp); 
-	output = const1 + std::log(be2) - std::log(avip); 
-	x = 18769.00*be2/avz; 
-	xlog=std::log(x);
-	xl1 = 0.0;
-	
-	if(avz > zal){
-		xl = p5 + xlog*(p4+xlog*(p3+xlog*(p2+xlog*p1)));
-		xl = std::exp(xl);
-		if(avz > zal){ output = output - xl; }
-		else{
-			xl2 = xl;
-			xl = xl1 + (avz-zh2o)/(zal-zh2o)*(xl2-xl1);
-			output = output - xl;
-		}
-	}
-	else{
-		xl1 = w8 + xlog*(w7+xlog*(w6+xlog*(w5+xlog*(w4+xlog*(w3+xlog*(w2+xlog*w1))))));
-		xl1 = std::exp(xl1);
-		if(avz > zh2o){
-			xl = p5 + xlog*(p4+xlog*(p3+xlog*(p2+xlog*p1)));
-			xl = std::exp(xl);
-			if(avz > zal){ output = output - xl; }
-			else{
-				xl2 = xl;
-				xl = xl1 + (avz-zh2o)/(zal-zh2o)*(xl2-xl1);
-				output = output - xl;
-			}	
-		}
-		else{
-			xl = xl1;
-			output = output - xl;
-		}
-	} 
-	
-	return output;
-} 
-
-double dedxp(double enrgy, double db2, double beta){
-	// only valid for beta > 0.0046 : 10 kev protons
-	return eden*0.5099147*(pow(zeff(1.0,beta), 2.0)/db2)*((log(1.022008*db2/(1.0-db2))-db2)-elni-shell(enrgy)-deff(enrgy)*0.5);
-} 
-
-double dedx(double emass, double epart, double zpart){ 
-	// only valid for beta > 0.0046*z**(1/3)
-	double db2 = beta2(epart,emass);
-	double beta = std::sqrt(db2);
-	return pow(zeff(zpart,beta)/zeff(1.0,beta), 2.0)*dedxp(btoep(db2),db2,beta);
-} 
-
-double range(double dx, double emass, double epart, double zpart, double sp){
-	double spe = sp; 
-	double ed = epart; 
-	double es = epart; 
-	double dxt = dx; 
-	double dxs = dxt; 
-	double f = 1.00; 
-	double g = 1.00; 
-	double er2 = 1.00; 
-	double e, r, er1, jf;
-	e = 0.0; r = 0.0; er1 = 0.0; jf = 0.0;
-
-	int count = 0;
-	while(true){
-		ed = ed-de(dxt,emass,es,zpart,spe);
-		e = ed;
-		if(e <= 0.0000001){ break; }
-		
-		r = r+dxt;
-		es = e;
-		spe = dedx(emass,es,zpart);
-		er1 = epart/e;
-		
-		if(std::abs(er1/er2 - 1.0) < 0.01505){
-			g *= 1.10;
-			dxt = g*dxs;
-			dxs = dxt;
-		}
-		else{
-			jf = min(er1, 32.0);
-			f = 1.0/jf;
-		}
-		
-		er2 = er1;
-		dxt = f*dxs;
-		count++;
-	} 
-
-	return r+es/spe;
-} 
-
-double range2(double dx, double emass, double epart, double zpart, double sp){
-	double spe = sp;
-	double ed = epart;
-	double r = 0.0;
-	double es = epart;
-	double dxt = dx;
-	double dxs = dxt;
-	double f = 1.0;
-	double g = 1.0;
-	double er2 = 1.0;
-	double e, er1, jf;
-	e = 0.0; er1 = 0.0; jf = 0.0;
-      
-    top:
-	ed = ed - de(dxt,emass,es,zpart,spe);
-	e = ed;
-	if(e <= 0.0000001){ goto bottom; }
-	r = r + dxt;
-	es = e;
-	spe = dedx(emass,es,zpart);
-	er1 = epart/e;
-
-	if(abs(er1/er2 - 1.0) < 0.01505){
-		g = g*1.10;
-		dxt = g*dxs;
-		dxs = dxt;
-	}
-	else{
-		jf = min(er1,32);
-		f = 1.0/jf;
-	}
-	
-	er2 = er1;
-	dxt = f*dxs;
-	goto top;
-	
-    bottom:
-	return r+es/spe;
-}
-
-/////////////////////////////////////////////////////////////////////
-// ncdedx.f
-/////////////////////////////////////////////////////////////////////
-
-double algip(double z){ 
-	//          to calculate alog(ionization potential) for an element
-	//     of atomic number z
-	//
-	//      n.b. ionization potl in mev !!!!!!
-	double pot[13] = {18.7,42.0,39.0,60.0,68.0,78.0,99.5,98.5,117.0,140.0,150.0,157.0,163.0};
-	double iz, potl;
-	
-	iz = z + 0.050;
-	if(iz > 12){ potl = 9.760*z + 58.80/(pow(z, 0.190)); }
-	else{ potl = pot[(unsigned int)(iz)-1]; }
-	return std::log(potl * 1.0e-6);
-} 
-
-void ncdedx(double tgtdens, double atarget, double ztarget, double abeam, double zbeam, double energy, 
-	    double &dedxmg, double &tgtionpot, double &rangemg){ 
-	double sumn;
-	double sumnz;
-	double sumnzi;
-	double en,enz,enzi;
-
-	en = tgtdens/(atarget*1.660543);
-	enz = en*ztarget;
-	enzi = enz*algip(ztarget); // algip is LN of Ionization potential
-	sumn = en;
-	sumnz = enz;
-	sumnzi = enzi;
-	
-	elni = sumnzi/sumnz; //global
-	avip = std::exp(elni); //global
-	eden = sumnz; //global
-	avz = sumnz/sumn; //global
-
-	double eloss = dedx(abeam*931.4812, energy, zbeam);
-
-	dedxmg = (eloss*0.001)/tgtdens; //return
-	tgtionpot = avip*1000000.0; // The target ionization potential (MeV)
-	rangemg = range(0.5/eloss,abeam*931.4812,energy,zbeam,eloss)*tgtdens*1000.0; //return
-} 
-
-/////////////////////////////////////////////////////////////////////
-// de.f
-/////////////////////////////////////////////////////////////////////
-
-double de(double dx, double emass, double epart, double zpart, double sp){ 
-	// to calculate energy lost over dx cms assuming a quadratic relationship between e & x.
-	double deltae = sp*dx; 
-	double enew = epart-deltae; 
-	//std::cout << " de: " << sp << " " << dx << " " << epart << " " << deltae << std::endl;
-	
-	if(enew <= 0.0){ return epart; }
-	
-	double spges = dedx(emass, enew, zpart); 
-	return dx*(0.750*sp+(0.250*spges/sp)*spges); 
-} 
-
-/////////////////////////////////////////////////////////////////////
-// momentum.f
-/////////////////////////////////////////////////////////////////////
-
-double momentum(double energy, double mass){
-	// momentum 1.0 written by S.D.Pain on 27/01/2005
-	// Function to calculate the momentum of a body with 'energy' and 'mass'
-
-	return sqrt(2.0*energy*mass); 
-} 
-
-/////////////////////////////////////////////////////////////////////
 // radlength.f
 /////////////////////////////////////////////////////////////////////
 
@@ -800,17 +495,6 @@ double rndgauss0(double w){
 } 
 
 /////////////////////////////////////////////////////////////////////
-// velocity.f
-/////////////////////////////////////////////////////////////////////
-
-double velocity(double energy, double mass){ 
-	// strag_targ 1.0 written by S.D.Pain on 20/11/2004
-	// Function to calculate the velocity of a body with 'energy' and 'mass'
-
-	return std::sqrt(2.0*energy/mass); 
-}
-
-/////////////////////////////////////////////////////////////////////
 // straggleA.f
 /////////////////////////////////////////////////////////////////////
 
@@ -828,75 +512,8 @@ void straggleA(double &theta, double energy, double Z, double A, double thicknes
 	
 	// CURRENTLY ONLY TESTED FOR A LIMITED RANGE OF IONS, ENERGIES and TARGETS
 
-	theta = 13.6/(velocity(energy,A)*momentum(energy,A))*Z*std::sqrt(thickness/X)*(1.0+0.038*std::log(thickness/X)); 
+	theta = 13.6/(std::sqrt(2.0*energy/A)*std::sqrt(2.0*energy*A))*Z*std::sqrt(thickness/X)*(1.0+0.038*std::log(thickness/X)); 
 	theta = theta*std::sqrt(2.0); 
-} 
-
-/////////////////////////////////////////////////////////////////////
-// transform.f
-/////////////////////////////////////////////////////////////////////
-
-void transform(double theta1, double phi1, double theta2, double phi2, double theta, double phi){ 
-	// transform 2.0 written by S.D.Pain on 4/03/2005
-	//
-	// Subroutine for transforming the a spherical polar vector
-	// from one refernce frame to another.
-	// (theta2,phi2) is a vector in the master frame
-	// (theta1,phi1) is measured relative to (theta2,phi2).
-	// (theta,phi) is (theta1,phi1) in the master frame
-	
-	double term1, term2, temp, x1, y1, x2, y2, x, y; 
-	double beamX, beamY, beamZ, dummy; 
-	double dumtheta1, dumphi1, dumtheta2, dumphi2; 
-	bool swap; 
-	
-	swap = false; 
-	dummy = 1.0; 
-	
-	// copy the input angles to different variables, and use the copies in
-	// the subroutine, as they get modified.
-	dumtheta1 = theta1; 
-	dumphi1 = phi1; 
-	dumtheta2 = theta2; 
-	dumphi2 = phi2; 
-	
-	// Check whether the vector is pointing backward of 90 degrees (polar)
-	// If so, reflect its direction around, so that it points forwards.
-	// The transformation can then be computed, and the vector reflected
-	// back again. This avoids edge-of-the-world effects.
-	if (dumtheta1 > (0.5*pi)){
-		swap = true; 
-		Sphere2Cart(dummy,dumtheta1,dumphi1,beamX,beamY,beamZ); 
-		beamX = -beamX; beamY = -beamY; beamZ = -beamZ; 
-		Cart2Sphere(beamX,beamY,beamZ,dummy,dumtheta1,dumphi1); 
-	} 
-	
-	// Calculate the total angle between the two vectors. This is the
-	// effective polar angle.
-	term1 = dumtheta1 + dumtheta2*(cos(dumphi2-dumphi1)); 
-	term2 = dumtheta2*(sin((dumphi2-dumphi1))); 
-	theta = sqrt(pow(term1, 2 )+pow( term2, 2) ); 
-	
-	x1 = dumtheta1*sin(dumphi1); 
-	y1 = dumtheta1*cos(dumphi1); 
-	x2 = dumtheta2*sin(dumphi2); 
-	y2 = dumtheta2*cos(dumphi2); 
-	
-	x = x1+x2; 
-	y = y1+y2; 
-	
-	temp = x/(sqrt(pow(x, 2)+pow(y, 2)) ); 
-	phi = asin(temp); 
-	
-	if (x>=0.0){ phi = acos(y/(std::sqrt(pow(x, 2)+pow(y, 2)))); } 
-	else{ phi = 2.0*3.14159-acos(y/(sqrt(pow(x, 2)+pow(y, 2)))); }
-	
-	// If a reflection was made, reflect back again.
-	if (swap){
-		Sphere2Cart(dummy,theta,phi,beamX,beamY,beamZ); 
-		beamX = -beamX; beamY = -beamY; beamZ = -beamZ; 
-		Cart2Sphere(beamX,beamY,beamZ,dummy,theta,phi); 
-	} 
 } 
 
 /////////////////////////////////////////////////////////////////////

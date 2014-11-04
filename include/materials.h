@@ -10,8 +10,16 @@
 // Globals
 /////////////////////////////////////////////////////////////////////
 
-extern const double e_charge, e_mass, e_radius;
-extern const double bethe_coefficient;
+// Constants for use in stopping power calcuations
+extern const double electron_RME, proton_RME, neutron_RME;
+extern const double bohr_e_radius, e, h, coeff;
+extern const double alpha, avagadro;
+
+// Constant coefficients for the shell correction term
+extern const double a1, a2, b1, b2, c1, c2;
+
+// Ionization potentials
+extern const double ionpot[13];
 
 /////////////////////////////////////////////////////////////////////
 // Class declarations
@@ -64,13 +72,18 @@ class Material{
   	unsigned int total_elements; // Total number of elements per molecule in the material
   	unsigned int *num_per_molecule; // Number of each element per molecule
   	double *element_Z, *element_A; // Atomic numbers and atomic masses (u) for each element
+  	double *element_I; // Ionization potentials (MeV) 
   	double avgZ, avgA; // Average Z and A of the elements within the material molecule
 	double density; // Density of the material (g/cm^3)
+	double edens; // Electron density (1/m^3)
 	double rad_length; // The radiation length of the material (mg/cm^2)
+	double lnIbar; // The natural log of the average ionization potential
 	bool init;
 	
 	void _initialize();
-		
+
+	void _calculate(); // Calculate the average atomic charge, mass, and ionization potential for the material
+
   public:
   	Material();
   	Material(unsigned int);
@@ -93,7 +106,44 @@ class Material{
 	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the material molecule
 	unsigned int GetNumElements(){ return num_elements; } // Return the number of unique elements per material molecule
 	
+	// Read a material file
 	bool ReadMatFile(const char* filename_);
+	
+	double GetEdensity(){ return edens; } // Return the electron density (1/m^3) for the material
+	double GetLNibar(){ return lnIbar; } // Return the natural log of the average ionization potential
+	
+	// Return the effective atomic charge (unitless) for a given value of beta_ and Z_
+	double Zeff(double beta_, double Z_){ return Z_*(1-std::exp(-125.0*beta_/pow(Z_, 2.0/3.0))); }
+
+	// Return the value of beta^2 (unitless) for a particle with a given energy_ and mass_
+	// energy_ in MeV and mass_ in MeV/c^2
+	double Beta2(double energy_, double mass_){ return std::sqrt(2*energy_/mass_); }
+
+	// Return the ionization potential (MeV) for a particle with a given atomic charge Z_
+	// Z_ is the atomic number of the ion of interest
+	double GetIonPot(unsigned int Z_);
+
+	// Return the shell correction term for a particle with a given energy_ in this material
+	// energy_ in MeV
+	double ShellCorrect(double energy_);
+
+	// Return the density effect correction term (unitless) for a particle with a given energy_ in this material
+	// energy_ in MeV
+	double DensityEffect(double energy_);
+
+	// Return the stopping power for a proton with a given energy_ in this material
+	// energy_ in MeV
+	double Pstop(double energy_);
+
+	// Return the stopping power (MeV/m) for a particle with given energy_, Z_, and mass_ in this material
+	// energy_ in MeV and mass_ in MeV/c^2
+	double StopPower(double energy_, double Z_, double mass_);
+
+	// Return the range (m) for a particle with given energy_, Z_, and mass_, in this material
+	// energy_ in MeV and mass_ in MeV/c^2
+	double Range(double energy_, double Z_, double mass_);
+	
+	void Print();
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -162,7 +212,7 @@ class RangeTable{
 	~RangeTable();
 	
 	bool Init(unsigned int); // Initialize arrays but do not fill them
-	bool Init(unsigned int, double, double, double, double, double, double, double); // Initialize arrays and fill them using ncdedx
+	bool Init(unsigned int num_entries_, double startE, double stopE, double A, double Z, Material *mat); // Initialize arrays and fill them using Material
 	bool UseTable(){ return use_table; }
 	bool Set(unsigned int, double, double); // Manually set a data point with an energy and a range
 	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array
