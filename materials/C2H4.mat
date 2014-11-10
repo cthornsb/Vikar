@@ -1,0 +1,10 @@
+#C2H4.mat
+C2H4		# Vikar name
+0.9300		# Density (g/cm^3)
+2			# Number of target elements per molecule
+6			# Element 1 Z
+12			# Element 1 A
+2			# Number of element 1 per target molecule
+1			# Element 2 Z
+1			# Element 2 A
+4			# Number of element 2 per target molecule

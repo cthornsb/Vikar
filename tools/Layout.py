@@ -614,8 +614,8 @@ def main2():
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
 	#RawRead("/home/cory/Research/VANDLE/Vikar/xyz.dat", 2)
 	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
-	#RawRead("/home/cory/Research/VANDLE/Vikar/XYpos.out", 4)
-	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det")
+	#RawRead("/home/cory/Research/VANDLE/Vikar/test.out", 2)
+	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
 
 	while True:
 		visual.rate(60)

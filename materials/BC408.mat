@@ -4,6 +4,7 @@
 # Doped with 64% antracene (C14H10 178.2292 g/mol)
 BC408		# Vikar name
 1.032		# Density (g/cm^3)
+118.1757	# Molar mass of material (g/mol)
 2			# Number of target elements per molecule
 6			# Element 1 Z
 12			# Element 1 A

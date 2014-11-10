@@ -413,41 +413,45 @@ std::string Wall::DumpDetWall(){
 // Returns the number of detectors loaded from the file
 // Assumes the following detector file format for each bar in file
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
-unsigned int ReadDetFile(const char* fname, Planar **bar_array){
-	std::ifstream detfile(fname);
+unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
+	std::ifstream detfile(fname_);
 	if(!detfile.good()){ return 0; }
-		
+	bar_vector.clear();
+	
 	std::vector<NewVIKARDet> detectors;
 	std::string line;
-	
+
 	while(true){
 		getline(detfile, line);
 		if(detfile.eof()){ break; }
 		if(line[0] == '#'){ continue; } // Commented line
-		
+	
 		detectors.push_back(NewVIKARDet(line));
 	}	
 	detfile.close();
 	
-	// Generate the Planar bar array
-	bar_array = new Planar*[detectors.size()];
-	unsigned int current_index = 0;
+	Planar *current_det;
 	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
-		// Set the size of the bar
-		bar_array[current_index] = new Planar();
-		if(iter->subtype == "small"){ bar_array[current_index]->SetSmall(); }
-		else if(iter->subtype == "medium"){ bar_array[current_index]->SetMedium(); }
-		else if(iter->subtype == "large"){ bar_array[current_index]->SetLarge(); }
-		else{ bar_array[current_index]->SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-		
-		bar_array[current_index]->SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
-		bar_array[current_index]->SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
-		bar_array[current_index]->SetType(iter->type);
-		bar_array[current_index]->SetSubtype(iter->subtype);
-		current_index++;
+		current_det = new Planar();
+		if(iter->type == "vandle"){
+			if(iter->subtype == "small"){ current_det->SetSmall(); }
+			else if(iter->subtype == "medium"){ current_det->SetMedium(); }
+			else if(iter->subtype == "large"){ current_det->SetLarge(); }
+			else{ current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+		}
+		else if(iter->type == "recoil"){
+			current_det->SetRecoil();
+			current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]);
+			if(iter->subtype == "cylinder"){ current_det->SetCylinder(); }			
+		}		
+		current_det->SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+		current_det->SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+		current_det->SetType(iter->type);
+		current_det->SetSubtype(iter->subtype);
+		bar_vector.push_back(current_det);
 	}
 	
-	return detectors.size();
+	return bar_vector.size();
 }
 
 // Perform a monte carlo simulation on an arbitrary configuration

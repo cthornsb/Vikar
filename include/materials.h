@@ -26,6 +26,11 @@ extern const double ionpot[13];
 /////////////////////////////////////////////////////////////////////
 
 class Planar;
+class Efficiency;
+class Material;
+class Particle;
+class Target;
+class RangeTable;
 
 /////////////////////////////////////////////////////////////////////
 // Efficiency
@@ -75,6 +80,7 @@ class Material{
   	double *element_I; // Ionization potentials (MeV) 
   	double avgZ, avgA; // Average Z and A of the elements within the material molecule
 	double density; // Density of the material (g/cm^3)
+	double Mmass; // Molar mass of material (g/mol)
 	double edens; // Electron density (1/m^3)
 	double rad_length; // The radiation length of the material (mg/cm^2)
 	double lnIbar; // The natural log of the average ionization potential
@@ -84,6 +90,37 @@ class Material{
 
 	void _calculate(); // Calculate the average atomic charge, mass, and ionization potential for the material
 
+	// Return the effective atomic charge (unitless) for a given value of beta_ and Z_
+	double _zeff(double beta_, double Z_){ return Z_*(1-std::exp(-125.0*beta_/pow(Z_, 2.0/3.0))); }
+
+	// Return the value of beta^2 (unitless) for a particle with a given energy_ and mass_
+	// energy_ in MeV in (kinetic energy) and mass_ in MeV/c^2 (rest mass energy)
+	double _b2(double energy_, double mass_){ return 1-pow(mass_/(energy_+mass_), 2.0); }
+	
+	// Return the energy (MeV) for a particle with a given beta2_ and mass_
+	// mass_ in MeV/c^2 (rest mass energy)
+	double _energy(double beta2_, double mass_){ return mass_*((1.0/std::sqrt(1.0-beta2_))-1.0); }
+
+	// Return the ionization potential (MeV) for a particle with a given atomic charge Z_
+	// Z_ is the atomic number of the ion of interest
+	double _ionpot(unsigned int Z_);
+
+	// Return the shell correction term for a particle with a given energy_ in this material
+	// energy_ in MeV
+	double _shell(double energy_);
+
+	// Return the density effect correction term (unitless) for a particle with a given energy_ in this material
+	// energy_ in MeV
+	double _density(double energy_);
+
+	// Return the stopping power for a proton with a given KE (energy_) in this material
+	// energy_ in MeV
+	double _pstop(double energy_);
+
+	// Return the range (m) for a proton with given KE (energy_) in this material
+	// energy_ in MeV
+	double _prange(double energy_);
+
   public:
   	Material();
   	Material(unsigned int);
@@ -92,6 +129,7 @@ class Material{
 	bool Init(unsigned int);
 	
 	void SetDensity(double density_){ density = density_; }
+	void SetMolarMass(double Mmass_){ Mmass = Mmass_; }
 	void SetElements(unsigned int*, double*, double*);
 	void SetName(std::string name_){ vikar_name = name_; }
 
@@ -101,6 +139,9 @@ class Material{
 	double GetAverageA(){ return avgA; } // Return the average atomic mass of the elements in the molecule
 	double GetRadLength(){ return rad_length; } // Return the radiation length of the material (mg/cm^2)
 	double GetDensity(){ return density; } // Return the density of the material (g/cm^3)
+	double GetEdensity(){ return edens; } // Return the electron density (1/m^3) for the material
+	double GetLNibar(){ return lnIbar; } // Return the natural log of the average ionization potential	
+	double GetMolarMass(){ return Mmass; } // Return the molar mass of the material (g/mol)
 	std::string GetName(){ return vikar_name; }
 
 	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the material molecule
@@ -109,32 +150,6 @@ class Material{
 	// Read a material file
 	bool ReadMatFile(const char* filename_);
 	
-	double GetEdensity(){ return edens; } // Return the electron density (1/m^3) for the material
-	double GetLNibar(){ return lnIbar; } // Return the natural log of the average ionization potential
-	
-	// Return the effective atomic charge (unitless) for a given value of beta_ and Z_
-	double Zeff(double beta_, double Z_){ return Z_*(1-std::exp(-125.0*beta_/pow(Z_, 2.0/3.0))); }
-
-	// Return the value of beta^2 (unitless) for a particle with a given energy_ and mass_
-	// energy_ in MeV and mass_ in MeV/c^2
-	double Beta2(double energy_, double mass_){ return std::sqrt(2*energy_/mass_); }
-
-	// Return the ionization potential (MeV) for a particle with a given atomic charge Z_
-	// Z_ is the atomic number of the ion of interest
-	double GetIonPot(unsigned int Z_);
-
-	// Return the shell correction term for a particle with a given energy_ in this material
-	// energy_ in MeV
-	double ShellCorrect(double energy_);
-
-	// Return the density effect correction term (unitless) for a particle with a given energy_ in this material
-	// energy_ in MeV
-	double DensityEffect(double energy_);
-
-	// Return the stopping power for a proton with a given energy_ in this material
-	// energy_ in MeV
-	double Pstop(double energy_);
-
 	// Return the stopping power (MeV/m) for a particle with given energy_, Z_, and mass_ in this material
 	// energy_ in MeV and mass_ in MeV/c^2
 	double StopPower(double energy_, double Z_, double mass_);
@@ -218,6 +233,53 @@ class RangeTable{
 	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array
 	double GetRange(double); // Get the particle range at a given energy using linear interpolation
 	double GetEnergy(double); // Get the particle energy at a given range usign linear interpolation
+};
+
+/////////////////////////////////////////////////////////////////////
+// Particle
+/////////////////////////////////////////////////////////////////////
+
+class Particle{
+  private:
+	double A, Z;
+	double maxE;
+	std::string name;
+	bool init;
+	
+	RangeTable table;
+	Material *mat;
+	
+  public:
+	Particle(){ 
+		A = 0.0; Z = 0.0; maxE = 0.0; 
+		name = "unknown"; init = false; 
+	}
+	Particle(std::string name_, double Z_, double A_){ 
+		SetParticle(name_, Z_, A_); 
+		init = false;
+	}
+	
+	void SetA(double A_){ A = A_; } // Set the mass of the particle
+	void SetZ(double Z_){ Z = Z_; } // Set the atomic charge of the particle
+	void SetParticle(std::string name_, double Z_, double A_){ Z = Z_; A = A_; name = name_; } // Set the mass, charge, and name of the particle
+	void SetName(std::string name_){ name = name_; } // Set the name of the particle
+	bool SetMaterial(Material *mat_, double Ebeam_, double Espread_); // Set the material for the particle, and setup the range table
+	
+	double GetA(){ return A; } // Return the mass of the particle
+	double GetZ(){ return Z; } // Return the atomic charge of the particle
+	double GetN(){ return A-Z; } // Return the number of neutrons
+	double GetMaxE(){ return maxE; } // Return the maximum particle energy (MeV)
+	std::string GetName(){ return name; }
+	Material *GetMaterial(){ return mat; }
+	
+	double GetEnergy(double range_){ 
+		if(!init){ return -1.0; }
+		return table.GetEnergy(range_);
+	}
+	double GetRange(double energy_){ 
+		if(!init){ return -1.0; }
+		return table.GetRange(energy_);
+	}
 };
 
 #endif

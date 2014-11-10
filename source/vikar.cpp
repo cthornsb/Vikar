@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.14"
+#define VERSION "1.14b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -23,36 +23,6 @@ struct debugData{
 		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
-
-// Get a random point on a circle
-// spot_ is the beamspot size in m
-// offset_ is the offset in the negative z-direction (in m)
-// beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
-void RandomCircle(double spot_, double offset_, Vector3 &beam){
-	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
-	double ranT = 2*pi*frand(); // Random angle about the beam axis
-	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_);
-}
-
-bool SetBool(std::string input_, std::string text_, bool &output){
-	int idummy = atoi(input_.c_str());
-	if(idummy == 1){ output = true; }
-	else{ output = false; }
-	std::cout << text_;
-	if(output){ std::cout << ": Yes\n"; }
-	else{ std::cout << ": No\n"; }
-	return output;
-}
-
-bool Prompt(std::string prompt_){
-	std::string temp_input;
-	while(true){
-		std::cout << prompt_ << " (yes/no) "; std::cin >> temp_input;
-		if(temp_input == "yes" || temp_input == "y"){ return true;; }
-		else if(temp_input == "no" || temp_input == "n"){ return false; }
-		else{ std::cout << "  Type yes or no\n"; }
-	}
-}
 
 int main(int argc, char* argv[]){ 
 	// A Monte-Carlo charged particle experiment simulation program - details below

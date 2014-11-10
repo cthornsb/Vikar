@@ -161,6 +161,9 @@ class Kindeux{
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+void RandomCircle(double spot_, double offset_, Vector3 &beam);
+bool SetBool(std::string input_, std::string text_, bool &output);
+bool Prompt(std::string prompt_);
 std::string Parse(std::string input);
 void Parse(std::string input, float *arr, unsigned int num_values);
 double Dist3d(const Vector3&, const Vector3&);

@@ -6,8 +6,10 @@ LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos
+SOURCES2 = vikar_core.cpp detectors.cpp materials.cpp
+TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos phoswich range
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
+OBJECTS2 = $(addprefix $(C_OBJ_DIR)/,$(SOURCES2:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
 INCLUDE_DIR = $(shell pwd)/include
@@ -106,9 +108,19 @@ energy: $(TOOL_DIR)/energy.cpp
 
 XYpos: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/XYpos.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/XYpos.cpp $(LDLIBS)
+	@echo " Done making "$@	
 
-test: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/test.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)
+phoswich: dictionary $(OBJECTS2) $(C_OBJ_DIR)/phoswich.o
+	$(COMPILER) $(LDFLAGS) $(OBJECTS2) $(C_OBJ_DIR)/phoswich.o $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
+	@echo " Done making "$@	
+
+range: $(OBJECTS2) $(TOOL_DIR)/range.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/range.cpp $(LDLIBS)
+	@echo " Done making "$@	
+
+test: $(OBJECTS2) $(TOOL_DIR)/test.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)
+	@echo " Done making "$@	
 
 $(PROG): dictionary $(OBJECTS)
 	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)

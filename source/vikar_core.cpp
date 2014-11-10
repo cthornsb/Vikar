@@ -255,6 +255,36 @@ bool AngularDist::Sample(double &com_angle){
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+// Get a random point on a circle
+// spot_ is the beamspot size in m
+// offset_ is the offset in the negative z-direction (in m)
+// beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
+void RandomCircle(double spot_, double offset_, Vector3 &beam){
+	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_);
+}
+
+bool SetBool(std::string input_, std::string text_, bool &output){
+	int idummy = atoi(input_.c_str());
+	if(idummy == 1){ output = true; }
+	else{ output = false; }
+	std::cout << text_;
+	if(output){ std::cout << ": Yes\n"; }
+	else{ std::cout << ": No\n"; }
+	return output;
+}
+
+bool Prompt(std::string prompt_){
+	std::string temp_input;
+	while(true){
+		std::cout << prompt_ << " (yes/no) "; std::cin >> temp_input;
+		if(temp_input == "yes" || temp_input == "y"){ return true;; }
+		else if(temp_input == "no" || temp_input == "n"){ return false; }
+		else{ std::cout << "  Type yes or no\n"; }
+	}
+}
+
 // Parse an input string and return text up to the first 
 // occurance of white space or the first occurance of a '#'
 std::string Parse(std::string input){
@@ -540,38 +570,36 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 // Set Kindeux to use angular distributions for calculating ejectile angles
 // Returns false if attempt to load the distributions fails for any reason
 bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double incident_beam_current){
-	if(init){
-		if(fnames.size() < NrecoilStates){
-			std::cout << " Kindeux: Warning! Must have distributions for " << NrecoilStates << " excited states and the ground state\n";
-			std::cout << " Kindeux: Received distributions for only " << fnames.size() << " states but expected " << NrecoilStates << std::endl;
-			return false;
-		}
-		
-		ang_dist = true;
-		distributions = new AngularDist[NrecoilStates];
-		Xsections = new double[NrecoilStates];
-	
-		// Load all distributions from file
-		total_xsection = 0.0;
-		for(unsigned int i = 0; i < NrecoilStates; i++){
-			if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness, incident_beam_current)){
-				std::cout << "  Failed to load angular distribution file '" << fnames[i] << "'\n";
-				ang_dist = false;
-				break;
-			}
-			Xsections[i] = total_xsection;
-			total_xsection += distributions[i].GetReactionXsection();
-		}
-	
-		// Encountered some problem with one or more of the distributions
-		if(!ang_dist){ 
-			delete[] distributions; 
-			delete[] Xsections;
-			return false;
-		}
-		return true;
+	if(!init){ return false; }
+	if(fnames.size() < NrecoilStates){
+		std::cout << " Kindeux: Warning! Must have distributions for " << NrecoilStates << " excited states and the ground state\n";
+		std::cout << " Kindeux: Received distributions for only " << fnames.size() << " states but expected " << NrecoilStates << std::endl;
+		return false;
 	}
-	return false;
+	
+	ang_dist = true;
+	distributions = new AngularDist[NrecoilStates];
+	Xsections = new double[NrecoilStates];
+
+	// Load all distributions from file
+	total_xsection = 0.0;
+	for(unsigned int i = 0; i < NrecoilStates; i++){
+		if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness, incident_beam_current)){
+			std::cout << "  Failed to load angular distribution file '" << fnames[i] << "'\n";
+			ang_dist = false;
+			break;
+		}
+		Xsections[i] = total_xsection;
+		total_xsection += distributions[i].GetReactionXsection();
+	}
+
+	// Encountered some problem with one or more of the distributions
+	if(!ang_dist){ 
+		delete[] distributions; 
+		delete[] Xsections;
+		return false;
+	}
+	return true;
 }
 
 // Calculate recoil excitation energies
