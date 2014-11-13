@@ -77,4 +77,22 @@ class ReactionObject : public TObject {
     ClassDefNV(ReactionObject, 1); // Reaction
 };
 
+///////////////////////////////////////////////////////////
+// PulseObject
+///////////////////////////////////////////////////////////
+class PulseObject : public TObject {
+  public:
+  	std::vector<int> pulse;
+  	unsigned int type;
+
+	PulseObject(){ type = 0; }
+    
+    void Set(const std::vector<int> &input_, unsigned int type_){ pulse = input_; type = type_; }
+    
+    // Zero the data structure
+    void Zero(){ pulse.clear(); type = 0; }
+    
+    ClassDefNV(PulseObject, 1); // Pulse
+};
+
 #endif

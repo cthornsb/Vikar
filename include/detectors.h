@@ -100,8 +100,8 @@ class Planar{
 	double length, width, depth; // Physical size (meters)
 	double theta, phi, psi; // Local rotation (radians)
 	bool small, med, large;
-	bool is_cylinder; // TEMPORARY!!!
 	bool use_recoil;
+	bool use_eject;
 	std::string type, subtype;
     
     public:
@@ -120,15 +120,17 @@ class Planar{
 	std::string GetSubtype(){ return subtype; }
 	void GetLocalCoords(const Vector3&, double&, double&, double&);
 	
-	bool IsCylinder(){ return is_cylinder; }
 	bool IsSmall(){ return small; }
 	bool IsMedium(){ return med; }
 	bool IsLarge(){ return large; }
 	bool IsRecoilDet(){ return use_recoil; }
+	bool IsEjectileDet(){ return use_eject; }
 	bool UseMaterial(){ return use_material; }
 	
-	void SetMaterial(unsigned int material_id_){ material_id = material_id_; }
-	void SetCylinder(){ is_cylinder = true; }
+	void SetMaterial(unsigned int material_id_){ 
+		material_id = material_id_; 
+		use_material = true;
+	}
 	void SetType(std::string type_){ type = type_; }
 	void SetSubtype(std::string subtype_){ subtype = subtype; }
 	void SetSmall(){ length = 0.60; width = 0.03; depth = 0.03; small = true; med = false; large = false; need_set = true; }
@@ -141,6 +143,7 @@ class Planar{
 	void SetRotation(double, double, double);
 	void SetUnitVectors(const Vector3&, const Vector3&, const Vector3&);
 	void SetRecoil(bool input_=true){ use_recoil = input_; }
+	void SetEjectile(bool input_=true){ use_eject = input_; }
 	
 	bool CheckBounds(unsigned int face_, double x_, double y_, double z_);
 	bool PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);

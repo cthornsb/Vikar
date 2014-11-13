@@ -47,5 +47,5 @@
 #0.0	0.0	0.0900	0.0	0.0	0.0	recoil	cylinder	0.0762	0.0762	0.001	none
 #0.0	0.0	0.1125	0.0	0.0	0.0	recoil	cylinder	0.0762	0.0762	0.001	none
 # The phoswich at the back of the ion chamber #################################################
-0.0	0.0	0.1505	0.0	0.0	0.0	recoil	cylinder	0.0762	0.0762	0.001	BC408
-0.0	0.0	0.1625	0.0	0.0	0.0	recoil	cylinder	0.0762	0.0762	0.025	BC408
+0.0	0.0	0.15	0.0	0.0	0.0	recoil	unknown	0.0762	0.0762	1.8E-5	BC408
+0.0	0.0	0.1625	0.0	0.0	0.0	recoil	unknown	0.0762	0.0762	0.025	BC408

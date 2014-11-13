@@ -9,5 +9,6 @@
 #pragma link C++ class RecoilObject+;
 #pragma link C++ class EjectObject+;
 #pragma link C++ class ReactionObject+;
+#pragma link C++ class PulseObject+;
 
 #endif

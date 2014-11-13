@@ -616,6 +616,7 @@ def main2():
 	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
 	#RawRead("/home/cory/Research/VANDLE/Vikar/test.out", 2)
 	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
+	#VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Elastic.det")
 
 	while True:
 		visual.rate(60)

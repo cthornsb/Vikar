@@ -296,6 +296,18 @@ std::string Parse(std::string input){
 	return output;
 }
 
+// Find the order of a number in powers of 10
+double Order(double input_){
+	double output = 1.0;
+	if(input_ > 1.0){ // Of order 1.0E+x
+		while(input_/output > 1.0){ output *= 10.0; }
+	}
+	else{ // Of order 1.0E-x
+		while(input_/output < 1.0){ output = output/10.0; }
+	}
+	return output;
+}
+
 // Double absolute value
 double dabs(double value){
 	if(value < 0){ return -1.0*value; }

@@ -14,6 +14,7 @@
 extern const double electron_RME, proton_RME, neutron_RME;
 extern const double bohr_e_radius, e, h, coeff;
 extern const double alpha, avagadro;
+extern const double amu2mev;
 
 // Constant coefficients for the shell correction term
 extern const double a1, a2, b1, b2, c1, c2;
@@ -227,12 +228,14 @@ class RangeTable{
 	~RangeTable();
 	
 	bool Init(unsigned int); // Initialize arrays but do not fill them
-	bool Init(unsigned int num_entries_, double startE, double stopE, double A, double Z, Material *mat); // Initialize arrays and fill them using Material
+	bool Init(unsigned int num_entries_, double startE_, double stopE_, double Z_, double mass_, Material *mat_); // Initialize arrays and fill them using Material
 	bool UseTable(){ return use_table; }
 	bool Set(unsigned int, double, double); // Manually set a data point with an energy and a range
 	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array
-	double GetRange(double); // Get the particle range at a given energy using linear interpolation
-	double GetEnergy(double); // Get the particle energy at a given range usign linear interpolation
+	double GetRange(double energy_); // Get the particle range at a given energy using linear interpolation
+	double GetEnergy(double range_); // Get the particle energy at a given range usign linear interpolation
+	double GetNewE(double energy_, double dist_); // Get the energy loss of a particle traversing a distance through a material
+	void Print(); // Print values to the screen
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -241,8 +244,9 @@ class RangeTable{
 
 class Particle{
   private:
-	double A, Z;
-	double maxE;
+	double A, Z; // Mass and charge number of the particle
+	double maxE; // Maximum energy in the range table
+	double mass; // Rest mass energy of the particle (MeV)
 	std::string name;
 	bool init;
 	
@@ -251,23 +255,36 @@ class Particle{
 	
   public:
 	Particle(){ 
-		A = 0.0; Z = 0.0; maxE = 0.0; 
+		A = 0.0; Z = 0.0; maxE = 0.0; mass = 0.0;
 		name = "unknown"; init = false; 
 	}
 	Particle(std::string name_, double Z_, double A_){ 
 		SetParticle(name_, Z_, A_); 
 		init = false;
 	}
+	Particle(std::string name_, double Z_, double A_, double mass_){ 
+		SetParticle(name_, Z_, A_, mass_); 
+		init = false;
+	}
 	
-	void SetA(double A_){ A = A_; } // Set the mass of the particle
+	void SetA(double A_){ A = A_; } // Set the mass number of the particle
 	void SetZ(double Z_){ Z = Z_; } // Set the atomic charge of the particle
-	void SetParticle(std::string name_, double Z_, double A_){ Z = Z_; A = A_; name = name_; } // Set the mass, charge, and name of the particle
+	void SetMass(double mass_){ mass = mass_; } // Set the mass of the particle (MeV)
+	void SetParticle(std::string name_, double Z_, double A_){ // Set the mass number, charge, and name of the particle
+		Z = Z_; A = A_; name = name_; 
+		mass = Z*proton_RME + (A-Z)*neutron_RME;
+	} 
+	void SetParticle(std::string name_, double Z_, double A_, double BE_A_){ // Set the mass number, charge, name and mass of the particle
+		Z = Z_; A = A_; name = name_; 
+		mass = Z*proton_RME + (A-Z)*neutron_RME - BE_A_*A;
+	}
 	void SetName(std::string name_){ name = name_; } // Set the name of the particle
 	bool SetMaterial(Material *mat_, double Ebeam_, double Espread_); // Set the material for the particle, and setup the range table
 	
-	double GetA(){ return A; } // Return the mass of the particle
+	double GetA(){ return A; } // Return the atomic mass of the particle
 	double GetZ(){ return Z; } // Return the atomic charge of the particle
 	double GetN(){ return A-Z; } // Return the number of neutrons
+	double GetMass(){ return mass; } // Return the rest mass of the particle (MeV)
 	double GetMaxE(){ return maxE; } // Return the maximum particle energy (MeV)
 	std::string GetName(){ return name; }
 	Material *GetMaterial(){ return mat; }
@@ -279,6 +296,10 @@ class Particle{
 	double GetRange(double energy_){ 
 		if(!init){ return -1.0; }
 		return table.GetRange(energy_);
+	}
+	double GetNewE(double energy_, double dist_){
+		if(!init){ return -1.0; }
+		return table.GetNewE(energy_, dist_);
 	}
 };
 

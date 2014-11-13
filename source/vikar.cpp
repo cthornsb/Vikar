@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.14b"
+#define VERSION "1.14c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -68,12 +68,25 @@ int main(int argc, char* argv[]){
 	srand(time(NULL));
 	
 	// Main objects
-	Kindeux kind;
-	Efficiency bar_eff;
+	Kindeux kind; // Main kinematics object
+	Target targ; // The physical target
+	Efficiency bar_eff; // VANDLE bar efficiencies
+	Planar *vandle_bars; // Array of Planar detectors
+
+	RangeTable beam_targ; // Range table for beam in target
+	//RangeTable *eject_targ = NULL; // Pointer to the range table for ejectile in target
+	//RangeTable *recoil_targ = NULL; // Pointer to the range table for recoil in target
+	RangeTable *eject_tables = NULL; // Array of range tables for ejectile in various materials
+	RangeTable *recoil_tables = NULL; // Array of range tables for recoil in various materials
+
+	double Zrecoil = 0.0, Arecoil = 0.0; // Recoil particle
+	double Zeject = 0.0, Aeject = 0.0; // Ejectile particle
+	double Zbeam = 0.0, Abeam = 0.0; // Beam particle
 	
-	// temporary variables
+	// Hit coordinates on the surface of a detector
 	double hit_x, hit_y, hit_z;
-	
+
+	// Vectors and rotation matrices
 	Vector3 Ejectile, Recoil, Gamma;
 	Vector3 HitDetect1, HitDetect2;
 	Vector3 EjectSphere, RecoilSphere;
@@ -87,22 +100,15 @@ int main(int argc, char* argv[]){
 	Matrix3 rotation_matrix; // The rotation matrix used to transform vectors from the beam particle frame to the lab frame
 
 	double tof; // Neutron time of flight (s)
-	double Zdepth; // Interaction depth inside of the target (cm)
+	double Zdepth; // Interaction depth inside of the target (m)
 	double Ereact; // Energy at which the reaction occurs (MeV)
-	double range_beam, range_eject, range_recoil;
-	
-	RangeTable beam_targ;
-	RangeTable *eject_targ = NULL;
-	RangeTable *recoil_targ = NULL;
-	RangeTable *eject_tables = NULL;
-	RangeTable *recoil_tables = NULL;
-	
+	double range_beam;
+		
 	unsigned int num_materials = 0;
-	Material *materials = NULL;
+	Material *materials = NULL; // Array of materials
 	
-	unsigned int targ_mat_id;
-	std::string targ_mat_name;
-	Target targ;
+	unsigned int targ_mat_id; // The ID number of the target material
+	std::string targ_mat_name; // The name of the target material
 	
 	// Physics Variables
 	unsigned int NRecoilStates = 0;
@@ -110,25 +116,20 @@ int main(int argc, char* argv[]){
 	double *ExRecoilStates = NULL;
 	double *totXsect = NULL; 
 	double gsQvalue = 0.0;
-	
+
+	// Energy variables
 	double Ebeam = 0.0, Ebeam0 = 0.0;
 	double Erecoil = 0.0, Eeject = 0.0;
-	double Abeam = 0.0, Zbeam = 0.0;
-	double Arecoil = 0.0, Zrecoil = 0.0;
-	double Aeject = 0.0, Zeject = 0.0;
-	
+		
 	// Beam variables
 	double beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
 	double beamEspread = 0.0; // Beam energy spread (MeV)
 	double beamAngdiv = 0.0; // Beam angular divergence (radians)
 
-	double timeRes = 3E-9;
-	double BeamRate = 0.0;
+	double timeRes = 3E-9; // Pixie-16 time resolution (s)
+	double BeamRate = 0.0; // Beam rate (1/s)
 	
-	// Detector variables
-	std::string det_fname; 
-	Planar *vandle_bars;
-	
+	std::string det_fname; // Detector filename
 	std::string output_fname_prefix = "VIKAR";
 	
 	// Input/output variables
@@ -136,26 +137,22 @@ int main(int argc, char* argv[]){
 	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
 	unsigned int Nwanted = 0; // Number of desired detections
 	unsigned int Nsimulated = 0; // Total number of simulated particles
-	unsigned int NbarHit = 0; // Total number of particles which collided with a bar
+	unsigned int NdetHit = 0; // Total number of particles which collided with a bar
 	unsigned int Nreactions = 0; // Total number of particles which react with the target
-	clock_t timer;
+	unsigned int Ndet = 0; // Total number of detectors
+	clock_t timer; // Clock object for calculating time taken and remaining
 
+	// Default options
 	bool SimGamma = false;
 	bool InCoincidence = true;
 	bool WriteReaction = false;
 	bool WriteDebug = false;
-
-	unsigned int Ndet = 0;
 	bool PerfectDet = true;
 	bool DetSetup = true;
 	bool ADists = false;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
 	bool TestSetup = false;
-
-	// Error reporting variables
-	std::string SRIM_fName, SRIM_fName_beam, SRIM_fName_targ_eject, SRIM_fName_targ_recoil;
-	std::string SRIM_fName_det_eject, SRIM_fName_det_recoil;
 
 	//------------------------------------------------------------------------
 	//
@@ -431,6 +428,7 @@ int main(int argc, char* argv[]){
 	materials[0].SetName("CD2");
 	materials[0].Init(2);
 	materials[0].SetDensity(1.06300);
+	materials[0].SetMolarMass(16.038904);
 	
 	unsigned int num_per_molecule[2] = {1, 2};
 	double element_Z[2] = {6, 1};
@@ -448,7 +446,7 @@ int main(int argc, char* argv[]){
 	// Calculate the stopping power table for the beam particles in the target
 	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
 		std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Abeam, Zbeam, &materials[targ_mat_id]);
+		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Zbeam, Abeam*amu2mev, &materials[targ_mat_id]);
 		std::cout << " Done!\n";
 	}
 	
@@ -456,10 +454,10 @@ int main(int argc, char* argv[]){
 	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Aeject, Zeject, &materials[i]);
+			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zeject, Aeject*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
-		eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
+		//eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
 	}
 	
 	
@@ -467,10 +465,10 @@ int main(int argc, char* argv[]){
 	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Arecoil, Zrecoil, &materials[i]);
+			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zrecoil, Arecoil*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
-		recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
+		//recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
 	}
 
 	// Read VIKAR detector setup file or manually setup simple systems
@@ -497,29 +495,36 @@ int main(int argc, char* argv[]){
 		// Fill the detector
 		Ndet = 0;
 		for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
-			if(iter->type == "vandle"){
+			if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
+				vandle_bars[Ndet].SetEjectile();
 				if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
 				else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
 				else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
 				else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
 			}
-			else if(iter->type == "recoil"){
-				vandle_bars[Ndet].SetRecoil();
+			else{
+				if(iter->type == "recoil"){ vandle_bars[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
+				else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+					vandle_bars[Ndet].SetRecoil(); 
+					vandle_bars[Ndet].SetEjectile();
+				}
 				vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
-				
-				if(iter->subtype == "cylinder"){ vandle_bars[Ndet].SetCylinder(); }
-				for(unsigned int i = 0; i < num_materials; i++){
-					if(iter->material == materials[i].GetName()){
-						if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (!vandle_bars[Ndet].IsRecoilDet() && Zeject > 0)){ 
-							// Only set detector to use material if the particle it is responsible for detecting has
-							// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
-							// and thus cannot use energy loss considerations.
-							vandle_bars[Ndet].SetMaterial(i);  
-						}
-						break; 
+			}
+			
+			// Set the material for energy loss calculations
+			for(unsigned int i = 0; i < num_materials; i++){
+				if(iter->material == materials[i].GetName()){
+					if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[Ndet].IsEjectileDet() && Zeject > 0)){ 
+						// Only set detector to use material if the particle it is responsible for detecting has
+						// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
+						// and thus cannot use energy loss considerations.
+						vandle_bars[Ndet].SetMaterial(i);  
 					}
-				}				
-			}		
+					break; 
+				}
+			}
+			
+			// Set the position and rotation
 			vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
 			vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
 			vandle_bars[Ndet].SetType(iter->type);
@@ -542,10 +547,6 @@ int main(int argc, char* argv[]){
 			std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
 			std::cout << "  Wrote lab position data to 'xyz.dat' and detector face data to 'faces.dat'\n";
 			std::cout << " Finished geometric efficiency test on detector setup...\n";
-			if(!Prompt(" Do you wish to continue with the simulation?")){
-				std::cout << "  ABORTING...\n";
-				return 1;
-			}
 		}
 	}
 	else{
@@ -638,6 +639,9 @@ int main(int argc, char* argv[]){
 	unsigned int eject_stopped = 0;
 	timer = clock();
 	
+	bool proc_eject = false;
+	bool proc_recoil = true;
+	
 	while(Ndetected < Nwanted){
 		// ****************Time Estimate**************
 		if(flag && (Ndetected % chunk == 0)){
@@ -651,7 +655,7 @@ int main(int argc, char* argv[]){
 			std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
 			if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
 			else{
-				std::cout << "  Geometric Efficiency: " << NbarHit*100.0/Nreactions << "%\n";
+				std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
 				std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
 			}
 			if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
@@ -687,6 +691,7 @@ int main(int argc, char* argv[]){
 		
 		// Calculate the new energy
 		if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
+			//std::cout << range_beam << "\t" << Zdepth << "\t" << Ebeam << std::endl;
 			if(beam_stopped == 10000){
 				std::cout << " ATTENTION!\n";
 				std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
@@ -741,15 +746,24 @@ int main(int argc, char* argv[]){
 
 		// Process the reaction products
 		for(unsigned int bar = 0; bar < Ndet; bar++){
-			if(!vandle_bars[bar].IsRecoilDet()){ // This is a detector used to detect ejectiles (VANDLE)
-				hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z);
-				if(hit){ NbarHit++; } // Geometric hit detected
-			}
-			else{ // This is a detector used to detect recoils (ION, SCINT, etc)
-				hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z);
-			}
+			if(vandle_bars[bar].IsEjectileDet()){ 
+				proc_eject = true; 
+				proc_recoil = false;
+			} // This detector can detect ejectiles
+			else if(vandle_bars[bar].IsRecoilDet()){ 
+				proc_recoil = true; 
+				proc_eject = false;
+			} // This detector can detect recoils
+			else{ continue; } // This detector cannot detect particles, so skip it
+
+process:			
+			if(proc_eject){ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
+			else if(proc_recoil){ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
 			
+			// If a geometric hit was detected, process the particle
 			if(hit){
+				NdetHit++; 
+				
 				// The time of flight is the time it takes the particle to traverse the distance
 				// from the target to the intersection point inside the detector
 				fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
@@ -758,39 +772,23 @@ int main(int argc, char* argv[]){
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
 				
 				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
-					if(!vandle_bars[bar].IsRecoilDet()){
+					if(proc_eject){
 						if(Zeject > 0){ // Calculate energy loss for the ejectile in the detector
-							range_eject = eject_tables[vandle_bars[bar].GetMaterial()].GetRange(Eeject);
-							if(range_eject < penetration){ // Ejectile stops in the detector (E)
-								dist_traveled = range_eject;
-								QDC = Eeject; 
-							} 
-							else{ // Ejectile passes through the detector, depositing some energy (dE)
-								dist_traveled = penetration;
-								QDC = eject_tables[vandle_bars[bar].GetMaterial()].GetEnergy(penetration); 
-							}
+							QDC = Eeject - eject_tables[vandle_bars[bar].GetMaterial()].GetNewE(Eeject, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
-					else{ 
+					else if(proc_recoil){ 
 						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
-							range_recoil = recoil_tables[vandle_bars[bar].GetMaterial()].GetRange(Erecoil);
-							if(range_recoil < penetration){ // Recoil stops in the detector (E)
-								dist_traveled = range_recoil;
-								QDC = Erecoil; 
-							} 
-							else{ // Recoil passes through the detector, depositing some energy (dE)
-								dist_traveled = penetration;
-								QDC = recoil_tables[vandle_bars[bar].GetMaterial()].GetEnergy(penetration); 
-							}				
+							QDC = Erecoil - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(Erecoil, penetration);		
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
 				}
 				else{ // Do not do energy loss calculations
 					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
-					if(!vandle_bars[bar].IsRecoilDet()){ QDC = Eeject*frand(); } // The ejectile may leave any portion of its energy inside the detector
-					else{ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
+					if(proc_eject){ QDC = Eeject*frand(); } // The ejectile may leave any portion of its energy inside the detector
+					else if(proc_recoil){ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
 				}
 
 				// Calculate the total distance traveled and the interaction point inside the detector
@@ -805,15 +803,16 @@ int main(int argc, char* argv[]){
 				}
 			
 				// Calculate the particle ToF (ns)
-				if(!vandle_bars[bar].IsRecoilDet()){ tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); }
-				else{ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
+				tof = 0.0;
+				if(proc_eject){ tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); }
+				else if(proc_recoil){ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
 
 				// Smear tof due to PIXIE resolution
 				tof += rndgauss0(timeRes); 
 		
 				// Main output
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-				if(!vandle_bars[bar].IsRecoilDet()){
+				if(vandle_bars[bar].IsEjectileDet()){
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
@@ -825,15 +824,23 @@ int main(int argc, char* argv[]){
 				}
 				
 				// Adjust the particle energies to take energy loss into account
-				if(!vandle_bars[bar].IsRecoilDet()){ 
+				if(proc_eject){ 
 					Eeject = Eeject - QDC; 
 					if(Eeject <= 0.0){ break; } // Particle has stopped, no need to trace it further
 				}
-				else{ 
+				else if(proc_recoil){ 
 					Erecoil = Erecoil - QDC; 
 					if(Erecoil <= 0.0){ break; } // Particle has stopped, no need to trace it further
 				}
-			} // if(vandle_bars[bar].IntersectPrimitive())
+			} // if(hit)
+			
+			if(proc_eject){ 
+				proc_eject = false; 
+				if(vandle_bars[bar].IsRecoilDet()){ 
+					proc_recoil = true; 
+					goto process; // Still need to process the recoil in this detector
+				}			
+			}			
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
@@ -866,7 +873,7 @@ int main(int argc, char* argv[]){
 	// Information output and cleanup
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
-	std::cout << " Geometric Efficiency: " << NbarHit*100.0/Nreactions << "%\n";
+	std::cout << " Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
 	std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";

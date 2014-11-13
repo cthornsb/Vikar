@@ -1,4 +1,4 @@
-1.14b		# Vikar input file version number
+1.14c		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -26,7 +26,7 @@ CD2			# Target material type name
 #/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff	# Large bar efficiency file
 1			# Supply detector setup file?
 /home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det	# Detector setup filename
-1000		# Number of detections
+10000		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
 1			# Write reaction data to output?

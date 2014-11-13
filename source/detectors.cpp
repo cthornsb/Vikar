@@ -32,8 +32,8 @@ Planar::Planar(){
 	med = false;
 	large = false;
 	need_set = true;
-	is_cylinder = false;
 	use_recoil = false;
+	use_eject = false;
 	use_material = false;
 	type = "unknown";
 	subtype = "unknown";
@@ -138,21 +138,14 @@ void Planar::SetUnitVectors(const Vector3 &unitX, const Vector3 &unitY, const Ve
 // Check if a point (in local coordinates) is within the bounds of the primitive
 // Return true if the coordinates are within the primitive and false otherwise
 bool Planar::CheckBounds(unsigned int face_, double x_, double y_, double z_){
-	if(!is_cylinder){ // Standard planar detector
-		if(face_ == 0 || face_ == 2){ // Front face (upstream) or back face (downstream)
-			if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
-		}
-		else if(face_ == 1 || face_ == 3){ // Right face (beam-right) or left face (beam-left)
-			if((z_ >= -depth/2.0 && z_ <= depth/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
-		}
-		else if(face_ == 4 || face_ == 5){ // Top face (+y) or bottom face (-y)
-			if((x_ >= -width/2.0 && x_ <= width/2.0) && (z_ >= -depth/2.0 && z_ <= depth/2.0)){ return true; }
-		}
+	if(face_ == 0 || face_ == 2){ // Front face (upstream) or back face (downstream)
+		if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
 	}
-	else{
-		if(face_ == 0 || face_ == 2){
-			if(std::sqrt(x_*x_+y_*y_) <= width/2.0){ return true; }
-		}
+	else if(face_ == 1 || face_ == 3){ // Right face (beam-right) or left face (beam-left)
+		if((z_ >= -depth/2.0 && z_ <= depth/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
+	}
+	else if(face_ == 4 || face_ == 5){ // Top face (+y) or bottom face (-y)
+		if((x_ >= -width/2.0 && x_ <= width/2.0) && (z_ >= -depth/2.0 && z_ <= depth/2.0)){ return true; }
 	}
 	
 	return false;	
@@ -433,17 +426,23 @@ unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
 	Planar *current_det;
 	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
 		current_det = new Planar();
-		if(iter->type == "vandle"){
+		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
+			current_det->SetEjectile();
 			if(iter->subtype == "small"){ current_det->SetSmall(); }
 			else if(iter->subtype == "medium"){ current_det->SetMedium(); }
 			else if(iter->subtype == "large"){ current_det->SetLarge(); }
 			else{ current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]); }
 		}
-		else if(iter->type == "recoil"){
-			current_det->SetRecoil();
+		else{
+			if(iter->type == "recoil"){ current_det->SetRecoil(); } // Recoil detectors only detect recoils
+			else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+				current_det->SetRecoil(); 
+				current_det->SetEjectile();
+			}
 			current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]);
-			if(iter->subtype == "cylinder"){ current_det->SetCylinder(); }			
-		}		
+		}
+		
+		// Set the position and rotation
 		current_det->SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
 		current_det->SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
 		current_det->SetType(iter->type);
@@ -480,7 +479,7 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].IntersectPrimitive(zero_vector, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
-				if(!bar_array[bar].IsRecoilDet()){
+				if(bar_array[bar].IsEjectileDet()){
 					flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
 					penetration = frand(); // The fraction of the bar which the neutron travels through
 					dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar

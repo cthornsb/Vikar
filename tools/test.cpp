@@ -11,12 +11,12 @@
 #include "TCanvas.h"
 #include "TFile.h"
 #include "TTree.h"
-#include "TH1D.h"
+#include "TH2D.h"
 
 int main(int argc, char *argv[]){
 	gSystem->Load("libTree");
-	//char* dummy[0]; 
-	//TApplication* rootapp = new TApplication("rootapp",0,dummy);
+	char* dummy[0]; 
+	TApplication* rootapp = new TApplication("rootapp",0,dummy);
 	
 	/*Vector3 vector(0.0, 0.0, 0.5); // Start along the z-axis
 	Matrix3 matrix;
@@ -110,42 +110,54 @@ int main(int argc, char *argv[]){
 	can->WaitPrimitive();
 
 	rootapp->Delete();*/
-	
-	if(argc < 7){
-		std::cout << " Missing a required argument. Expected 6, received " << argc-1 << std::endl;
-		std::cout << "  SYNTAX: ./test {material_filename} {particle_Z} {particle_A} {start_E} {stop_E} {points}\n";
-		return 1;
-	}
-	
-	double Z; Z = (double)atof(argv[2]);
-	double A; A = (double)atof(argv[3]);
-	Particle part("part",Z,A);
-	
-	double start = (double)atof(argv[4]);
-	double stop = (double)atof(argv[5]);
-	unsigned int points = (unsigned int)atoi(argv[6]);
-	double step = (stop-start)/points;
-	
-	std::cout << " Using particle with Z = " << Z << " and A = " << A << std::endl;
-	std::cout << " Start E: " << start << " MeV\n";
-	std::cout << " Stop E: " << stop << " MeV\n";
-	std::cout << " Step: " << step << " MeV\n";
-	
-	Material mat;
-	if(!mat.ReadMatFile(argv[1])){ 
-		std::cout << " Failed to load material file '" << argv[1] << "'\n";
-		return 1; 
-	}
-	
-	std::cout << " Successfully loaded material '" << mat.GetName() << "'\n";
-	mat.Print();
 
-	std::ofstream output("test.out");
-	for(unsigned int i = 0; i < points; i++){
-		output << step*(i+1) << "\t" << mat.Range(step*(i+1), Z, Z*proton_RME+(A-Z)*neutron_RME) << "\n";
-	}
-	output.close();
-	std::cout << " Done\n";
+	TFile *file = new TFile("VIKAR.root","READ");
+	TTree *tree = (TTree*)file->Get("VIKAR");	
+
+	TCanvas *can = new TCanvas("can");
+	can->cd();
+
+	std::vector<unsigned int> loc;
+	std::vector<double> qdc;
+	TBranch *qdc_b, *loc_b;
 	
+	tree->SetMakeClass(1);
+	tree->SetBranchAddress("recoil_qdc", &qdc, &qdc_b);
+	tree->SetBranchAddress("recoil_loc", &loc, &loc_b);
+	
+	TH2D *hist = new TH2D("hist", "Phoswich Fast QDC vs. Slow", 100, 0, 28, 100, 0, 28);
+	hist->SetStats(false);
+	hist->GetXaxis()->SetTitle("E (MeV)");
+	hist->GetYaxis()->SetTitle("dE (MeV)");
+	
+	std::vector<unsigned int>::iterator iterl;
+	std::vector<double>::iterator iterq;
+	
+	double qdc1, qdc2;
+	for(unsigned int i = 0; i < tree->GetEntries(); i++){
+		tree->GetEntry(i);
+		qdc1 = 0.0; qdc2 = 0.0;
+		for(iterl = loc.begin(), iterq = qdc.begin(); iterl != loc.end() && iterq != qdc.end(); iterl++, iterq++){
+			if(*iterl == 42){ // Fast
+				qdc1 = *iterq;
+			}
+			else if(*iterl == 43){ // Slow
+				qdc2 = *iterq;
+			}
+		}
+		
+		if(qdc1 != 0.0 && qdc2 != 0.0){
+			hist->Fill(qdc2, qdc1);
+		}
+	}
+
+	hist->Draw("COLZ");
+	can->WaitPrimitive();
+
+	file->Close();
+	can->Close();
+
+	rootapp->Delete();
+
 	return 0;
 }

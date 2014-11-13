@@ -14,12 +14,12 @@ const double electron_RME = 0.510998928; // MeV
 const double proton_RME = 938.272046; // MeV
 const double neutron_RME = 939.565378; // MeV
 const double bohr_e_radius = 2.817940326836615e-15; // m
-//const double bohr_e_beta = 0.331254507;
 const double e = 1.602176565e-19; // C
 const double h = 4.135667516e-21; // MeV * s
 const double coeff = 4*pi*pow(bohr_e_radius, 2.0)*electron_RME; // m^2 * MeV (checked)
 const double alpha = h*h*9E16*bohr_e_radius/pi; // MeV^2 * m^3
 const double avagadro = 6.0221413e+23; // 1/mol
+const double amu2mev = 931.494061; // MeV
 
 // Constant coefficients for the shell correction term
 const double a1 = 0.422377E-6, a2 = 3.858019E-9; // eV
@@ -57,16 +57,14 @@ bool RangeTable::Init(unsigned int num_entries_){
 	return _initialize(num_entries_);
 }
 
-bool RangeTable::Init(unsigned int num_entries_, double startE, double stopE, double A, double Z, Material *mat){
+bool RangeTable::Init(unsigned int num_entries_, double startE_, double stopE_, double Z_, double mass_, Material *mat_){
 	if(!_initialize(num_entries_)){ return false; }
 	
 	// Use Material to fill the arrays
-	double step = (stopE-startE)/(num_entries-1);
-	double mass = (Z*proton_RME+(A-Z)*neutron_RME);
-	for(unsigned int i = 0; i < num_entries; i++){
-		energy[i] = startE + i*step; // Energy in MeV
-		range[i] = mat->Range(energy[i], Z, mass); // Range in m
-		//std::cout << energy[i] << "\t" << range[i] << std::endl;
+	double step = (stopE_-startE_)/(num_entries_-1);
+	for(unsigned int i = 0; i < num_entries_; i++){
+		energy[i] = startE_ + i*step; // Energy in MeV
+		range[i] = mat_->Range(energy[i], Z_, mass_); // Range in m
 	}
 
 	return true;
@@ -104,6 +102,21 @@ double RangeTable::GetEnergy(double range_){
 		}
 	}
 	return -1;
+}
+
+double RangeTable::GetNewE(double energy_, double dist_){
+	if(!use_table){ return -1; }
+	double r1 = GetRange(energy_);
+	if(r1 - dist_ > 0.0){ return GetEnergy(r1 - dist_); } // The particle loses some energy in the material
+	else{ return 0.0; } // The particle stops in the material
+	return -1;
+}
+
+void RangeTable::Print(){
+	if(!use_table){ return; }
+	for(unsigned int i = 0; i < num_entries; i++){
+		std::cout << i << "\t" << energy[i] << "\t" << range[i] << std::endl;
+	}
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -268,6 +281,7 @@ double Efficiency::GetLargeEfficiency(double Energy){
 void Material::_initialize(){
 	vikar_name = "unknown";
 	density = 1.0;
+	Mmass = 0.0;
 	rad_length = 0.0;
 	avgZ = 0.0;
 	avgA = 0.0;
@@ -642,7 +656,7 @@ bool Particle::SetMaterial(Material *mat_, double Ebeam_, double Espread_){
 	mat = mat_;
 	maxE = Ebeam_ + 2*Espread_;
 	
-	if(table.Init(100, 0.1, maxE, A, Z, mat)){ 
+	if(table.Init(100, 0.1, maxE, Z, mass, mat)){
 		init = true;
 		return true;
 	}
