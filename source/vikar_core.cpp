@@ -259,10 +259,16 @@ bool AngularDist::Sample(double &com_angle){
 // spot_ is the beamspot size in m
 // offset_ is the offset in the negative z-direction (in m)
 // beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
-void RandomCircle(double spot_, double offset_, Vector3 &beam){
+void RandomCircleUp(double spot_, double offset_, Vector3 &beam){ // Upstream of target
 	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
 	double ranT = 2*pi*frand(); // Random angle about the beam axis
 	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_);
+}
+
+void RandomCircleDown(double spot_, double offset_, Vector3 &beam){ // Downstream of target
+	double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	beam = Vector3(-ranR*std::cos(ranT), -ranR*std::sin(ranT), offset_);
 }
 
 bool SetBool(std::string input_, std::string text_, bool &output){

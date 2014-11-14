@@ -604,19 +604,21 @@ def Hist3D(det_fname, data_fname):
 	return output
 
 def main2():  
+	thickness = 0.001
 	labScene = visual.display(title="7Be(d,n)8B Experiment", width=800, height=600, background=GetRGBcode(153,204,255))
-	#axisx = visual.box(pos=(0,0,0), axis=(10.0,0,0), width=0.005, height=0.005, color=visual.color.red, opacity=0.5)
-	#axisy = visual.box(pos=(0,0,0), axis=(0,10.0,0), width=0.005, height=0.005, color=visual.color.blue, opacity=0.5)
-	#axisz = visual.box(pos=(0,0,0), axis=(0,0,10.0), width=0.005, height=0.005, color=visual.color.green, opacity=0.5)
+	axisx = visual.box(pos=(0,0,0), axis=(10.0,0,0), width=thickness, height=thickness, color=visual.color.red, opacity=0.5)
+	axisy = visual.box(pos=(0,0,0), axis=(0,10.0,0), width=thickness, height=thickness, color=visual.color.blue, opacity=0.5)
+	axisz = visual.box(pos=(0,0,0), axis=(0,0,10.0), width=thickness, height=thickness, color=visual.color.green, opacity=0.5)
 	#labelx = visual.label(pos=(5.0,0,0), text="Z-Axis")
 	#labely = visual.label(pos=(0,5.0,0), text="Y-Axis")
 	#labelz = visual.label(pos=(0,0,5.0), text="X-Axis")
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
 	#RawRead("/home/cory/Research/VANDLE/Vikar/xyz.dat", 2)
 	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
+	RawRead("/home/cory/Research/VANDLE/Vikar/dump2.out", 2)
 	#RawRead("/home/cory/Research/VANDLE/Vikar/test.out", 2)
-	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
-	#VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Elastic.det")
+	#VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
+	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Elastic.det")
 
 	while True:
 		visual.rate(60)

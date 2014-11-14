@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.14c"
+#define VERSION "1.14d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -556,8 +556,13 @@ int main(int argc, char* argv[]){
 	}
 	
 	// Calculate the beam focal point (if it exists)
-	if(beamAngdiv < pi/2.0){
+	if(beamAngdiv < 1.562069680534925){ // 89.5 degrees
 		lab_beam_focus = Vector3(0.0, 0.0, -((beamspot/2.0)*std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
+		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
+		BeamFocus = true;
+	}
+	if(beamAngdiv > 1.579522973054868){
+		lab_beam_focus = Vector3(0.0, 0.0, ((beamspot/2.0)*std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
 		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
 		BeamFocus = true;
 	}
@@ -640,7 +645,6 @@ int main(int argc, char* argv[]){
 	timer = clock();
 	
 	bool proc_eject = false;
-	bool proc_recoil = true;
 	
 	while(Ndetected < Nwanted){
 		// ****************Time Estimate**************
@@ -672,14 +676,16 @@ int main(int argc, char* argv[]){
 		// beamspot as well as the distance traversed through the target
 		if(BeamFocus){ 
 			// In this case, lab_beam_focus is the originating point of the beam particle
+			// (or the terminating point for beams focused downstream of the target)
 			// The direction is given by the cartesian vector 'lab_beam_trajectory'
-			RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
+			RandomCircleUp(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
+			//RandomCircleDown(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
 			Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}
 		else{ 
 			// In this case, lab_beam_start stores the originating point of the beam particle
 			// The direction is given simply by the +z-axis
-			RandomCircle(beamspot, 1.0, lab_beam_start); // The 1m offset ensures the particle originates outside the target
+			RandomCircleUp(beamspot, 1.0, lab_beam_start); // The 1m offset ensures the particle originates outside the target
 			Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}	
 
@@ -746,19 +752,19 @@ int main(int argc, char* argv[]){
 
 		// Process the reaction products
 		for(unsigned int bar = 0; bar < Ndet; bar++){
-			if(vandle_bars[bar].IsEjectileDet()){ 
+			if(vandle_bars[bar].IsEjectileDet()){ // This detector can detect ejectiles
+				if(Eeject <= 0.0){ continue; } // There still may be recoil detectors left
 				proc_eject = true; 
-				proc_recoil = false;
-			} // This detector can detect ejectiles
-			else if(vandle_bars[bar].IsRecoilDet()){ 
-				proc_recoil = true; 
-				proc_eject = false;
-			} // This detector can detect recoils
+			}
+			else if(vandle_bars[bar].IsRecoilDet()){ // This detector can detect recoils
+				if(Erecoil <= 0.0){ continue; } // There still may be ejectile detectors left
+				proc_eject = false; 
+			}
 			else{ continue; } // This detector cannot detect particles, so skip it
 
 process:			
 			if(proc_eject){ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
-			else if(proc_recoil){ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
+			else{ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
 			
 			// If a geometric hit was detected, process the particle
 			if(hit){
@@ -778,7 +784,7 @@ process:
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
-					else if(proc_recoil){ 
+					else{ 
 						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
 							QDC = Erecoil - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(Erecoil, penetration);		
 						}
@@ -788,7 +794,7 @@ process:
 				else{ // Do not do energy loss calculations
 					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
 					if(proc_eject){ QDC = Eeject*frand(); } // The ejectile may leave any portion of its energy inside the detector
-					else if(proc_recoil){ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
+					else{ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
 				}
 
 				// Calculate the total distance traveled and the interaction point inside the detector
@@ -805,14 +811,14 @@ process:
 				// Calculate the particle ToF (ns)
 				tof = 0.0;
 				if(proc_eject){ tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); }
-				else if(proc_recoil){ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
+				else{ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
 
 				// Smear tof due to PIXIE resolution
 				tof += rndgauss0(timeRes); 
 		
 				// Main output
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
-				if(vandle_bars[bar].IsEjectileDet()){
+				if(proc_eject){
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
@@ -824,22 +830,13 @@ process:
 				}
 				
 				// Adjust the particle energies to take energy loss into account
-				if(proc_eject){ 
-					Eeject = Eeject - QDC; 
-					if(Eeject <= 0.0){ break; } // Particle has stopped, no need to trace it further
-				}
-				else if(proc_recoil){ 
-					Erecoil = Erecoil - QDC; 
-					if(Erecoil <= 0.0){ break; } // Particle has stopped, no need to trace it further
-				}
+				if(proc_eject){ Eeject = Eeject - QDC; }
+				else{ Erecoil = Erecoil - QDC; }
 			} // if(hit)
 			
 			if(proc_eject){ 
 				proc_eject = false; 
-				if(vandle_bars[bar].IsRecoilDet()){ 
-					proc_recoil = true; 
-					goto process; // Still need to process the recoil in this detector
-				}			
+				if(vandle_bars[bar].IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
 			}			
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
