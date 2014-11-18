@@ -7,7 +7,7 @@ ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
 SOURCES2 = vikar_core.cpp detectors.cpp materials.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos phoswich range viewer analyzer
+TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos phoswich range viewer analyzer optimizer
 OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
 OBJECTS2 = $(addprefix $(C_OBJ_DIR)/,$(SOURCES2:.cpp=.o))
 
@@ -122,12 +122,16 @@ test: $(OBJECTS2) $(TOOL_DIR)/test.cpp
 	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)
 	@echo " Done making "$@	
 
-viewer: $(OBJECTS2) $(TOOL_DIR)/viewer.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/viewer.cpp $(LDLIBS)
+viewer: $(TOOL_DIR)/viewer.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/viewer.cpp $(LDLIBS)
 	@echo " Done making "$@	
 
-analyzer: $(OBJECTS2) $(TOOL_DIR)/analyzer.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/analyzer.cpp $(LDLIBS)
+analyzer: $(TOOL_DIR)/analyzer.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/analyzer.cpp $(LDLIBS)
+	@echo " Done making "$@	
+
+optimizer: $(TOOL_DIR)/optimizer.cpp
+	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/optimizer.cpp $(LDLIBS)
 	@echo " Done making "$@	
 
 $(PROG): dictionary $(OBJECTS)

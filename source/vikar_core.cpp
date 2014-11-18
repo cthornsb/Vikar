@@ -466,6 +466,11 @@ void Cart2Sphere(const Vector3 &cart, Vector3 &sphere){
 	}
 }
 
+void Cart2Sphere(Vector3 &sphere){
+	Vector3 cart = sphere;
+	Cart2Sphere(cart, sphere);
+}
+
 /////////////////////////////////////////////////////////////////////
 // Sphere2Cart.f
 /////////////////////////////////////////////////////////////////////
@@ -493,6 +498,11 @@ void Sphere2Cart(const Vector3 &sphere, Vector3 &cart){
 	cart.axis[0] = sphere.axis[0]*std::sin(sphere.axis[1])*std::cos(sphere.axis[2]);
 	cart.axis[1] = sphere.axis[0]*std::sin(sphere.axis[1])*std::sin(sphere.axis[2]); 
 	cart.axis[2] = sphere.axis[0]*std::cos(sphere.axis[1]);
+}
+
+void Sphere2Cart(Vector3 &cart){
+	Vector3 sphere = cart;
+	Sphere2Cart(sphere, cart);
 }
 
 /////////////////////////////////////////////////////////////////////

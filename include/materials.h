@@ -120,7 +120,7 @@ class Material{
 
 	// Return the range (m) for a proton with given KE (energy_) in this material
 	// energy_ in MeV
-	double _prange(double energy_);
+	double _prange(double energy_, unsigned int num_iterations_);
 
   public:
   	Material();
@@ -158,6 +158,10 @@ class Material{
 	// Return the range (m) for a particle with given energy_, Z_, and mass_, in this material
 	// energy_ in MeV and mass_ in MeV/c^2
 	double Range(double energy_, double Z_, double mass_);
+	
+	// Use Birks' equation to calculate the light output for a particle at a given energy_ in this material
+	// energy_ in MeV, mass_ in MeV/c^2, L0_ in 1/MeV, kB_ in m/MeV, and C_ in (m/MeV)^2
+	double Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_);
 	
 	void Print();
 };
@@ -235,6 +239,11 @@ class RangeTable{
 	double GetRange(double energy_); // Get the particle range at a given energy using linear interpolation
 	double GetEnergy(double range_); // Get the particle energy at a given range usign linear interpolation
 	double GetNewE(double energy_, double dist_); // Get the energy loss of a particle traversing a distance through a material
+	bool GetEntry(unsigned int entry_, double &E, double &R){
+		if(!use_table || entry_ >= num_entries){ return false; }
+		E = energy[entry_]; R = range[entry_];
+		return true;
+	}
 	void Print(); // Print values to the screen
 };
 

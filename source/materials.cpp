@@ -408,11 +408,11 @@ double Material::_pstop(double energy_){
 
 // Return the range (m) for a proton with given KE (energy_) in this material
 // energy_ in MeV
-double Material::_prange(double energy_){
+double Material::_prange(double energy_, unsigned int num_iterations_){
 	double sum = 0.0;
 	double e1, e2;
-	double step = energy_/1000.0;
-	for(unsigned int i = 1; i < 1000; i++){
+	double step = energy_/num_iterations_;
+	for(unsigned int i = 1; i < num_iterations_; i++){
 		e1 = step*i; e2 = step*(i+1);
 		sum += 0.5*(1.0/_pstop(e2)+1.0/_pstop(e1))*step;
 	}
@@ -518,27 +518,43 @@ double Material::StopPower(double energy_, double Z_, double mass_){
 // Return the range (m) for a particle with given KE (energy_), Z_, and mass_, in this material
 // energy_ in MeV and mass_ in MeV/c^2
 double Material::Range(double energy_, double Z_, double mass_){
+	unsigned int iterations = (unsigned int)Order(energy_)*10;
 	double Eci = _energy(0.04*pow(Z_, 2.0/3.0), mass_);
 	double sum = 0.0;
 	if(energy_ <= Eci){
 		double e1, e2;
-		double step = energy_/1000.0;
-		for(unsigned int i = 1; i < 1000; i++){
+		double step = energy_/iterations;
+		for(unsigned int i = 1; i < iterations; i++){
 			e1 = step*i; e2 = step*(i+1);
 			sum += 0.5*(1.0/StopPower(e2, Z_, mass_)+1.0/StopPower(e1, Z_, mass_))*step;
 		}
 	}
 	else{
 		double e1, e2;
-		double step = Eci/1000.0;
+		double step = Eci/iterations;
 		
 		// Ri(Eci, Zi, mi)
-		for(unsigned int i = 1; i < 1000; i++){
+		for(unsigned int i = 1; i < iterations; i++){
 			e1 = step*i; e2 = step*(i+1);
 			sum += 0.5*(1.0/StopPower(e2, Z_, mass_)+1.0/StopPower(e1, Z_, mass_))*step;
 		}
 		
-		sum += (mass_/(proton_RME*Z_*Z_))*(_prange(energy_*proton_RME/mass_) - _prange(Eci*proton_RME/mass_));
+		sum += (mass_/(proton_RME*Z_*Z_))*(_prange(energy_*proton_RME/mass_, iterations) - _prange(Eci*proton_RME/mass_, iterations));
+	}
+	return sum;
+}
+
+	// Use Birks' equation to calculate the light output for a particle at a given energy_ in this material
+	// energy_ in MeV, mass_ in MeV/c^2, L0_ in 1/MeV, kB_ in m/MeV, and C_ in (m/MeV)^2
+double Material::Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_){
+	unsigned int iterations = (unsigned int)Order(energy_)*10;
+	double sum = 0.0;
+	double dedx1, dedx2;
+	double step = energy_/iterations;
+	for(unsigned int i = 1; i < iterations; i++){
+		dedx1 = StopPower(step*i, Z_, mass_);
+		dedx2 = StopPower(step*(i+1), Z_, mass_);
+		sum += 0.5*L0_*((1.0/(1.0 + kB_*dedx1 + C_*dedx1*dedx1)) + (1.0/(1.0 + kB_*dedx2 + C_*dedx2*dedx2)))*step;
 	}
 	return sum;
 }

@@ -13,34 +13,14 @@
 #include "TTree.h"
 #include "TH2D.h"
 
+double momentum(double energy_, double mass_){
+	return (1.0/(3E8))*std::sqrt(energy_*energy_ + 2.0*mass_*energy_);
+}
+
 int main(int argc, char *argv[]){
 	gSystem->Load("libTree");
 	char* dummy[0]; 
 	TApplication* rootapp = new TApplication("rootapp",0,dummy);
-	
-	/*Vector3 vector(0.0, 0.0, 0.5); // Start along the z-axis
-	Matrix3 matrix;
-	
-	std::ofstream output("test.dat");
-	
-	double theta_step = pi/10.0;
-	double phi_step = 2*pi/10.0;
-	double current_theta;
-	double current_phi;
-	for(unsigned int i = 0; i <= 10; i++){
-		current_theta = i*theta_step;
-		for(unsigned int j = 0; j <= 10; j++){
-			vector = Vector3(0.0, 0.0, 0.5);
-			current_phi = j*phi_step;
-			
-			matrix.SetRotationMatrixSphere(current_theta, current_phi);	
-			matrix.Transform(vector);
-			output << vector.axis[0] << "\t" << vector.axis[1] << "\t" << vector.axis[2] << "\n";
-		}
-	}
-	
-	std::cout << " Done!\n";
-	output.close();*/
 
 	/*TFile *file = new TFile("VIKAR.root","READ");
 	TTree *tree = (TTree*)file->Get("VIKAR");
@@ -111,7 +91,7 @@ int main(int argc, char *argv[]){
 
 	rootapp->Delete();*/
 
-	TFile *file = new TFile("VIKAR.root","READ");
+	/*TFile *file = new TFile("VIKAR.root","READ");
 	TTree *tree = (TTree*)file->Get("VIKAR");	
 
 	TCanvas *can = new TCanvas("can");
@@ -155,9 +135,97 @@ int main(int argc, char *argv[]){
 	can->WaitPrimitive();
 
 	file->Close();
+	can->Close();*/
+
+	TFile *file = new TFile("Elastic.root","READ");
+	TTree *tree = (TTree*)file->Get("VIKAR");	
+
+	TCanvas *can = new TCanvas("can");
+	can->cd();
+
+	double mass7Be = 4*(proton_RME) + 3*(neutron_RME); // MeV
+	double massD = proton_RME + neutron_RME; // MeV
+
+	std::vector<double> recoilE, recoilX, recoilY, recoilZ;
+	std::vector<double> ejectE, ejectX, ejectY, ejectZ;
+	std::vector<double> reactE, reactX, reactY, reactZ;
+	TBranch *recoilE_b, *recoilX_b, *recoilY_b, *recoilZ_b;
+	TBranch *ejectE_b, *ejectX_b, *ejectY_b, *ejectZ_b;
+	TBranch *reactE_b, *reactX_b, *reactY_b, *reactZ_b;
+	
+	tree->SetMakeClass(1);
+	tree->SetBranchAddress("eject_qdc", &ejectE, &ejectE_b);
+	tree->SetBranchAddress("eject_hitX", &ejectX, &ejectX_b);
+	tree->SetBranchAddress("eject_hitY", &ejectY, &ejectY_b);
+	tree->SetBranchAddress("eject_hitZ", &ejectZ, &ejectZ_b);
+		
+	tree->SetBranchAddress("recoil_qdc", &recoilE, &recoilE_b);
+	tree->SetBranchAddress("recoil_hitX", &recoilX, &recoilX_b);
+	tree->SetBranchAddress("recoil_hitY", &recoilY, &recoilY_b);
+	tree->SetBranchAddress("recoil_hitZ", &recoilZ, &recoilZ_b);
+	
+	tree->SetBranchAddress("reactE", &reactE, &reactE_b);
+	tree->SetBranchAddress("trajectoryX", &reactX, &reactX_b);
+	tree->SetBranchAddress("trajectoryY", &reactY, &reactY_b);
+	tree->SetBranchAddress("trajectoryZ", &reactZ, &reactZ_b);
+	
+	TH2D *hist = new TH2D("hist", "Beam Lab Angle Reconstruction", 100, 0.0, 5.0, 100, 0.0, 1.0);
+	hist->SetStats(false);
+	hist->GetYaxis()->SetTitle("|Pbeam - (Peject+Precoil)|/|Pbeam|");
+	hist->GetXaxis()->SetTitle("θabs (deg)");	
+
+	std::vector<double>::iterator iterEE, iterEX, iterEY, iterEZ;
+	std::vector<double>::iterator iterRE, iterRX, iterRY, iterRZ;
+	std::vector<double>::iterator iterReactE, iterReactX, iterReactY, iterReactZ;
+	double maximum_theta = -9999;
+	double beam_theta;
+	Vector3 eject_momentum;
+	Vector3 recoil_momentum;
+	Vector3 beam_momentum;
+	Vector3 sum_vector;
+	
+	std::cout << " Processing " << tree->GetEntries() << " events\n";
+	for(unsigned int i = 0; i < tree->GetEntries(); i++){
+		tree->GetEntry(i);
+		iterEE = ejectE.begin(); iterEX = ejectX.begin(); iterEY = ejectY.begin(); iterEZ = ejectZ.begin();
+		iterRE = recoilE.begin(); iterRX = recoilX.begin(); iterRY = recoilY.begin(); iterRZ = recoilZ.begin();
+		iterReactE = reactE.begin(); iterReactX = reactX.begin(); iterReactY = reactY.begin(); iterReactZ = reactZ.begin();
+		
+		// Construct the momentum vectors
+		// For the ejectile...
+		Vector3 ejectile(*iterEX, *iterEY, *iterEZ);
+		Cart2Sphere(ejectile, eject_momentum);
+		eject_momentum.axis[0] = momentum(*iterEE, massD);
+		Sphere2Cart(eject_momentum);
+		
+		// For the recoil...
+		Vector3 recoil(*iterRX, *iterRY, *iterRZ);
+		Cart2Sphere(recoil, recoil_momentum);
+		recoil_momentum.axis[0] = momentum(*iterRE, mass7Be);
+		Sphere2Cart(recoil_momentum);
+		
+		// And for the beam particle...
+		Vector3 beam(*iterReactX, *iterReactY, *iterReactZ);
+		Cart2Sphere(beam, beam_momentum);
+		beam_momentum.axis[0] = momentum(*iterReactE, mass7Be);
+		beam_theta = beam_momentum.axis[1];
+		Sphere2Cart(beam_momentum);
+		
+		sum_vector = eject_momentum + recoil_momentum;
+		if(beam_theta > maximum_theta){ maximum_theta = beam_theta; }		
+		
+		hist->Fill(beam_theta*rad2deg, (beam_momentum-sum_vector).Length()/beam_momentum.Length());
+	}
+	
+	std::cout << " Done! Maximum theta = " << maximum_theta*rad2deg << std::endl;
+
+	hist->Draw("COLZ");
+	can->WaitPrimitive();
+
+	file->Close();
 	can->Close();
 
-	rootapp->Delete();
+	rootapp->Delete();	
 
 	return 0;
 }

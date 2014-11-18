@@ -182,11 +182,13 @@ unsigned int GetLines(const char*);
 void Cart2Sphere(double, double, double, double&, double&, double&);
 void Cart2Sphere(double, double, double, Vector3&);
 void Cart2Sphere(const Vector3&, Vector3&);
+void Cart2Sphere(Vector3&);
 double radlength(unsigned int, unsigned int);
 double rndgauss0(double);
 void Sphere2Cart(double, double, double, double&, double&, double&);
 void Sphere2Cart(double, double, double, Vector3&);
 void Sphere2Cart(const Vector3&, Vector3&);
+void Sphere2Cart(Vector3&);
 void straggleA(double&, double, double, double, double, double);
 double Interpolate(double, double, double, double, double);
 

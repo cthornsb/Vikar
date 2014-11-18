@@ -28,10 +28,53 @@ const double gamma_slow = 3.0E4; // Width of the inverted square gaussian of the
 const double coeff_slow = 112.6387378; // Normalization parameter
 const double LO_slow = 0.41*ANTHRACENE; // Light output (1/MeV)
 
-
 const double pixie_time_res = 4.0; // Pixie-16 time resolution (4 ns for 250 MHz) in ns
 const double pixie_pulse_width = 1000.0; // Width of Pixie-16 pulse window in ns
 const unsigned int num_samples = (unsigned int)(pixie_pulse_width/pixie_time_res);
+
+/*struct BirksTable{
+	unsigned int num_entries;
+	double *energy, *light;
+	double L0, kB, C;
+	bool use_table;
+	
+	BirksTable(){
+		num_entries = 0; L0 = 0.0; kB = 0.0; C = 0.0;
+		energy = NULL; light = NULL;
+		use_table = false;
+	}
+	
+	bool Init(unsigned int num_entries_, double L0_, double kB_, double C_, double startE_, double stopE_, double Z_, double mass_, Material *mat_){
+		if(use_table){ return false; }
+		L0 = L0_;
+		kB = kB_;
+		C = C_;
+		
+		// Use Material to fill the arrays
+		num_entries = num_entries_;
+		double step = (stopE_-startE_)/(num_entries_-1);
+		for(unsigned int i = 0; i < num_entries_; i++){
+			energy[i] = startE_ + i*step; // Energy in MeV
+			light[i] = mat_->Birks(energy[i], Z_, mass_); // Stopping power in MeV/m
+		}
+		use_table = true;
+
+		return true;
+	}
+	
+	double GetLightOutput(double energy_){
+		if(!use_table){ return -1; }
+		for(unsigned int i = 0; i < num_entries-1; i++){
+			if(energy_ == energy[i]){ return range[i]; }
+			else if(energy_ == energy[i+1]){ return range[i+1]; }
+			else if(energy_ >= energy[i] && energy_ <= energy[i+1]){
+				// Interpolate and return the result
+				return (((light[i+1]-light[i])/(energy[i+1]-energy[i]))*(energy_-energy[i])+light[i]);
+			}
+		}
+		return -1;
+	}
+};*/
 
 // Fast pulse fitting function
 //  t_: Time in ns
@@ -61,6 +104,10 @@ void discretize(double Afast_, double Aslow_, double phi_, std::vector<int> &pul
 		slow_component = slow_pulse_function(i*pixie_time_res, Aslow_, phi_);
 		pulse.push_back((int)(fast_component + slow_component));
 	}
+}
+
+double calc_mass(double Z_, double A_, double BE_A_=0.0){
+	return Z_*proton_RME + (A_-Z_)*neutron_RME - A_*BE_A_;
 }
 
 int main(int argc, char *argv[]){
@@ -122,12 +169,22 @@ int main(int argc, char *argv[]){
 		std::cout << "  Total size on detector: " << detectorspot << " m\n";
 	}
 	
+	//BirksTable tables[6];
+	//tables[0].Init(100, LO_fast, ; // Lithium-6 in BC408
+	
 	// Setup the particle range tables
 	for(unsigned int i = 0; i < 6; i++){
-		std::cout << " Setting up range table for '" << particles[i].GetName() << "' in " << BC408.GetName() << "...";
+		std::cout << " Setting up range table for '" << particles[i].GetName() << "' in BC408...";
 		if(particles[i].SetMaterial(&BC408, Ebeam0, EbeamSpread)){ std::cout << " done\n"; }
 		else{ std::cout << " failed\n"; }
 	}
+
+	// Setup the slow scintillator light output tables
+	/*for(unsigned int i = 0; i < 6; i++){
+		std::cout << " Setting up light output table for '" << particles[i].GetName() << "' in BC408...";
+		if(tables[i].Init(100, LO_slow, )){ std::cout << " done\n"; }
+		else{ std::cout << " failed\n"; }
+	}*/
 
 	// Root stuff
 	TFile *file = new TFile("PHOSWICH.root", "RECREATE");
@@ -165,10 +222,10 @@ int main(int argc, char *argv[]){
 	double qdc1, qdc2;
 	unsigned int count = 0;
 	unsigned int total_count = 0;
-	for(unsigned int i = 0; i < 10000; i++){
+	for(unsigned int i = 0; i < 100; i++){
 		for(unsigned int j = 0; j < 6; j++){
 			qdc1 = 0.0; qdc2 = 0.0;
-			RandomCircle(beamspot, 0.0, lab_beam_spot); 
+			RandomCircleUp(beamspot, 0.0, lab_beam_spot); 
 			if(use_focus){ lab_beam_direction = lab_beam_spot-lab_beam_start; }
 			else{ lab_beam_start = lab_beam_spot - Vector3(0.0, 0.0, 1.0); }
 		
@@ -211,7 +268,9 @@ int main(int argc, char *argv[]){
 				hist->Fill(qdc1, qdc2); 
 				if(use_pulse){
 					// Use the fast/slow scintillator properties to construct pulses from the energies
-					discretize(LO_fast*qdc2/coeff_fast, LO_slow*qdc1/coeff_slow, 100.0, pulse);
+					//discretize(LO_fast*qdc2/coeff_fast, LO_slow*qdc1/coeff_slow, 100.0, pulse);
+					discretize(0.0, LO_slow*qdc1/coeff_slow, 100.0, pulse);
+					//discretize(LO_fast*qdc2/coeff_fast, 0.0, 100.0, pulse);
 					
 					// Copy the vector and fill the tree
 					PULSEdata.Set(pulse, j);
