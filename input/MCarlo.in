@@ -23,4 +23,4 @@ C12			# Target material type name
 1			# Require ejectile and recoil coincidence?
 1			# Write reaction data to output?
 0			# Write debug info to output?
-0			# Perform Monte Carlo test on detector setup?
+1			# Perform Monte Carlo test on detector setup?

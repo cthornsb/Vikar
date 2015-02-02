@@ -178,6 +178,6 @@ class Wall: public Planar{
 
 unsigned int ReadEffFile(const char*, double*, double*);
 unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector);
-unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials);
+unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_=0.0);
 
 #endif

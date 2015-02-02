@@ -3,6 +3,10 @@
 // Wed Feb 12 19:35:20 2014
 
 #include "detectors.h"
+#include "structures.h"
+
+#include "TFile.h"
+#include "TTree.h"
 
 /////////////////////////////////////////////////////////////////////
 // Globals
@@ -458,27 +462,49 @@ unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
 // Generates two files...
 //  xyz.dat - Contains 3-tuples of (x,y,z) for all detected hits
 //  faces.dat - Contains 3-tuples of (face_x,face_y,face_z) for all detected hits
-unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials){
-	std::ofstream xyz("xyz.dat");
-	std::ofstream faces("faces.dat");
-	
+unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_/*=0.0*/){	
 	double tempx, tempy, tempz;
+	double dummyR, hitTheta, hitPhi;
 	unsigned int count, total;
 	unsigned int bar;
 	Vector3 flight_path;
 	Vector3 temp_vector1;
 	Vector3 temp_vector2;
-	Vector3 temp_ray;
+	Vector3 temp_ray, offset;
 	int face1, face2;
 	
 	double penetration, dist_traveled;
 	double fpath1, fpath2;
-		
+	
+	TFile *file = new TFile("mcarlo.root", "RECREATE");
+	if(!file->IsOpen()){ return 0; }
+	TTree *tree = new TTree("VIKAR", "Monte Carlo detector test");
+	
+	EjectObject EJECTdata;
+	RecoilObject RECOILdata;
+	ReactionObject REACTIONdata;
+	
+	tree->Branch("Eject", &EJECTdata);
+	tree->Branch("Recoil", &RECOILdata);
+	if(WriteRXN_){ tree->Branch("Reaction", &REACTIONdata); }
+	if(fwhm_ == 0.0){ offset = zero_vector; }
+	
 	total = 0; count = 0;
 	while(count < num_trials){
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
+		if(fwhm_ != 0.0){ // Generate an offset based on a gaussian beam
+			double x_offset = rndgauss0(fwhm_);
+			double y_offset = rndgauss0(fwhm_);
+			offset.axis[0] = x_offset;
+			offset.axis[1] = y_offset;
+			offset.axis[2] = 0.0;
+		}
+		if(WriteRXN_){ 
+			REACTIONdata.Zero();
+			REACTIONdata.Append(0.0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
+		}
 		for(bar = 0; bar < num_bars; bar++){
-			if(bar_array[bar].IntersectPrimitive(zero_vector, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
+			if(bar_array[bar].IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
 				flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
 				penetration = frand(); // The fraction of the bar which the neutron travels through
 				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
@@ -494,16 +520,22 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 					dist_traveled += fpath2; 
 					flight_path = temp_vector2 + flight_path*penetration;
 				}
-	
-				xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
-				faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
+
+				Cart2Sphere(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], dummyR, hitTheta, hitPhi);
+				EJECTdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
+
+				//xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
+				//faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
+				tree->Fill();
+				EJECTdata.Zero();
 				count++;
 			}
 		}
 		total++;
 	}
-	xyz.close();
-	faces.close();
+
+	tree->Write();
+	file->Close();
 
 	return total;
 }

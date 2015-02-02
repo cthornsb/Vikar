@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.14d"
+#define VERSION "1.14e"
 
 struct debugData{
 	double var1, var2, var3;
@@ -475,7 +475,10 @@ int main(int argc, char* argv[]){
 	if(DetSetup){
 		std::cout << "\n Reading in NewVIKAR detector setup file...\n";
 		std::ifstream detfile(det_fname.c_str());
-		if(!detfile.good()){ return 0; }
+		if(!detfile.good()){ 
+			std::cout << " Error: failed to load detector setup file!\n";
+			return 1; 
+		}
 		
 		std::vector<NewVIKARDet> detectors;
 		std::string line;
@@ -542,10 +545,10 @@ int main(int argc, char* argv[]){
 		}
 		
 		if(TestSetup){
-			std::cout << "  Performing Monte Carlo efficency test...\n";
-			unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted);
+			unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, 0.011);
+			std::cout << "  Performing Monte Carlo test...\n";
 			std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
-			std::cout << "  Wrote lab position data to 'xyz.dat' and detector face data to 'faces.dat'\n";
+			std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
 			std::cout << " Finished geometric efficiency test on detector setup...\n";
 		}
 	}
@@ -870,8 +873,8 @@ process:
 	// Information output and cleanup
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
-	std::cout << " Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
-	std::cout << " Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n";
+	std::cout << " Total MC Events: " << Nreactions << "\n";
+	std::cout << " Total Detector Hits: " << NdetHit << " (" << NdetHit*100.0/Nreactions << "%)\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";
 		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << " (" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
