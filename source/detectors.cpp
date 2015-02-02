@@ -459,10 +459,8 @@ unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
 
 // Perform a monte carlo simulation on an arbitrary configuration
 // of detectors from an array. Returns the number of hits detected
-// Generates two files...
-//  xyz.dat - Contains 3-tuples of (x,y,z) for all detected hits
-//  faces.dat - Contains 3-tuples of (face_x,face_y,face_z) for all detected hits
-unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_/*=0.0*/){	
+// Generates one output root file named 'mcarlo.root'
+unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){	
 	double tempx, tempy, tempz;
 	double dummyR, hitTheta, hitPhi;
 	unsigned int count, total;
@@ -487,17 +485,29 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 	tree->Branch("Eject", &EJECTdata);
 	tree->Branch("Recoil", &RECOILdata);
 	if(WriteRXN_){ tree->Branch("Reaction", &REACTIONdata); }
-	if(fwhm_ == 0.0){ offset = zero_vector; }
+	
+	Matrix3 matrix;
+	bool use_gaussian_beam = true;
+	bool use_rotated_source = false;
+	if(fwhm_ == 0.0){ 
+		offset = zero_vector; 
+		use_gaussian_beam = false;
+	}
+	if(angle_ != 0.0){ 
+		use_rotated_source = true; 
+		matrix.SetRotationMatrixSphere(angle_, 0.0);
+	}
 	
 	total = 0; count = 0;
 	while(count < num_trials){
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
-		if(fwhm_ != 0.0){ // Generate an offset based on a gaussian beam
+		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
 			double x_offset = rndgauss0(fwhm_);
 			double y_offset = rndgauss0(fwhm_);
 			offset.axis[0] = x_offset;
 			offset.axis[1] = y_offset;
 			offset.axis[2] = 0.0;
+			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
 		}
 		if(WriteRXN_){ 
 			REACTIONdata.Zero();

@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.14e"
+#define VERSION "1.15"
 
 struct debugData{
 	double var1, var2, var3;
@@ -148,7 +148,6 @@ int main(int argc, char* argv[]){
 	bool WriteReaction = false;
 	bool WriteDebug = false;
 	bool PerfectDet = true;
-	bool DetSetup = true;
 	bool ADists = false;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
@@ -244,7 +243,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 8){ 
 				beamspot = atof(input.c_str());  
-				std::cout << "  Beam Spot Size: " << beamspot << " mm\n";
+				std::cout << "  Beam Spot Size: " << beamspot << " mm (FWHM)\n";
 				beamspot = beamspot/1000.0; // in meters
 			}
 			else if(count == 9){ 
@@ -328,12 +327,9 @@ int main(int argc, char* argv[]){
 				}
 			}
 			else if(count == 18){ 
-				// Supply detector setup file?
-				if(SetBool(input, "  Detector Setup File", DetSetup)){
-					// Load detector setup from a file
-					getline(input_file, det_fname); det_fname = Parse(det_fname);
-					std::cout << "   Path: " << det_fname << std::endl;
-				}
+				// Load detector setup from a file
+				det_fname = input;
+				std::cout << "  Detector Setup Filename: " << det_fname << std::endl;
 			}
 			else if(count == 19){ 
 				// Desired number of detections
@@ -346,7 +342,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 21){
 				// Require ejectile and recoil particle coincidence?
-				SetBool(input, "  Require particle coincidence", InCoincidence);
+				SetBool(input, "  Require Particle Coincidence", InCoincidence);
 			}
 			else if(count == 22){
 				// Write Reaction data to file?
@@ -378,6 +374,92 @@ int main(int argc, char* argv[]){
 	if(!Prompt(" Are the above settings correct?")){
 		std::cout << "  ABORTING...\n";
 		return 1;
+	}
+
+	// Read VIKAR detector setup file or manually setup simple systems
+	std::cout << "\n Reading in NewVIKAR detector setup file...\n";
+	std::ifstream detfile(det_fname.c_str());
+	if(!detfile.good()){ 
+		std::cout << " Error: failed to load detector setup file!\n";
+		return 1; 
+	}
+	
+	std::vector<NewVIKARDet> detectors;
+	std::string line;
+
+	while(true){
+		getline(detfile, line);
+		if(detfile.eof()){ break; }
+		if(line[0] == '#'){ continue; } // Commented line
+	
+		detectors.push_back(NewVIKARDet(line));
+	}	
+	detfile.close();
+
+	// Generate the Planar bar arrays
+	vandle_bars = new Planar[detectors.size()];
+	
+	// Fill the detector
+	Ndet = 0;
+	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
+		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
+			vandle_bars[Ndet].SetEjectile();
+			if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
+			else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
+			else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
+			else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+		}
+		else{
+			if(iter->type == "recoil"){ vandle_bars[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
+			else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+				vandle_bars[Ndet].SetRecoil(); 
+				vandle_bars[Ndet].SetEjectile();
+			}
+			vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
+		}
+		
+		// Set the material for energy loss calculations
+		for(unsigned int i = 0; i < num_materials; i++){
+			if(iter->material == materials[i].GetName()){
+				if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[Ndet].IsEjectileDet() && Zeject > 0)){ 
+					// Only set detector to use material if the particle it is responsible for detecting has
+					// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
+					// and thus cannot use energy loss considerations.
+					vandle_bars[Ndet].SetMaterial(i);  
+				}
+				break; 
+			}
+		}
+		
+		// Set the position and rotation
+		vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+		vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+		vandle_bars[Ndet].SetType(iter->type);
+		vandle_bars[Ndet].SetSubtype(iter->subtype);
+		Ndet++;
+	}
+
+	// Report on how many detectors were read in
+	std::cout << " Found " << Ndet << " detectors in file " << det_fname << std::endl;
+
+	// Check there's at least 1 detector!
+	if(Ndet< 1){
+		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
+		return 1;
+	}
+	
+	if(TestSetup){
+		std::cout << "  Performing Monte Carlo test...\n";
+		unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, beamspot, targ.GetAngle());
+		std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
+		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
+		std::cout << " Finished geometric efficiency test on detector setup...\n";
+
+		// Continue simulation after test?
+		if(!Prompt("\n Continue with Vikar simulation?")){
+			std::cout << "  ABORTING...\n";
+			return 1;
+		}
 	}
 
 	// Load VIKAR material files
@@ -469,93 +551,6 @@ int main(int argc, char* argv[]){
 			std::cout << " Done!\n";
 		}
 		//recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
-	}
-
-	// Read VIKAR detector setup file or manually setup simple systems
-	if(DetSetup){
-		std::cout << "\n Reading in NewVIKAR detector setup file...\n";
-		std::ifstream detfile(det_fname.c_str());
-		if(!detfile.good()){ 
-			std::cout << " Error: failed to load detector setup file!\n";
-			return 1; 
-		}
-		
-		std::vector<NewVIKARDet> detectors;
-		std::string line;
-	
-		while(true){
-			getline(detfile, line);
-			if(detfile.eof()){ break; }
-			if(line[0] == '#'){ continue; } // Commented line
-		
-			detectors.push_back(NewVIKARDet(line));
-		}	
-		detfile.close();
-	
-		// Generate the Planar bar arrays
-		vandle_bars = new Planar[detectors.size()];
-		
-		// Fill the detector
-		Ndet = 0;
-		for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
-			if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
-				vandle_bars[Ndet].SetEjectile();
-				if(iter->subtype == "small"){ vandle_bars[Ndet].SetSmall(); }
-				else if(iter->subtype == "medium"){ vandle_bars[Ndet].SetMedium(); }
-				else if(iter->subtype == "large"){ vandle_bars[Ndet].SetLarge(); }
-				else{ vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-			}
-			else{
-				if(iter->type == "recoil"){ vandle_bars[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
-				else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
-					vandle_bars[Ndet].SetRecoil(); 
-					vandle_bars[Ndet].SetEjectile();
-				}
-				vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
-			}
-			
-			// Set the material for energy loss calculations
-			for(unsigned int i = 0; i < num_materials; i++){
-				if(iter->material == materials[i].GetName()){
-					if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[Ndet].IsEjectileDet() && Zeject > 0)){ 
-						// Only set detector to use material if the particle it is responsible for detecting has
-						// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
-						// and thus cannot use energy loss considerations.
-						vandle_bars[Ndet].SetMaterial(i);  
-					}
-					break; 
-				}
-			}
-			
-			// Set the position and rotation
-			vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
-			vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
-			vandle_bars[Ndet].SetType(iter->type);
-			vandle_bars[Ndet].SetSubtype(iter->subtype);
-			Ndet++;
-		}
-
-		// Report on how many detectors were read in
-		std::cout << " Found " << Ndet << " detectors in file " << det_fname << std::endl;
-
-		// Check there's at least 1 detector!
-		if(Ndet< 1){
-			std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
-			return 1;
-		}
-		
-		if(TestSetup){
-			unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, 0.011);
-			std::cout << "  Performing Monte Carlo test...\n";
-			std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
-			std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
-			std::cout << " Finished geometric efficiency test on detector setup...\n";
-		}
-	}
-	else{
-		// Manual detector setup (fix later)
-		std::cout << "\n Not Implemented!\n";
-		return 1;
 	}
 	
 	// Calculate the beam focal point (if it exists)
@@ -681,14 +676,14 @@ int main(int argc, char* argv[]){
 			// In this case, lab_beam_focus is the originating point of the beam particle
 			// (or the terminating point for beams focused downstream of the target)
 			// The direction is given by the cartesian vector 'lab_beam_trajectory'
-			RandomCircleUp(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
-			//RandomCircleDown(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
+			RandomCircleUpstream(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
+			//RandomCircleDownstream(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
 			Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}
 		else{ 
 			// In this case, lab_beam_start stores the originating point of the beam particle
 			// The direction is given simply by the +z-axis
-			RandomCircleUp(beamspot, 1.0, lab_beam_start); // The 1m offset ensures the particle originates outside the target
+			RandomCircleUpstream(beamspot, 1.0, lab_beam_start); // The 1m offset ensures the particle originates outside the target
 			Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}	
 

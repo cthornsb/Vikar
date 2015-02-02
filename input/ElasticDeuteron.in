@@ -1,4 +1,4 @@
-1.14d		# Vikar input file version number
+1.15		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 1			# Target Z (isotope of interest)
@@ -16,7 +16,6 @@ CD2			# Target material type name
 0.2			# Target thickness (mg/cm^2)
 30.0000		# Target angle wrt beam axis (degrees)
 1			# Perfect detectors?
-1			# Supply detector setup file?
 /home/cory/Research/VANDLE/Vikar/detectors/Elastic.det	# Detector setup filename
 100000		# Number of detections
 0			# Detect prompt gammas?
