@@ -418,19 +418,6 @@ int main(int argc, char* argv[]){
 			vandle_bars[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
 		}
 		
-		// Set the material for energy loss calculations
-		for(unsigned int i = 0; i < num_materials; i++){
-			if(iter->material == materials[i].GetName()){
-				if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[Ndet].IsEjectileDet() && Zeject > 0)){ 
-					// Only set detector to use material if the particle it is responsible for detecting has
-					// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
-					// and thus cannot use energy loss considerations.
-					vandle_bars[Ndet].SetMaterial(i);  
-				}
-				break; 
-			}
-		}
-		
 		// Set the position and rotation
 		vandle_bars[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
 		vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
@@ -567,6 +554,23 @@ int main(int argc, char* argv[]){
 
 	// For cylindrical beams, the beam direction is given by the z-axis
 	if(!BeamFocus){ lab_beam_trajectory = Vector3(0.0, 0.0, 1.0); }
+
+	Ndet = 0;
+	std::cout << "\n Setting detector material types...\n";
+	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){ // Set the detector material for energy loss calculations
+		for(unsigned int i = 0; i < num_materials; i++){
+			if(iter->material == materials[i].GetName()){
+				if((vandle_bars[Ndet].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[Ndet].IsEjectileDet() && Zeject > 0)){ 
+					// Only set detector to use material if the particle it is responsible for detecting has
+					// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
+					// and thus cannot use energy loss considerations.
+					vandle_bars[Ndet].SetMaterial(i);  
+				}
+				break; 
+			}
+		}
+		Ndet++;
+	}
 
 	//std::cout << "\n ==  ==  ==  ==  == \n\n";
 	std::cout << "\n Initializing main simulation Kindeux object...\n";

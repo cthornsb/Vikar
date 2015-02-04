@@ -6,13 +6,13 @@
 1			# Ejectile Z
 1			# Ejectile A
 31.00		# Beam energy (MeV)
-2.00		# Beam spot size diameter (mm)
+11.00		# Beam spot size FWHM (mm)
 86.00		# Beam angular divergence (degrees) (90 degrees is perfectly cylindrical)
 0.8			# Beam energy spread (MeV)
 0.0			# Ground state Q-value
 0			# Number of excited states
 0			# Supply angular distributions?
-CH2			# Target material type name
+C2H4		# Target material type name
 0.522		# Target thickness (mg/cm^2)
 30.0000		# Target angle wrt beam axis (degrees)
 1			# Perfect detectors?

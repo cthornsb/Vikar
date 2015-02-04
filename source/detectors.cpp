@@ -468,7 +468,7 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 	Vector3 flight_path;
 	Vector3 temp_vector1;
 	Vector3 temp_vector2;
-	Vector3 temp_ray, offset;
+	Vector3 temp_ray, offset, dummyVector;
 	int face1, face2;
 	
 	double penetration, dist_traveled;
@@ -531,11 +531,10 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 					flight_path = temp_vector2 + flight_path*penetration;
 				}
 
-				Cart2Sphere(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], dummyR, hitTheta, hitPhi);
+				dummyVector = (offset + temp_ray);
+				Cart2Sphere(dummyVector.axis[0], dummyVector.axis[1], dummyVector.axis[2], dummyR, hitTheta, hitPhi);
 				EJECTdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
 
-				//xyz << flight_path.axis[0] << "\t" << flight_path.axis[1] << "\t" << flight_path.axis[2] << "\n"; // Position data
-				//faces << tempx << "\t" << tempy << "\t" << tempz << "\n"; // Local face position data
 				tree->Fill();
 				EJECTdata.Zero();
 				count++;

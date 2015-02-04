@@ -260,22 +260,22 @@ bool AngularDist::Sample(double &com_angle){
 // offset_ is the offset in the negative z-direction (in m)
 // beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
 void RandomCircleUpstream(double fwhm_, double offset_, Vector3 &beam){ // Upstream of target
-	//double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
-	//double ranT = 2*pi*frand(); // Random angle about the beam axis
-	double ranX = rndgauss0(fwhm_);
+	double ranR = std::sqrt(frand()) * (fwhm_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	/*double ranX = rndgauss0(fwhm_);
 	double ranY = rndgauss0(fwhm_);
 	double ranR = std::sqrt(ranX*ranX + ranY*ranY);
-	double ranT = std::atan2(ranY, ranX);
+	double ranT = std::atan2(ranY, ranX);*/
 	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_);
 }
 
 void RandomCircleDownstream(double fwhm_, double offset_, Vector3 &beam){ // Downstream of target
-	//double ranR = std::sqrt(frand()) * (spot_/2.0); // Random distance from the beam axis
-	//double ranT = 2*pi*frand(); // Random angle about the beam axis
-	double ranX = rndgauss0(fwhm_);
+	double ranR = std::sqrt(frand()) * (fwhm_/2.0); // Random distance from the beam axis
+	double ranT = 2*pi*frand(); // Random angle about the beam axis
+	/*double ranX = rndgauss0(fwhm_);
 	double ranY = rndgauss0(fwhm_);
 	double ranR = std::sqrt(ranX*ranX + ranY*ranY);
-	double ranT = std::atan2(ranY, ranX);
+	double ranT = std::atan2(ranY, ranX);*/
 	beam = Vector3(-ranR*std::cos(ranT), -ranR*std::sin(ranT), offset_);
 }
 

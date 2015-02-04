@@ -1,6 +1,7 @@
-#C2H4.mat
+# C2H4.mat
+# Polyethylene
 C2H4		# Vikar name
-0.9300		# Density (g/cm^3)
+0.95		# Density (g/cm^3)
 28.05316	# Molar mass of material (g/mol)
 2			# Number of target elements per molecule
 6			# Element 1 Z
