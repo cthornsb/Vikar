@@ -673,53 +673,22 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 
 // See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
 // to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251
-bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile){
-	unsigned int state;
-	double Recoil_Ex;
-	if(!get_excitations(Recoil_Ex, state)){ 
-		// No reaction occured
-		return false; 
-	}
-	
-	// In the center of mass frame
-	double EjectPhi, EjectTheta;
-	double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass
-	double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass
-	
-	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
-	double temp_angle; // Ejectile angle in the center of mass frame
-	if(ang_dist){
-		// Sample the angular distributions for the CoM angle of the ejectile
-		if(distributions[state].Sample(temp_angle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
-		else{ UnitSphereRandom(temp_angle, EjectPhi); } // Failed to sample the distribution
-	}
-	else{ UnitSphereRandom(temp_angle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
-	
-	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
-	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
-	double Ejectile_V = Vcm*std::cos(EjectTheta); // Ejectile velocity in the lab frame
-	
-	if(VejectCoM >= Vcm){ 
-		// Veject is single valued
-		Ejectile_V += temp_value; 
-	} 
-	else{ 
-		// Veject is double valued, so we randomly choose one of the values
-		// for the velocity, and hence, the energy of the ejectile
-		if(frand() >= 0.5){ Ejectile_V += temp_value; }
-		else{ Ejectile_V = Ejectile_V - temp_value; }		
-	}
-	
-	Ejectile_E = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
-	Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
-	return true;
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
+	double dummy_recoil_E;
+	Vector3 dummy_Recoil;
+	return FillVars(Beam_E, Ejectile_E, dummy_recoil_E, Ejectile, dummy_Recoil, recoil_state, solution, theta);
 }
 
 // Overloaded version which also calculates data for the recoil particle
-bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil){
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil, 
+					   int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
 	unsigned int state;
 	double Recoil_Ex;
-	if(!get_excitations(Recoil_Ex, state)){ 
+	if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
+		state = (unsigned int)recoil_state;
+		Recoil_Ex = RecoilExStates[state];
+	}
+	else if(!get_excitations(Recoil_Ex, state)){ // Use built-in state selection
 		// No reaction occured
 		return false; 
 	}
@@ -728,10 +697,18 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vect
 	double EjectPhi, EjectTheta;
 	double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass
 	double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass
-	
+
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
 	double temp_angle; // Ejectile and recoil angle in the center of mass frame
-	if(ang_dist){
+	
+	if(theta >= 0.0){
+		double temp;
+		UnitSphereRandom(temp, EjectPhi);
+		
+		if(theta >= 0.0){ temp_angle = theta; }
+		else{ temp_angle = temp; }
+	}
+	else if(ang_dist){
 		// Sample the angular distributions for the CoM angle of the ejectile
 		if(distributions[state].Sample(temp_angle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
 		else{ UnitSphereRandom(temp_angle, EjectPhi); } // Failed to sample the distribution
@@ -749,8 +726,12 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vect
 	else{ 
 		// Veject is double valued, so we randomly choose one of the values
 		// for the velocity, and hence, the energy of the ejectile
-		if(frand() >= 0.5){ Ejectile_V += temp_value; }
-		else{ Ejectile_V = Ejectile_V - temp_value; }		
+		if(solution < 0){
+			if(frand() >= 0.5){ Ejectile_V += temp_value; }
+			else{ Ejectile_V = Ejectile_V - temp_value; }
+		}
+		else if(solution == 0){ Ejectile_V += temp_value; }
+		else{ Ejectile_V = Ejectile_V - temp_value; }
 	}
 	
 	Ejectile_E = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame

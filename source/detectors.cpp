@@ -460,6 +460,8 @@ unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
 // Perform a monte carlo simulation on an arbitrary configuration
 // of detectors from an array. Returns the number of hits detected
 // Generates one output root file named 'mcarlo.root'
+// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
+// angle_ (rad) allows the rotation of the particle source about the y-axis
 unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){	
 	double tempx, tempy, tempz;
 	double dummyR, hitTheta, hitPhi;

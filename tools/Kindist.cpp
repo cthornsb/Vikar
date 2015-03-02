@@ -17,9 +17,9 @@ int main(int argc, char* argv[]){
 	double start_angle, stop_angle;
 	unsigned int num_states;
 	unsigned int num_steps;
-	double *RecoilEx, *EjectTheta;
-	double *RecoilTheta, *Eeject, *Erecoil;
-	double *RecoilTheta2, *Eeject2, *Erecoil2;
+	double *RecoilEx;
+	double Eeject, Erecoil;
+	double Eeject2, Erecoil2;
 	std::cout << "  Enter beam Energy (MeV): "; std::cin >> Ebeam;
 	std::cout << "  Enter beam Mass (A): "; std::cin >> Mbeam;
 	std::cout << "  Enter target Mass (A): "; std::cin >> Mtarg;
@@ -41,13 +41,6 @@ int main(int argc, char* argv[]){
 	// Declare storage arrays
 	if(num_states == 0){ num_states = 1; }
 	RecoilEx = new double[num_states];
-	EjectTheta = new double[num_states];
-	RecoilTheta = new double[num_states];
-	RecoilTheta2 = new double[num_states];
-	Eeject = new double[num_states];
-	Eeject2 = new double[num_states];
-	Erecoil = new double[num_states];
-	Erecoil2 = new double[num_states];
 	for(unsigned int i = 0; i < num_states; i++){
 		if(i > 0){
 			std::cout << "   Enter recoil excitation for state " << i << " (MeV): "; 
@@ -57,13 +50,6 @@ int main(int argc, char* argv[]){
 			std::cout << "   Using recoil excitation of 0.0 MeV for g.s.\n";
 			RecoilEx[0] = 0.0;
 		}
-		EjectTheta[i] = 0.0;
-		RecoilTheta[i] = 0.0;
-		RecoilTheta2[i] = 0.0;
-		Eeject[i] = 0.0;
-		Eeject2[i] = 0.0;
-		Erecoil[i] = 0.0;
-		Erecoil2[i] = 0.0;
 	}
 
 	std::cout << "  Enter start CoM angle (deg): "; std::cin >> start_angle; start_angle *= deg2rad;
@@ -104,13 +90,16 @@ int main(int argc, char* argv[]){
 	outFile << "#################################################################################################################################\n";
 	outFile << "# CoMAngle----EjectThetaA----EjectE1A----EjectE2A----RecoilTheta1A----RecoilE1A----RecoilTheta2A----RecoilE2A----EjectThetaB... #\n";
 	
+	Vector3 eject, recoil, eject2, recoil2;	
 	double step_size = (stop_angle - start_angle)/num_steps;
 	for(unsigned int i = 0; i < num_steps; i++){
-		kind.FillVars(Ebeam, (start_angle+i*step_size), EjectTheta, RecoilTheta, RecoilTheta2, Eeject, Eeject2, Erecoil, Erecoil2);
 		outFile << (start_angle+i*step_size);
-		for(unsigned int j = 0; j < num_states; j++){
-			outFile << "\t" << EjectTheta[j] << "\t" << Eeject[j] << "\t" << Eeject2[j] << "\t"; // Ejectile
-			outFile << RecoilTheta[j] << "\t" << Erecoil[j] << "\t" << RecoilTheta2[j] << "\t" << Erecoil2[j]; // Recoil
+		for(int j = 0; j < (int)num_states; j++){
+			kind.FillVars(Ebeam, Eeject, Erecoil, eject, recoil, j, 0, (start_angle+i*step_size));
+			kind.FillVars(Ebeam, Eeject2, Erecoil2, eject2, recoil2, j, 1, (start_angle+i*step_size));
+			
+			outFile << "\t" << eject.axis[1] << "\t" << Eeject << "\t" << Eeject2 << "\t"; // Ejectile
+			outFile << recoil.axis[1] << "\t" << Erecoil << "\t" << recoil2.axis[1] << "\t" << Erecoil2; // Recoil
 		}
 		outFile << std::endl;
 	}
@@ -120,13 +109,6 @@ int main(int argc, char* argv[]){
 	else{ std::cout << " Wrote output file Kindist.out\n\n"; }
 	
 	delete[] RecoilEx;
-	delete[] EjectTheta;
-	delete[] RecoilTheta;
-	delete[] RecoilTheta2;
-	delete[] Eeject;
-	delete[] Eeject2;
-	delete[] Erecoil;
-	delete[] Erecoil2;
 	
 	return 0;
 }

@@ -151,8 +151,9 @@ class Kindeux{
    	
 	void Initialize(double, double, double, double, double, unsigned int, double*, double);
 	bool SetDist(std::vector<std::string>&, double, double);
-	bool FillVars(double, double&, Vector3&);
-	bool FillVars(double, double&, double&, Vector3&, Vector3&);
+	bool FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, int recoil_state=-1, int solution=-1, double theta=-1);
+	bool FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, 
+				  Vector3 &Recoil, int recoil_state=-1, int solution=-1, double theta=-1);
 	double ConvertAngle2Lab(double, double, double);
 	void Print();
 };

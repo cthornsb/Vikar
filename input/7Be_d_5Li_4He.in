@@ -1,10 +1,10 @@
 1.15		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
-6			# Target Z (isotope of interest)
-12			# Target A (isotope of interest)
-4			# Ejectile Z
-7			# Ejectile A
+1			# Target Z (isotope of interest)
+2			# Target A (isotope of interest)
+2			# Ejectile Z
+4			# Ejectile A
 31.00		# Beam energy (MeV)
 11.00		# Beam spot size FWHM (mm)
 86.00		# Beam angular divergence (degrees) (90 degrees is perfectly cylindrical)
@@ -12,12 +12,12 @@
 0.0			# Ground state Q-value
 0			# Number of excited states
 0			# Supply angular distributions?
-C12			# Target material type name
-0.5			# Target thickness (mg/cm^2)
+CD2			# Target material type name
+0.2			# Target thickness (mg/cm^2)
 30.0000		# Target angle wrt beam axis (degrees)
 1			# Perfect detectors?
 /home/ND01/Vikar/detectors/Elastic.det	# Detector setup filename
-10000		# Number of detections
+10		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
 1			# Write reaction data to output?
