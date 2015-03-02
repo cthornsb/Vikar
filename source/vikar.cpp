@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.15c"
+#define VERSION "1.15d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -103,6 +103,7 @@ int main(int argc, char* argv[]){
 	double Zdepth; // Interaction depth inside of the target (m)
 	double Ereact; // Energy at which the reaction occurs (MeV)
 	double range_beam;
+	double com_angle; // Center of mass angle of the reaction products
 		
 	unsigned int num_materials = 0;
 	Material *materials = NULL; // Array of materials
@@ -376,6 +377,11 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
+	std::cout << "\n Initializing main simulation Kindeux object...\n";
+
+	// Initialize kinematics object
+	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates);
+
 	// Read VIKAR detector setup file or manually setup simple systems
 	std::cout << "\n Reading in NewVIKAR detector setup file...\n";
 	std::ifstream detfile(det_fname.c_str());
@@ -434,10 +440,11 @@ int main(int argc, char* argv[]){
 		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
 		return 1;
 	}
-	
+
 	if(TestSetup){
 		std::cout << "  Performing Monte Carlo test...\n";
-		unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, beamspot, targ.GetAngle());
+		//unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, beamspot, targ.GetAngle());
+		unsigned int total_found = TestDetSetup(vandle_bars, &kind, Ndet, Nwanted, Ebeam0, 180, 0.0, 180.0, beamspot, targ.GetAngle());
 		std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
 		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
 		std::cout << " Finished geometric efficiency test on detector setup...\n";
@@ -573,13 +580,10 @@ int main(int argc, char* argv[]){
 	}
 
 	//std::cout << "\n ==  ==  ==  ==  == \n\n";
-	std::cout << "\n Initializing main simulation Kindeux object...\n";
 
-	// Initialize kinematics object
-	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates, materials[targ_mat_id].GetDensity());
 	if(ADists){ 
-		std::cout << " Loading state angular distribution files...\n";
-		if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), BeamRate)){
+		std::cout << "\n Loading state angular distribution files...\n";
+		if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), materials[targ_mat_id].GetDensity(), BeamRate)){
 			// Successfully set the angular distributions
 			std::cout << " Successfully loaded angular distributions\n";
 			kind.Print();
@@ -717,7 +721,7 @@ int main(int argc, char* argv[]){
 		targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
-		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere)){ Nreactions++; }
+		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
 		else{ continue; } // A reaction did not occur
 
 		// Convert the reaction vectors to cartesian coordinates
@@ -846,7 +850,7 @@ process:
 				if(!flag){ flag = true; }
 				if(WriteReaction){
 					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2], com_angle*rad2deg);
 				}
 				VIKARtree->Fill(); 
 				Ndetected++;
@@ -857,7 +861,7 @@ process:
 				if(!flag){ flag = true; }
 				if(WriteReaction){
 					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2], com_angle*rad2deg);
 				}
 				VIKARtree->Fill(); 
 				Ndetected++;

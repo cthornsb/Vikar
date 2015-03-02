@@ -590,13 +590,13 @@ void straggleA(double &theta, double energy, double Z, double A, double thicknes
 // The ground state Q-value is given in MeV
 // NrecoilStates_ is the number of excited states of the recoil 
 // RecoilExStates_ is a pointer to an array of excitations for the recoil (in MeV)
-// tgt_thickness_ is given in units of mg/cm^2
-void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, 
-			 unsigned int NrecoilStates_, double *RecoilExStates_, double tgt_thickness_){
+void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_){
 	if(!init){
-		Mbeam = Mbeam_; Mtarg = Mtarg_; 
-		Mrecoil = Mrecoil_; Meject = Meject_; 
-		Qvalue = Qvalue_; tgt_thickness = tgt_thickness_; 
+		Mbeam = Mbeam_; 
+		Mtarg = Mtarg_; 
+		Mrecoil = Mrecoil_; 
+		Meject = Meject_; 
+		Qvalue = Qvalue_;
 		NrecoilStates = NrecoilStates_;
 		RecoilExStates = RecoilExStates_;
 		init = true;
@@ -605,7 +605,8 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 
 // Set Kindeux to use angular distributions for calculating ejectile angles
 // Returns false if attempt to load the distributions fails for any reason
-bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double incident_beam_current){
+// tgt_thickness_ is given in units of mg/cm^2
+bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current){
 	if(!init){ return false; }
 	if(fnames.size() < NrecoilStates){
 		std::cout << " Kindeux: Warning! Must have distributions for " << NrecoilStates << " excited states and the ground state\n";
@@ -620,7 +621,7 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 	// Load all distributions from file
 	total_xsection = 0.0;
 	for(unsigned int i = 0; i < NrecoilStates; i++){
-		if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness, incident_beam_current)){
+		if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness_, incident_beam_current)){
 			std::cout << "  Failed to load angular distribution file '" << fnames[i] << "'\n";
 			ang_dist = false;
 			break;
@@ -673,14 +674,14 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 
 // See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
 // to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251
-bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, double &comAngle, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
 	double dummy_recoil_E;
 	Vector3 dummy_Recoil;
-	return FillVars(Beam_E, Ejectile_E, dummy_recoil_E, Ejectile, dummy_Recoil, recoil_state, solution, theta);
+	return FillVars(Beam_E, Ejectile_E, dummy_recoil_E, Ejectile, dummy_Recoil, comAngle, recoil_state, solution, theta);
 }
 
 // Overloaded version which also calculates data for the recoil particle
-bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil, 
+bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil, double &comAngle,
 					   int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
 	unsigned int state;
 	double Recoil_Ex;
@@ -699,23 +700,23 @@ bool Kindeux::FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vect
 	double Ecm = Mtarg*Beam_E/(Mbeam+Mtarg); // Energy of the center of mass
 
 	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
-	double temp_angle; // Ejectile and recoil angle in the center of mass frame
+	comAngle = -1.0; // Ejectile and recoil angle in the center of mass frame
 	
 	if(theta >= 0.0){
 		double temp;
 		UnitSphereRandom(temp, EjectPhi);
 		
-		if(theta >= 0.0){ temp_angle = theta; }
-		else{ temp_angle = temp; }
+		if(theta >= 0.0){ comAngle = theta; }
+		else{ comAngle = temp; }
 	}
 	else if(ang_dist){
 		// Sample the angular distributions for the CoM angle of the ejectile
-		if(distributions[state].Sample(temp_angle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
-		else{ UnitSphereRandom(temp_angle, EjectPhi); } // Failed to sample the distribution
+		if(distributions[state].Sample(comAngle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
+		else{ UnitSphereRandom(comAngle, EjectPhi); } // Failed to sample the distribution
 	}
-	else{ UnitSphereRandom(temp_angle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
+	else{ UnitSphereRandom(comAngle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
 	
-	EjectTheta = std::atan2(std::sin(temp_angle),(std::cos(temp_angle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
+	EjectTheta = std::atan2(std::sin(comAngle),(std::cos(comAngle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
 	double Ejectile_V = Vcm*std::cos(EjectTheta); // Ejectile velocity in the lab frame
 	

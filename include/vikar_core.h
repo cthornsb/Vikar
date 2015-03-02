@@ -105,7 +105,7 @@ class AngularDist{
 class Kindeux{
   private:   	
 	double Mbeam, Mtarg, Mrecoil;
-	double Meject, Qvalue, tgt_thickness;
+	double Meject, Qvalue;
 	double *RecoilExStates;
 	double *Xsections;
 	double total_xsection;
@@ -132,6 +132,8 @@ class Kindeux{
 		} 
 	}
 
+	bool IsInit(){ return init; }
+
 	double GetMbeam(bool in_kg=false){ 
 		if(!in_kg){ return Mbeam; }
 		else{ return Mbeam/6.02214129E26; }
@@ -149,11 +151,11 @@ class Kindeux{
 		else{ return Meject/6.02214129E26; }
 	}
    	
-	void Initialize(double, double, double, double, double, unsigned int, double*, double);
-	bool SetDist(std::vector<std::string>&, double, double);
-	bool FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, int recoil_state=-1, int solution=-1, double theta=-1);
-	bool FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, 
-				  Vector3 &Recoil, int recoil_state=-1, int solution=-1, double theta=-1);
+   	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);
+	bool SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current);
+	bool FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, double &comAngle, int recoil_state=-1, int solution=-1, double theta=-1);
+	bool FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil, 
+				  double &comAngle, int recoil_state=-1, int solution=-1, double theta=-1);
 	double ConvertAngle2Lab(double, double, double);
 	void Print();
 };

@@ -59,7 +59,7 @@ class EjectObject : public TObject {
 ///////////////////////////////////////////////////////////
 class ReactionObject : public TObject {
   public:
-  	std::vector<double> reactE;
+  	std::vector<double> reactE, reactCOM;
     std::vector<double> reactX, reactY, reactZ;
     std::vector<double> trajectoryX, trajectoryY, trajectoryZ;
     unsigned int reaction_mult;
@@ -69,7 +69,7 @@ class ReactionObject : public TObject {
     // Add an entry to the data vector
     // Calling this method will mark the event as valid
     void Append(const double &reactE_, const double &reactX_, const double &reactY_, const double &reactZ_,
-    			const double &trajectoryX_, const double &trajectoryY_, const double &trajectoryZ_);
+    			const double &trajectoryX_, const double &trajectoryY_, const double &trajectoryZ_, const double &com_angle_);
     
     // Zero the data structure
     void Zero();
