@@ -603,6 +603,9 @@ unsigned int TestDetSetup(Planar *bar_array, Kindeux *kind_, unsigned int num_ba
 		matrix.SetRotationMatrixSphere(angle_, 0.0);
 	}
 
+	double dummyR, dummyPhi, ejectTheta, recoilTheta, alpha;
+	double m1m2 = kind_->GetMbeam()/kind_->GetMtarg();
+
 	total = 0; count = 0;
 	while(count < num_trials){
 		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
@@ -629,7 +632,14 @@ unsigned int TestDetSetup(Planar *bar_array, Kindeux *kind_, unsigned int num_ba
 			
 			if(eject_hit && recoil_hit){
 				// Encountered coincidence event
-				com_angle *= rad2deg;
+				//com_angle = Ejectile.Dot(Recoil)*rad2deg;
+				
+				Cart2Sphere(Ejectile, dummyR, ejectTheta, dummyPhi);
+				Cart2Sphere(Recoil, dummyR, recoilTheta, dummyPhi);
+				
+				alpha = std::tan(recoilTheta)/std::tan(ejectTheta);
+				com_angle = std::acos((1-alpha*m1m2)/(1+alpha))*rad2deg;
+				
 				if(com_angle < low_angles[0]){ bin_counts[num_bins_]++; } // underflow event
 				else if(com_angle >= high_angles[num_bins_-1]){ bin_counts[num_bins_+1]++; } // overflow event
 				else{

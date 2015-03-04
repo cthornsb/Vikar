@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.15d"
+#define VERSION "1.15e"
 
 struct debugData{
 	double var1, var2, var3;

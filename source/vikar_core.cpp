@@ -457,6 +457,23 @@ void Cart2Sphere(double x, double y, double z, Vector3 &sphere){
 	}
 }
 
+void Cart2Sphere(const Vector3 &cart, double &r, double &theta, double &phi){
+	if(cart.axis[0] == 0.0 && cart.axis[1] == 0.0 && cart.axis[2] == 0.0){
+		r = 0.0; theta = 0.0; phi = 0.0;
+	}
+	else{
+		r = std::sqrt(cart.axis[0]*cart.axis[0] + cart.axis[1]*cart.axis[1] + cart.axis[2]*cart.axis[2]);
+		theta = std::acos(cart.axis[2]/r);
+		
+		if(cart.axis[0] == 0.0 && cart.axis[1] == 0.0){ phi = 0.0; }
+		else{ 
+			double temp = std::sqrt(cart.axis[0]*cart.axis[0] + cart.axis[1]*cart.axis[1]); 
+			if(cart.axis[0] >= 0.0){ phi = std::acos(cart.axis[1]/temp); }
+			else{ phi = 2.0*pi - std::acos(cart.axis[1]/temp); }
+		}
+	}
+}
+
 void Cart2Sphere(const Vector3 &cart, Vector3 &sphere){
 	if(cart.axis[0] == 0.0 && cart.axis[1] == 0.0 && cart.axis[2] == 0.0){
 		sphere.axis[0] = 0.0; sphere.axis[1] = 0.0; sphere.axis[2] = 0.0;
@@ -500,6 +517,12 @@ void Sphere2Cart(double r, double theta, double phi, Vector3 &cart){
 	cart.axis[0] = r*std::sin(theta)*std::cos(phi);
 	cart.axis[1] = r*std::sin(theta)*std::sin(phi); 
 	cart.axis[2] = r*std::cos(theta);
+}
+
+void Sphere2Cart(const Vector3 &sphere, double &x, double &y, double &z){
+	x = sphere.axis[0]*std::sin(sphere.axis[1])*std::cos(sphere.axis[2]);
+	y = sphere.axis[0]*std::sin(sphere.axis[1])*std::sin(sphere.axis[2]); 
+	z = sphere.axis[0]*std::cos(sphere.axis[1]);
 }
 
 void Sphere2Cart(const Vector3 &sphere, Vector3 &cart){
