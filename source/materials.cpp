@@ -599,13 +599,21 @@ Target::Target(unsigned int num_elements_){
 
 void Target::SetThickness(double thickness_){ 
 	thickness = thickness_;	
-	physical->SetSize(1.0, 1.0, (thickness/density)*1E-5); // Only the thickness matters
+	physical->SetSize(1.0, 1.0, thickness/(density*1E5)); // Only the thickness matters
 }
 
 void Target::SetAngle(double angle_){
 	angle = angle_;	
 	Zthickness = dabs(thickness / std::cos(angle));
 	physical->SetRotation(angle, 0.0, 0.0);
+}
+
+void Target::SetDensity(double density_){
+	density = density_;
+	
+	// The density changes the physical thickness of the detector
+	// so we need to update the thickness
+	physical->SetSize(1.0, 1.0, thickness/(density*1E5));
 }
 
 // Get the depth into the target at which the reaction occurs

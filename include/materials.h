@@ -189,7 +189,7 @@ class Target{
 	void SetA(double A_){ A = A_; }		
 	void SetThickness(double thickness_);
 	void SetAngle(double angle_);
-	void SetDensity(double density_){ density = density_; }
+	void SetDensity(double density_);
 	void SetRadLength(double rad_length_){ rad_length = rad_length_; }
 	
 	double GetZ(){ return Z; } // Return the Z of the material element of interest
