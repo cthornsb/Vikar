@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.15e"
+#define VERSION "1.15f"
 
 struct debugData{
 	double var1, var2, var3;
@@ -705,10 +705,28 @@ int main(int argc, char* argv[]){
 		if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
 			//std::cout << range_beam << "\t" << Zdepth << "\t" << Ebeam << std::endl;
 			if(beam_stopped == 10000){
-				std::cout << " ATTENTION!\n";
+				std::cout << "\n ATTENTION!\n";
 				std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
 				std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
 				std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
+				
+				std::cout << "\n ------------------------------------------------\n";
+				std::cout << " Dumping target information!!!\n\n";
+				
+				materials[targ_mat_id].Print();
+				std::cout << std::endl;
+				
+				std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
+				std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
+				
+				std::cout << " Tracing ray through target... \n";
+				Vector3 dum1, dum2;
+				int temp1, temp2;
+				double tempx, tempy, tempz;
+				targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
+				std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
+				std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
+				std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n\n";
 			}
 			beam_stopped++;
 			
