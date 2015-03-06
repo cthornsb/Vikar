@@ -1,4 +1,4 @@
-1.15e		# Vikar input file version number
+1.16a		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 79			# Target Z (isotope of interest)
@@ -20,6 +20,6 @@ Au197		# Target material type name
 100000		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
-0			# Write reaction data to output?
+1			# Write reaction data to output?
 0			# Write debug info to output?
 0			# Perform Monte Carlo test on detector setup?
