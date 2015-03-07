@@ -1,4 +1,4 @@
-1.16a		# Vikar input file version number
+1.17		# Vikar input file version number
 4			# Beam Z
 7			# Beam A
 79			# Target Z (isotope of interest)
@@ -11,13 +11,15 @@
 0.8			# Beam energy spread (MeV)
 0.0			# Ground state Q-value
 0			# Number of excited states
-0			# Supply angular distributions?
+1			# Supply angular distributions?
+RUTHERFORD	# Angular distribution filename
+0			# Calculate rates?
 Au197		# Target material type name
 2.0			# Target thickness (mg/cm^2)
 30.0000		# Target angle wrt beam axis (degrees)
 1			# Perfect detectors?
 /home/ND01/Vikar/detectors/Elastic.det	# Detector setup filename
-100000		# Number of detections
+1000		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?
 1			# Write reaction data to output?

@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.16a"
+#define VERSION "1.17"
 
 struct debugData{
 	double var1, var2, var3;
@@ -153,6 +153,7 @@ int main(int argc, char* argv[]){
 	bool SupplyRates = false;
 	bool BeamFocus = false;
 	bool TestSetup = false;
+	bool DoRutherford = false;
 
 	//------------------------------------------------------------------------
 	//
@@ -279,9 +280,15 @@ int main(int argc, char* argv[]){
 				if(SetBool(input, "  Supply Angular Distributions", ADists)){
 					for(unsigned int i = 0; i < NRecoilStates; i++){
 						getline(input_file, input); input = Parse(input);
-						AngDist_fname.push_back(input);
-						if(i == 0){ std::cout << "   Distribution for ground state: " << AngDist_fname[i] << std::endl; }
-						else{ std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname[i] << std::endl; }
+						if(!DoRutherford && input != "RUTHERFORD"){
+							AngDist_fname.push_back(input);
+							if(i == 0){ std::cout << "   Distribution for ground state: " << AngDist_fname[i] << std::endl; }
+							else{ std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname[i] << std::endl; }
+						}
+						else{
+							DoRutherford = true;
+							std::cout << "   Using Rutherford scattering\n";
+						}
 					}
 					
 					// Supply beam rate information
@@ -581,7 +588,7 @@ int main(int argc, char* argv[]){
 
 	//std::cout << "\n ==  ==  ==  ==  == \n\n";
 
-	if(ADists){ 
+	if(ADists && !DoRutherford){ 
 		std::cout << "\n Loading state angular distribution files...\n";
 		if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), materials[targ_mat_id].GetDensity(), BeamRate)){
 			// Successfully set the angular distributions
@@ -592,6 +599,24 @@ int main(int argc, char* argv[]){
 			std::cout << "  Warning! Could not properly initialize distributions.\n";
 			std::cout << "  Note: Setting all energy states to isotropic!\n";
 		}
+	}
+	else if(DoRutherford){
+		double e = 1.60217657E-19; // C
+		double k = 8.987551E9; // N*m^2/C^2
+		double coefficient = k*Zbeam*targ.GetZ()*e*e/(4.0*Ebeam0*1.60218E-13); // m^2
+		coefficient = coefficient * coefficient;
+		std::cout << "\n Generating Rutherford distribution...\n";
+		std::cout << "  Z-1 = " << Zbeam*e << " C\n";
+		std::cout << "  Z-2 = " << targ.GetZ()*e << " C\n";
+		std::cout << "  Energy = " << Ebeam0*1.60218E-13 << " J\n";
+		std::cout << "  Coefficient: " << coefficient << " m^2\n";
+		
+		if(NRecoilStates > 1){
+			std::cout << "   Warning! Cannot set distribution to Rutherford for excited states.\n";
+			std::cout << "   Note: Setting number of excited states to zero!\n";
+			NRecoilStates = 1;
+		}
+		kind.SetRutherford(coefficient);
 	}
 
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
@@ -726,7 +751,7 @@ int main(int argc, char* argv[]){
 				targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
 				std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
 				std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
-				std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n\n";
+				std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
 			}
 			beam_stopped++;
 			

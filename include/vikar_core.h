@@ -93,7 +93,8 @@ class AngularDist{
 		}
 	}
 	
-	bool Initialize(const char*, double, double, double);
+	bool Initialize(const char* fname, double mtarg, double tgt_thickness, double beam_current);
+	bool Initialize(unsigned int num_points_, double *angle_, double *xsection_);
 	
 	double GetRate(){ return rate; }
 	unsigned int GetNumPoints(){ return num_points; }
@@ -153,6 +154,7 @@ class Kindeux{
    	
    	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);
 	bool SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current);
+	bool SetRutherford(double coeff_);
 	bool FillVars(double Beam_E, double &Ejectile_E, Vector3 &Ejectile, double &comAngle, int recoil_state=-1, int solution=-1, double theta=-1);
 	bool FillVars(double Beam_E, double &Ejectile_E, double &Recoil_E, Vector3 &Ejectile, Vector3 &Recoil, 
 				  double &comAngle, int recoil_state=-1, int solution=-1, double theta=-1);

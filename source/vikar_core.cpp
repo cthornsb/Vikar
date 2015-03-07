@@ -207,7 +207,7 @@ bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickne
 			unsigned int index = 0;
 			std::vector<double>::iterator iter1, iter2;
 			for(iter1 = xvec.begin(), iter2 = yvec.begin(); iter1 != xvec.end() && iter2 != yvec.end(); iter1++, iter2++){
-				com_theta[index] = *iter1;
+				com_theta[index] = *iter1*deg2rad;
 				dsigma_domega[index] = *iter2;
 				index++;
 			}
@@ -218,8 +218,8 @@ bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickne
 			// Calculate the reaction cross-section from the differential cross section
 			double x1, x2, y1, y2;
 			for(unsigned int i = 0; i < num_points-1; i++){
-				x1 = com_theta[i]*pi/180.0; y1 = dsigma_domega[i]*std::sin(x1);
-				x2 = com_theta[i+1]*pi/180.0; y2 = dsigma_domega[i+1]*std::sin(x2);
+				x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
+				x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
 				reaction_xsection += 0.5*(x2-x1)*(y2+y1);
 				integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
 			}
@@ -238,6 +238,43 @@ bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickne
 	return false;
 }
 
+// Load the differential cross section from a file.
+// Return true if the file is correctly loaded and contains a non-zero number
+// of data points. Does nothing if AngularDist has already been initialized
+// Expects CoM angle in degrees and differential cross section in mb/sr
+bool AngularDist::Initialize(unsigned int num_points_, double *angle_, double *xsection_){
+	if(init || num_points_ <= 1){ return false; }
+	
+	num_points = num_points_;
+	init = true;
+
+	com_theta = new double[num_points];
+	dsigma_domega = new double[num_points];
+	integral = new double[num_points];
+	
+	reaction_xsection = 0.0;
+	integral[0] = 0.0;
+	
+	// Load the cross section values into the arrays
+	for(unsigned int i = 0; i < num_points; i++){
+		com_theta[i] = angle_[i]*deg2rad;
+		dsigma_domega[i] = xsection_[i];
+	}
+	
+	// Calculate the reaction cross-section from the differential cross section
+	double x1, x2, y1, y2;
+	for(unsigned int i = 0; i < num_points-1; i++){
+		x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
+		x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
+		reaction_xsection += 0.5*(x2-x1)*(y2+y1);
+		integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
+	}
+	
+	reaction_xsection *= 2*pi;
+	
+	return true;
+}
+
 // Get a random angle from the distribution
 // Returns false if a match is not found for whatever reason
 bool AngularDist::Sample(double &com_angle){
@@ -248,7 +285,7 @@ bool AngularDist::Sample(double &com_angle){
 			com_angle = com_theta[i] + (rand_xsect-integral[i])*(com_theta[i+1]-com_theta[i])/(integral[i+1]-integral[i]);
 		}
 	}
-	return false;
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -630,7 +667,7 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 // Returns false if attempt to load the distributions fails for any reason
 // tgt_thickness_ is given in units of mg/cm^2
 bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current){
-	if(!init){ return false; }
+	if(!init || ang_dist){ return false; }
 	if(fnames.size() < NrecoilStates){
 		std::cout << " Kindeux: Warning! Must have distributions for " << NrecoilStates << " excited states and the ground state\n";
 		std::cout << " Kindeux: Received distributions for only " << fnames.size() << " states but expected " << NrecoilStates << std::endl;
@@ -659,6 +696,29 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 		delete[] Xsections;
 		return false;
 	}
+	return true;
+}
+
+// Set Kindeux to use Rutherford scattering for calculating ejectile angles
+// coeff_ in m^2
+bool Kindeux::SetRutherford(double coeff_){
+	if(!init || ang_dist){ return false; }
+	
+	ang_dist = true;
+	distributions = new AngularDist[1];
+	Xsections = new double[1]; Xsections[0] = 0.0;
+
+	double angles[181], xsections[181];
+	for(unsigned int i = 1; i <= 180; i++){
+		angles[i] = (double)i; // degrees
+		xsections[i] = coeff_*(1.0 / pow(std::sin((angles[i]/2.0)*deg2rad), 4.0))*(1E28); // mb/sr
+	}
+	angles[0] = 0; 
+	xsections[0] = xsections[1];
+	
+	distributions[0].Initialize(181, angles, xsections);
+	total_xsection = distributions[0].GetReactionXsection();
+	
 	return true;
 }
 
