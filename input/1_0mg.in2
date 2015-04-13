@@ -14,18 +14,11 @@
 0.7695		# Energy of excited state 1
 2.3200		# Energy of excited state 2
 0			# Supply angular distributions?
-#/home/cory/Research/VANDLE/Vikar/xsections/ground.test		# Distribution for ground state
-#/home/cory/Research/VANDLE/Vikar/xsections/first.test		# Distribution for first excited state
-#/home/cory/Research/VANDLE/Vikar/xsections/second.test		# Distribution for second excited state
 CD2			# Target material type name
 1.0			# Target thickness (mg/cm^2)
 0.0000		# Target angle wrt beam axis (degrees)
 1			# Perfect detectors?
-#/home/cory/Research/VANDLE/Vikar/efficiency/Small.eff	# Small bar efficiency file
-#/home/cory/Research/VANDLE/Vikar/efficiency/Medium.eff	# Medium bar efficiency file
-#/home/cory/Research/VANDLE/Vikar/efficiency/Large.eff	# Large bar efficiency file
-1			# Supply detector setup file?
-/home/cory/Research/VANDLE/Vikar/detectors/7BeExp.det	# Detector setup filename
+/home/ND01/Vikar/detectors/7BeExp.det	# Detector setup filename
 10000		# Number of detections
 0			# Detect prompt gammas?
 1			# Require ejectile and recoil coincidence?

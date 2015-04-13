@@ -292,28 +292,35 @@ bool AngularDist::Sample(double &com_angle){
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
-// Get a random point on a gaussian beam profile
-// spot_ is the beamspot FWHM in m
+// Get a random point on a circular beam profile
+// radius_ is the beamspot radius in m
 // offset_ is the offset in the negative z-direction (in m)
 // beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
-void RandomCircleUpstream(double fwhm_, double offset_, Vector3 &beam){ // Upstream of target
-	double ranR = std::sqrt(frand()) * (fwhm_/2.0); // Random distance from the beam axis
-	double ranT = 2*pi*frand(); // Random angle about the beam axis
-	/*double ranX = rndgauss0(fwhm_);
-	double ranY = rndgauss0(fwhm_);
-	double ranR = std::sqrt(ranX*ranX + ranY*ranY);
-	double ranT = std::atan2(ranY, ranX);*/
-	beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_);
+void RandomCircle(double radius_, double offset_, Vector3 &beam){ // Upstream of target
+	// Uniformly sample the circular profile
+	double ranT = 2*pi*frand();
+	double ranU = frand() + frand();
+	double ranR;
+	
+	if(ranU > 1){ ranR = 2 - ranU; }
+	else{ ranR = ranU; }
+	ranR *= radius_;
+	
+	if(offset_ < 0.0){ beam = Vector3(ranR*std::cos(ranT), ranR*std::sin(ranT), -offset_); } // beam focus upstream of target
+	else{ beam = Vector3(-ranR*std::cos(ranT), -ranR*std::sin(ranT), offset_); } // beam focus downstream of target
 }
 
-void RandomCircleDownstream(double fwhm_, double offset_, Vector3 &beam){ // Downstream of target
-	double ranR = std::sqrt(frand()) * (fwhm_/2.0); // Random distance from the beam axis
-	double ranT = 2*pi*frand(); // Random angle about the beam axis
-	/*double ranX = rndgauss0(fwhm_);
+// Get a random point on a gaussian beam profile
+// fwhm_ is the FWHM of the beamspot in m
+// offset_ is the offset in the negative z-direction (in m)
+// beam is a 2d vector in the xy-plane (z=0) pointing from the origin to a point inside the target beamspot
+void RandomGauss(double fwhm_, double offset_, Vector3 &beam){
+	// Uniformly sample the gaussian profile
+	double ranX = rndgauss0(fwhm_);
 	double ranY = rndgauss0(fwhm_);
-	double ranR = std::sqrt(ranX*ranX + ranY*ranY);
-	double ranT = std::atan2(ranY, ranX);*/
-	beam = Vector3(-ranR*std::cos(ranT), -ranR*std::sin(ranT), offset_);
+	
+	if(offset_ < 0.0){ beam = Vector3(ranX, ranY, -offset_); } // beam focus upstream of target
+	else{ beam = Vector3(-ranX, -ranY, offset_); } // beam focus downstream of target
 }
 
 bool SetBool(std::string input_, std::string text_, bool &output){

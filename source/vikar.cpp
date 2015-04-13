@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "structures.h"
 
-#define VERSION "1.17"
+#define VERSION "1.18"
 
 struct debugData{
 	double var1, var2, var3;
@@ -154,6 +154,7 @@ int main(int argc, char* argv[]){
 	bool BeamFocus = false;
 	bool TestSetup = false;
 	bool DoRutherford = false;
+	bool CylindricalBeam = true;
 
 	//------------------------------------------------------------------------
 	//
@@ -244,8 +245,11 @@ int main(int argc, char* argv[]){
 				std::cout << "  Beam Energy: " << Ebeam0 << " MeV\n";
 			}
 			else if(count == 8){ 
-				beamspot = atof(input.c_str());  
-				std::cout << "  Beam Spot Size: " << beamspot << " mm (FWHM)\n";
+				SetBool(input, "  Cylindrical Beam", CylindricalBeam);
+				getline(input_file, input); input = Parse(input);
+				beamspot = atof(input.c_str());
+				if(CylindricalBeam){ std::cout << "  Beam Spot Diameter: " << beamspot << " mm\n"; }
+				else{ std::cout << "  Beam Spot FWHM: " << beamspot << " mm\n"; }
 				beamspot = beamspot/1000.0; // in meters
 			}
 			else if(count == 9){ 
@@ -255,7 +259,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 10){ 
 				beamEspread = atof(input.c_str());  
-				std::cout << "  Beam Spread: " << beamEspread << " MeV\n";
+				std::cout << "  Beam Energy Spread: " << beamEspread << " MeV\n";
 			}
 			else if(count == 11){ 
 				gsQvalue = atof(input.c_str());  
@@ -555,13 +559,13 @@ int main(int argc, char* argv[]){
 	}
 	
 	// Calculate the beam focal point (if it exists)
-	if(beamAngdiv < 1.562069680534925){ // 89.5 degrees
-		lab_beam_focus = Vector3(0.0, 0.0, -((beamspot/2.0)*std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
+	if(beamAngdiv >= 0.000174532925199){ // Beam focus is upstream of target
+		lab_beam_focus = Vector3(0.0, 0.0, -(beamspot/(2.0*std::tan(beamAngdiv))+targ.GetRealZthickness()/2.0));
 		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
 		BeamFocus = true;
 	}
-	if(beamAngdiv > 1.579522973054868){
-		lab_beam_focus = Vector3(0.0, 0.0, ((beamspot/2.0)*std::tan(beamAngdiv)+targ.GetRealZthickness()/2.0));
+	if(beamAngdiv <= -0.000174532925199){ // Beam focus is downstream of target
+		lab_beam_focus = Vector3(0.0, 0.0, (beamspot/(2.0*std::tan(beamAngdiv))+targ.GetRealZthickness()/2.0));
 		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
 		BeamFocus = true;
 	}
@@ -709,14 +713,16 @@ int main(int argc, char* argv[]){
 			// In this case, lab_beam_focus is the originating point of the beam particle
 			// (or the terminating point for beams focused downstream of the target)
 			// The direction is given by the cartesian vector 'lab_beam_trajectory'
-			RandomCircleUpstream(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
-			//RandomCircleDownstream(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory);
+			if(CylindricalBeam){ RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Cylindrical beam
+			else{ RandomGauss(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Gaussian beam
 			Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}
 		else{ 
 			// In this case, lab_beam_start stores the originating point of the beam particle
 			// The direction is given simply by the +z-axis
-			RandomCircleUpstream(beamspot, 1.0, lab_beam_start); // The 1m offset ensures the particle originates outside the target
+			// The 1m offset ensures the particle originates outside the target
+			if(CylindricalBeam){ RandomCircle(beamspot, 1.0, lab_beam_start); } 
+			else{ RandomGauss(beamspot, 1.0, lab_beam_start); } 
 			Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}	
 
@@ -728,7 +734,6 @@ int main(int argc, char* argv[]){
 		
 		// Calculate the new energy
 		if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
-			//std::cout << range_beam << "\t" << Zdepth << "\t" << Ebeam << std::endl;
 			if(beam_stopped == 10000){
 				std::cout << "\n ATTENTION!\n";
 				std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
