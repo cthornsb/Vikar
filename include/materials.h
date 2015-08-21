@@ -164,6 +164,8 @@ class Material{
 	double Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_);
 	
 	void Print();
+	
+	void Print(std::ofstream *file_);
 };
 
 /////////////////////////////////////////////////////////////////////

@@ -575,6 +575,23 @@ void Material::Print(){
 	std::cout << "  lnIbar: " << lnIbar << "\n";
 }
 
+void Material::Print(std::ofstream *file_){
+	if(!file_ || !file_->good()){ return; }
+	(*file_) << "Name\t" << vikar_name << std::endl;
+	(*file_) << "NumElements\t" << num_elements << std::endl;
+	for(unsigned int i = 0; i < num_elements; i++){
+		(*file_) << "Element" << i+1 << "\tN=" << num_per_molecule[i] << ", Z=" << element_Z[i];
+		(*file_) << ", A=" << element_A[i] << ", I=" << element_I[i] << std::endl;
+	}
+	(*file_) << "AvgZ\t" << avgZ << "\n";
+	(*file_) << "AvgA\t" << avgA << "\n";
+	(*file_) << "Density\t" << density << " g/cm^3\n";
+	(*file_) << "eDensity\t" << edens << " 1/m^3\n";
+	(*file_) << "MolarMass\t" << Mmass << " g/mol\n";
+	(*file_) << "RadLength\t" << rad_length << " mg/cm^2\n";
+	(*file_) << "lnIbar\t" << lnIbar << "\n";
+}
+
 /////////////////////////////////////////////////////////////////////
 // Target
 /////////////////////////////////////////////////////////////////////

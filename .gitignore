@@ -5,6 +5,9 @@
 *.out 
 RootDict.cpp
 RootDict.h
+Structures.cpp
+Structures.h
+LinkDef.h
 
 # C++ object files #
 ####################
@@ -18,11 +21,7 @@ vikarFront
 angleConvert
 kinematics
 kindist
-dump
-test
-energy
+root2raw
 integrator
 range
-XYpos
-phoswich
 elastic.sh

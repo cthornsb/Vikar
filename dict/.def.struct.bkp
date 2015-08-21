@@ -1,0 +1,128 @@
+# definitions.struct
+#
+# This file is used for declaring various data types for
+#  .root file output from RootPixieScan. This file is intended
+#  to be read by the executable StructFileGenerator. That program
+#  will automatically generate the following structure files...
+#
+#   Structures.cpp
+#   Structures.h
+#   LinkDef.h
+#
+# These files will be used in the generation of a root dictionary.
+#
+# Valid types:
+#  char, short, int, float, double, and any other standard c++ type
+#  Types beginning with 'u_' will be unsigned (e.g. u_int	= unsigned int)
+#  Types beginning with 'vector:' will be a vector of that type (e.g. vector:int = std::vector<int>)
+#
+# Special flags:
+#  Variable names ending with '_mult' are considered as a multiplicity variable 
+#   and are incremented each time the ::Append method is called. These variables
+#   are also not included to the call to ::Append.
+#  Variable names ending with '_wave' are considered as trace variables. This
+#   means that they will be included in the Waveform class instead of Structure.
+#
+# Cory R. Thornsberry
+# Last updated: Aug. 21st, 2015
+
+#####################################################################
+# RecoilObject
+#####################################################################
+# Class name
+BEGIN_CLASS	RecoilObject
+
+# Short class description
+SHORT	Recoil particle information
+
+# Longer class description
+LONG	Structure for storing information about the recoil particle
+
+# Data types and names
+# type	name	description
+BEGIN_TYPES
+vector:double	recoil_hitX	
+vector:double	recoil_hitY	
+vector:double	recoil_hitZ	
+vector:double	recoil_hitTheta	
+vector:double	recoil_hitPhi	
+vector:double	recoil_qdc	
+vector:double	recoil_tof	
+vector:double	recoil_faceX	
+vector:double	recoil_faceY	
+vector:double	recoil_faceZ	
+vector:int	recoil_loc
+u_int	recoil_mult	Multiplicity of recoil detector hits	
+
+# Trace output data types and names (must end with _wave)
+# type	name	description
+END_TYPES
+
+# End this class
+END_CLASS
+
+#####################################################################
+# EjectObject
+#####################################################################
+# Class name
+BEGIN_CLASS	EjectObject
+
+# Short class description
+SHORT	Ejectile particle information
+
+# Longer class description
+LONG	Structure for storing information about the ejectile particle
+
+# Data types and names
+# type	name	description
+BEGIN_TYPES
+vector:double	eject_hitX	
+vector:double	eject_hitY	
+vector:double	eject_hitZ	
+vector:double	eject_hitTheta	
+vector:double	eject_hitPhi	
+vector:double	eject_qdc	
+vector:double	eject_tof	
+vector:double	eject_faceX	
+vector:double	eject_faceY	
+vector:double	eject_faceZ	
+vector:int	eject_loc
+u_int	eject_mult	Multiplicity of ejectile detector hits	
+
+# Trace output data types and names (must end with _wave)
+# type	name	description
+END_TYPES
+
+# End this class
+END_CLASS
+
+#####################################################################
+# ReactionObject
+#####################################################################
+# Class name
+BEGIN_CLASS	ReactionObject
+
+# Short class description
+SHORT	Reaction information
+
+# Longer class description
+LONG	Structure for storing information about the reaction
+
+# Data types and names
+# type	name	description
+BEGIN_TYPES
+vector:double	reactE	
+vector:double	reactCOM	
+vector:double	reactX	
+vector:double	reactY	
+vector:double	reactZ	
+vector:double	trajectoryX	
+vector:double	trajectoryY	
+vector:double	trajectoryZ	
+
+# Trace output data types and names (must end with _wave)
+# type	name	description
+END_TYPES
+
+# End this class
+END_CLASS

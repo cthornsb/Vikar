@@ -1,3 +1,10 @@
+#####################################################################
+
+# Set the RootPixieScan directory
+PIXIE_SCAN_DIR = /home/cthorns/RootPixieScan
+
+#####################################################################
+
 COMPILER = g++
 
 CFLAGS = -g -fPIC -Wall -O3 `root-config --cflags` -Iinclude
@@ -7,141 +14,154 @@ ROOT_INC = `root-config --incdir`
 
 SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
 SOURCES2 = vikar_core.cpp detectors.cpp materials.cpp
-TOOLS = vikarFront angleConvert kinematics kindist dump energy integrator test XYpos phoswich range viewer analyzer optimizer
-OBJECTS = $(addprefix $(C_OBJ_DIR)/,$(SOURCES:.cpp=.o))
-OBJECTS2 = $(addprefix $(C_OBJ_DIR)/,$(SOURCES2:.cpp=.o))
+OBJECTS = $(addprefix $(OBJ_DIR)/,$(SOURCES:.cpp=.o))
+OBJECTS2 = $(addprefix $(OBJ_DIR)/,$(SOURCES2:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
 INCLUDE_DIR = $(shell pwd)/include
-TOOL_DIR = $(shell pwd)/tools
 SOURCE_DIR = $(shell pwd)/source
-C_OBJ_DIR = $(shell pwd)/obj
+OBJ_DIR = $(shell pwd)/obj
+
+TOOL_DIR = $(shell pwd)/tools
+TOOL_SRC_DIR = $(TOOL_DIR)/source
+TOOL_OBJ_DIR = $(TOOL_DIR)/obj
+
 DICT_DIR = $(shell pwd)/dict
 DICT_OBJ_DIR = $(DICT_DIR)/obj
 
 # ROOT dictionary stuff
 DICT_SOURCE = RootDict
-STRUCT_FILE = structures
+STRUCT_FILE = Structures
 
 ROOTOBJ = $(DICT_OBJ_DIR)/$(DICT_SOURCE).o 
-ROOTOBJ += $(C_OBJ_DIR)/$(STRUCT_FILE).o
+ROOTOBJ += $(OBJ_DIR)/$(STRUCT_FILE).o
 SFLAGS = $(addprefix -l,$(DICT_SOURCE))
 
-PROG = vikar
+INSTALL_DIR = ~/bin
 
-all: $(PROG)
+# Tools
+VIKAR_FRONT_EXE = $(TOOL_DIR)/vikarFront
+VIKAR_FRONT_SRC = $(TOOL_SRC_DIR)/vikarFront.cpp
+ANGLE_CONVERT_EXE = $(TOOL_DIR)/angleConvert
+ANGLE_CONVERT_SRC = $(TOOL_SRC_DIR)/angleConvert.cpp
+KINEMATICS_EXE = $(TOOL_DIR)/kinematics
+KINEMATICS_SRC = $(TOOL_SRC_DIR)/Kinematics.cpp
+KINDIST_EXE = $(TOOL_DIR)/kindist
+KINDIST_SRC = $(TOOL_SRC_DIR)/Kindist.cpp
+ROOT2RAW_EXE = $(TOOL_DIR)/root2raw
+ROOT2RAW_SRC = $(TOOL_SRC_DIR)/root2raw.cpp
+INTEGRATOR_EXE = $(TOOL_DIR)/integrator
+INTEGRATOR_SRC = $(TOOL_SRC_DIR)/Integrator.cpp
+RANGE_EXE = $(TOOL_DIR)/range
+RANGE_OBJ = $(TOOL_OBJ_DIR)/range.o
+RANGE_SRC = $(TOOL_SRC_DIR)/range.cpp
+
+TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) $(INTEGRATOR_EXE) $(RANGE_EXE)
+TOOLS_OBJ = $(RANGE_OBJ)
+
+# Main executable
+EXECUTABLE = vikar
+
+########################################################################
+
+all: directory dictionary $(EXECUTABLE)
 	@echo " Finished Compilation"
 
-dictionary: $(DICT_OBJ_DIR) $(DICT_OBJ_DIR)/$(DICT_SOURCE).so
+dictionary:
 #	Create root dictionary objects
+	@$(PIXIE_SCAN_DIR)/tools/rcbuild.sh -t $(PIXIE_SCAN_DIR)/tools -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
 
-directory: $(DICT_OBJ_DIR) $(C_OBJ_DIR)
+directory: $(OBJ_DIR) $(TOOL_OBJ_DIR)
+#	Make all directories
 
-libs: core detectors main
+libs: $(OBJECTS)
+#	Make only library objects
 	@echo " Done making libs"
 
-.PHONY: clean tidy directory
-
-.SECONDARY: $(DICT_DIR)/$(DICT_SOURCE).cpp $(ROOTOBJ)
-#	Want to keep the source files created by rootcint after compilation
-#	as well as keeping the object file made from those source files
+tools: $(TOOLS)
+#	Make all support tools
+	@echo " Done making tools"
 
 #####################################################################
 
-$(C_OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
+$(OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
 #	Compile C++ source files
 	$(COMPILER) -c $(CFLAGS) $< -o $@
 
-$(C_OBJ_DIR)/%.o: $(TOOL_DIR)/%.cpp
+$(TOOL_OBJ_DIR)/%.o: $(TOOL_SRC_DIR)/%.cpp
 #	Compile C++ source files
 	$(COMPILER) -c $(CFLAGS) $< -o $@
 
 #####################################################################
 
-$(DICT_OBJ_DIR):
-#	Make root dictionary object file directory
-	mkdir $(DICT_OBJ_DIR)
-
-$(C_OBJ_DIR):
-#	Make c++ object file directory
-	mkdir $(C_OBJ_DIR)
-
-#####################################################################
-
-$(DICT_OBJ_DIR)/%.o: $(DICT_DIR)/%.cpp
-#	Compile rootcint source files
-	$(COMPILER) -c $(CFLAGS) $< -o $@
-
-$(DICT_OBJ_DIR)/%.so: $(C_OBJ_DIR)/$(STRUCT_FILE).o $(DICT_OBJ_DIR)/$(DICT_SOURCE).o
-#	Generate the root shared library (.so) for the dictionary
-	$(COMPILER) -g -shared -Wl,-soname,lib$(DICT_SOURCE).so -o $(DICT_OBJ_DIR)/lib$(DICT_SOURCE).so $(C_OBJ_DIR)/$(STRUCT_FILE).o $(DICT_OBJ_DIR)/$(DICT_SOURCE).o -lc
-
-$(DICT_DIR)/%.cpp: $(INCLUDE_DIR)/$(STRUCT_FILE).h $(DICT_DIR)/LinkDef.h
-#	Generate the dictionary source files using rootcint
-	@cd $(DICT_DIR); rootcint -f $@ -c $(INCLUDE_DIR)/$(STRUCT_FILE).h $(DICT_DIR)/LinkDef.h
-
-#####################################################################
-
-vikarFront: $(SOURCE_DIR)/vikarFront.cpp
-	$(COMPILER) $(CFLAGS) -o $@ $(SOURCE_DIR)/vikarFront.cpp
-	@echo " Done making "$@
-
-angleConvert: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/angleConvert.o
-	$(COMPILER) $(CFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/angleConvert.o -o $@
-	@echo " Done making "$@
-
-kinematics: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kinematics.o
-	$(COMPILER) $(CFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kinematics.o -o $@
-	@echo " Done making "$@
-
-kindist: $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kindist.o
-	$(COMPILER) $(CFLAGS) $(C_OBJ_DIR)/vikar_core.o $(C_OBJ_DIR)/Kindist.o -o $@
-	@echo " Done making "$@	
-
-dump: $(TOOL_DIR)/dump.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-	@echo " Done making "$@	
-
-energy: $(TOOL_DIR)/energy.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-	@echo " Done making "$@	
-
-XYpos: $(C_OBJ_DIR)/vikar_core.o $(TOOL_DIR)/XYpos.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(C_OBJ_DIR)/vikar_core.o -o $@ $(TOOL_DIR)/XYpos.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-phoswich: dictionary $(OBJECTS2) $(C_OBJ_DIR)/phoswich.o
-	$(COMPILER) $(LDFLAGS) $(OBJECTS2) $(C_OBJ_DIR)/phoswich.o $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
-	@echo " Done making "$@	
-
-range: $(OBJECTS2) $(TOOL_DIR)/range.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/range.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-test: $(OBJECTS2) $(TOOL_DIR)/test.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) $(OBJECTS2) -o $@ $(TOOL_DIR)/test.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-viewer: $(TOOL_DIR)/viewer.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/viewer.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-analyzer: $(TOOL_DIR)/analyzer.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/analyzer.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-optimizer: $(TOOL_DIR)/optimizer.cpp
-	$(COMPILER) $(CFLAGS) $(LDFLAGS) -o $@ $(TOOL_DIR)/optimizer.cpp $(LDLIBS)
-	@echo " Done making "$@	
-
-$(PROG): dictionary $(OBJECTS)
-	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
-	@echo " Done making "$(PROG)
-
-clean:
-	rm -f obj/*.o
-	rm -f $(PROG)
-	rm -f dict/obj/* dict/RootDict.*
+$(OBJ_DIR):
+#	Make the object file directory
+	@if [ ! -d $@ ]; then \
+		echo "Making directory: "$@; \
+		mkdir $@; \
+	fi
 	
-tidy:
-	rm -f $(TOOLS)
+$(TOOL_OBJ_DIR):
+#	Make the object file directory
+	@if [ ! -d $@ ]; then \
+		echo "Making directory: "$@; \
+		mkdir $@; \
+	fi
+
+#####################################################################
+
+$(VIKAR_FRONT_EXE): $(VIKAR_FRONT_SRC)
+	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude -o $@ $^
+
+$(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vikar_core.o $(ANGLE_CONVERT_SRC)
+	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+
+$(KINEMATICS_EXE): $(OBJ_DIR)/vikar_core.o $(KINEMATICS_SRC)
+	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+
+$(KINDIST_EXE): $(OBJ_DIR)/vikar_core.o $(KINDIST_SRC)
+	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+
+$(ROOT2RAW_EXE): $(ROOT2RAW_SRC)
+	$(COMPILER) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(INTEGRATOR_EXE): $(INTEGRATOR_SRC)
+	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+
+$(RANGE_EXE): $(OBJECTS2) $(ROOTOBJ) $(RANGE_OBJ)
+	$(COMPILER) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+########################################################################
+
+$(EXECUTABLE): $(OBJECTS)
+	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
+	@echo " Done making "$(EXECUTABLE)
+
+########################################################################
+
+install: tools
+#	Install tools into the install directory
+	@echo "Installing tools to "$(INSTALL_DIR)
+	@ln -s -f $(KINEMATICS_EXE) $(INSTALL_DIR)/kinematics
+	@ln -s -f $(KINDIST_EXE) $(INSTALL_DIR)/kindist
+	@ln -s -f $(ROOT2RAW_EXE) $(INSTALL_DIR)/root2raw
+
+#####################################################################
+
+tidy: clean_obj clean_tools clean_dict
+
+clean: clean_obj
+
+clean_obj:
+	@echo "Cleaning up..."
+	@rm -f $(OBJ_DIR)/*.o
+	@rm -f $(EXECUTABLE)
+	
+clean_dict:
+	@echo "Removing ROOT dictionaries..."
+	@rm -f $(DICT_DIR)/$(DICT_SOURCE).cpp $(DICT_DIR)/$(DICT_SOURCE).h $(DICT_OBJ_DIR)/*.so
+	@rm -f $(ROOTOBJ) $(SOURCE_DIR)/Structures.cpp $(INCLUDE_DIR)/Structures.h $(DICT_DIR)/LinkDef.h
+
+clean_tools:
+	@echo "Removing tools..."
+	@rm -f $(TOOLS) $(TOOLS_OBJ)

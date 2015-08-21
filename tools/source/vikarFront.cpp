@@ -10,7 +10,6 @@
 int main(){
 	unsigned short version = 312;
 	unsigned short idummy, Nstates, Nelements;
-	double ddummy; 
 	std::string input;
 
 	std::cout << "\n####       #### ######## ####     ###         ###       #########\n"; 

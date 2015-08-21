@@ -2,6 +2,7 @@
 // Cory Thornsberry
 // April 25, 2014
 // Convert an xmgrace x-section file from CoM angle to lab angle
+// Useful for converting x-section files from twofnr and fresco
 
 #include <fstream>
 #include <iostream>
@@ -66,45 +67,59 @@ bool ParseString(char *input, float &theta, float &sigma){
 			}
 		}
 	}
+	return true;
 }
 
-void help(){
-	std::cout << " Help-------\n";
-	std::cout << "  Syntax: angleConvert [filename]\n";
-	std::cout << "   filename must be the path to the xmgrace (fort) file\n\n";
+void help(char * prog_name_, bool full_=false){
+	std::cout << "  SYNTAX: " << prog_name_ << " [filename] <options>\n";
+	std::cout << "   Available options:\n";
+	std::cout << "    --help | Display help dialogue.\n\n";
 	
-	std::cout << " Program will ask the user a series of questions including\n";
-	std::cout << "  information about the kinematics reaction which is taking\n";
-	std::cout << "  place in the system.\n\n";
+	if(full_){
+		std::cout << " Filename must be the path to the xmgrace (fort) file. Program\n";
+		std::cout << "  will ask the user a series of questions including information\n";
+		std::cout << "  about the kinematics reaction which is taking place in the system.\n\n";
 	
-	std::cout << " The number of states corresponds to the number of allowed\n";
-	std::cout << "  excitation states of the recoil. If the program encounters\n";
-	std::cout << "  more or less data in the fort file than the number of states\n";
-	std::cout << "  provided, it will print a warning message, but will not crash.\n\n";
+		std::cout << " The number of states corresponds to the number of allowed\n";
+		std::cout << "  excitation states of the recoil. If the program encounters\n";
+		std::cout << "  more or less data in the fort file than the number of states\n";
+		std::cout << "  provided, it will print a warning message, but will not crash.\n\n";
 	
-	std::cout << " Providing fewer states than in the input file will cause the\n";
-	std::cout << "  extra data in the file to be ignored since the recoil excitation\n";
-	std::cout << "  is not provided. Providing more states will effectively do nothing.\n\n";
+		std::cout << " Providing fewer states than in the input file will cause the\n";
+		std::cout << "  extra data in the file to be ignored since the recoil excitation\n";
+		std::cout << "  is not provided. Providing more states will effectively do nothing.\n\n";
+	}
 }
 
 int main(int argc, char* argv[]){
-	std::ifstream inFile;
-	if(argc >= 2){
-		// Load input file
-		if(strcmp(argv[1],"help") == 0){
-			help();
+	if(argc < 2){
+		std::cout << " Error: Invalid number of arguments to " << argv[0] << ". Expected 1, received " << argc-1 << ".\n";
+		help(argv[0]);
+		return 1;
+	}
+	
+	if(strcmp(argv[1], "--help") == 0){
+		help(argv[0], true);
+		return 0;
+	}
+	
+	int index = 2;
+	while(index < argc){
+		if(strcmp(argv[index], "--help") == 0){
+			help(argv[0], true);
 			return 0;
 		}
-		
-		inFile.open(argv[1]);
-		if(!inFile.good()){
-			std::cout << " Error: Failed to load input file " << argv[1] << std::endl;
+		else{ 
+			std::cout << " Error! Unrecognized option '" << argv[index] << "'!\n";
+			help(argv[0]);
 			return 1;
 		}
+		index++;
 	}
-	else{
-		std::cout << " Error: No input filename given\n";
-		std::cout << "  Try 'angleConvert help' for correct syntax\n";
+	
+	std::ifstream inFile(argv[1]);
+	if(!inFile.good()){
+		std::cout << " Error: Failed to load input file " << argv[1] << std::endl;
 		return 1;
 	}
 	
@@ -119,20 +134,22 @@ int main(int argc, char* argv[]){
 	std::cout << "  Enter ejectile Mass (A): "; std::cin >> Meject;
 	std::cout << "  Enter number of states: "; std::cin >> num_states;
 	
-	if(num_states > 0){
-		RecoilEx = new double[num_states];
-		for(unsigned short i = 0; i < num_states; i++){
-			std::cout << "   Enter recoil excitation for state " << i+1 << " (MeV): "; 
+	// Declare storage arrays
+	if(num_states == 0){ num_states = 1; }
+	RecoilEx = new double[num_states];
+	for(unsigned int i = 0; i < num_states; i++){
+		if(i > 0){
+			std::cout << "   Enter recoil excitation for state " << i << " (MeV): "; 
 			std::cin >> RecoilEx[i];
 		}
-	}
-	else{
-		std::cout << " Error: Expected non-zero number of excited states\n";
-		return 1;
+		else{
+			std::cout << "   Using recoil excitation of 0.0 MeV for g.s.\n";
+			RecoilEx[0] = 0.0;
+		}
 	}
 	
 	std::cout << std::endl;
-	kind.Initialize(Mbeam, Mtarg, ((Mbeam+Mtarg)-Meject), Meject, Q);
+	kind.Initialize(Mbeam, Mtarg, ((Mbeam+Mtarg)-Meject), Meject, Q, num_states, RecoilEx);
 	
 	std::ofstream outFile("angular.out");
 	double temp;
@@ -151,12 +168,12 @@ int main(int argc, char* argv[]){
 			std::cout << " Warning! Found more than " << num_states << " state(s) in file\n\n";
 			break;
 		}
-			
+
 		// Parse string and look for data
 		if(!FindSubstring(line,end,3)){
 			if(ParseString(line, theta, sigma)){
 				// String contains data and not xmgrace junk
-				temp = WrapValue(kind.ConvertAngle2CoM(Ebeam, 0.0, RecoilEx[state], theta*deg2rad)*rad2deg, 0.0, 360.0);				
+				temp = WrapValue(kind.ConvertAngle2Lab(Ebeam, RecoilEx[state], theta*deg2rad)*rad2deg, 0.0, 360.0);			
 				if(temp >= 0.0){ outFile << temp << "\t" << sigma << "\n"; }
 				else{ 
 					std::cout << " Cannot convert theta = " << theta << " sigma = " << sigma << std::endl;

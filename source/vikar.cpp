@@ -12,7 +12,7 @@
 #include "vikar_core.h"
 #include "materials.h"
 #include "detectors.h"
-#include "structures.h"
+#include "Structures.h"
 
 #define VERSION "1.18"
 
@@ -640,9 +640,9 @@ int main(int argc, char* argv[]){
 	TTree *VIKARtree = new TTree("VIKAR", "VIKAR output tree");
 	TTree *DEBUGtree = NULL;
 	
-	EjectObject EJECTdata;
-	RecoilObject RECOILdata;
-	ReactionObject REACTIONdata;
+	EjectObjectStructure EJECTdata;
+	RecoilObjectStructure RECOILdata;
+	ReactionObjectStructure REACTIONdata;
 	debugData DEBUGdata;
 	
 	VIKARtree->Branch("Eject", &EJECTdata);

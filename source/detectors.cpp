@@ -3,7 +3,7 @@
 // Wed Feb 12 19:35:20 2014
 
 #include "detectors.h"
-#include "structures.h"
+#include "Structures.h"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -481,9 +481,9 @@ unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int
 	if(!file->IsOpen()){ return 0; }
 	TTree *tree = new TTree("VIKAR", "Monte Carlo detector test");
 	
-	EjectObject EJECTdata;
-	RecoilObject RECOILdata;
-	ReactionObject REACTIONdata;
+	EjectObjectStructure EJECTdata;
+	RecoilObjectStructure RECOILdata;
+	ReactionObjectStructure REACTIONdata;
 	
 	tree->Branch("Eject", &EJECTdata);
 	tree->Branch("Recoil", &RECOILdata);
