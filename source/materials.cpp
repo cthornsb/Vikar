@@ -293,6 +293,7 @@ void Material::_initialize(){
 	element_A = NULL;
 	element_I = NULL;
 	init = false;
+	use_eloss = true;
 }
 
 // Calculate the average atomic charge, mass, and ionization potential for the material

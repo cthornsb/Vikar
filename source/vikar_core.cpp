@@ -292,6 +292,14 @@ bool AngularDist::Sample(double &com_angle){
 // Support Functions
 /////////////////////////////////////////////////////////////////////
 
+// Return true if an input string is in a vector of strings and false otherwise.
+bool IsInVector(const std::string &input_, const std::vector<std::string> &str_vector_){
+	for(std::vector<std::string>::const_iterator iter = str_vector_.begin(); iter != str_vector_.end(); iter++){
+		if(input_ == *iter){ return true; }
+	}
+	return false;
+}
+
 // Get a random point on a circular beam profile
 // radius_ is the beamspot radius in m
 // offset_ is the offset in the negative z-direction (in m)

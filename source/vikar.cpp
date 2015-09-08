@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.19"
+#define VERSION "1.19b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -284,7 +284,7 @@ int main(int argc, char* argv[]){
 					for(unsigned int i = 0; i < NRecoilStates; i++){
 						getline(input_file, input); input = Parse(input);
 						if(!DoRutherford && input != "RUTHERFORD"){
-							AngDist_fname.push_back(input);
+							AngDist_fname.push_back("./xsections/" + input);
 							if(i == 0){ std::cout << "   Distribution for ground state: " << AngDist_fname[i] << std::endl; }
 							else{ std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname[i] << std::endl; }
 						}
@@ -339,7 +339,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 18){ 
 				// Load detector setup from a file
-				det_fname = input;
+				det_fname = "./detectors/" + input;
 				std::cout << "  Detector Setup Filename: " << det_fname << std::endl;
 			}
 			else if(count == 19){ 
@@ -413,6 +413,7 @@ int main(int argc, char* argv[]){
 	
 	// Fill the detector
 	Ndet = 0;
+	std::vector<std::string> needed_materials;
 	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
 		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
 			vandle_bars[Ndet].SetEjectile();
@@ -435,6 +436,11 @@ int main(int argc, char* argv[]){
 		vandle_bars[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
 		vandle_bars[Ndet].SetType(iter->type);
 		vandle_bars[Ndet].SetSubtype(iter->subtype);
+		
+		if(!IsInVector(iter->material, needed_materials)){
+			needed_materials.push_back(iter->material);
+		}
+		
 		Ndet++;
 	}
 
@@ -447,9 +453,11 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 
+	bool use_target_eloss = true;
+
 	// Load VIKAR material files
 	targ_mat_id = 0;
-	std::ifstream material_names("materials/names.in");
+	std::ifstream material_names("./materials/names.in");
 	if(material_names.good()){
 		std::cout << "\n Loading VIKAR material files...\n";
 		std::vector<std::string> names;
@@ -473,7 +481,12 @@ int main(int argc, char* argv[]){
 		}
 		
 		std::cout << " Successfully loaded " << num_materials-1 << " materials\n";
-		if(targ_mat_name != "CD2"){
+		if(targ_mat_name == "CD2"){ } // Use the default target
+		else if(targ_mat_name == "NONE"){ 
+			std::cout << "  Target Material: DISABLED\n";
+			use_target_eloss = false;
+		}
+		else{
 			std::cout << "  Target Material: " << targ_mat_name;
 			for(unsigned int i = 1; i < num_materials; i++){
 				if(targ_mat_name == materials[i].GetName()){
@@ -481,7 +494,10 @@ int main(int argc, char* argv[]){
 					break;
 				}
 			}
-			if(targ_mat_id == 0){ std::cout << " (not found)"; }
+			if(targ_mat_id == 0){ 
+				std::cout << " (not found)"; 
+				use_target_eloss = false;			
+			}
 			std::cout << std::endl;
 		}
 	}
@@ -491,46 +507,51 @@ int main(int argc, char* argv[]){
 		if(Zeject > 0){ eject_tables = new RangeTable[1]; }
 		if(Zrecoil > 0){ recoil_tables = new RangeTable[1]; }
 	}
-	
+
+	// Setup default CD2 material
 	materials[0].SetName("CD2");
 	materials[0].Init(2);
 	materials[0].SetDensity(1.06300);
 	materials[0].SetMolarMass(16.038904);
-	
+
 	unsigned int num_per_molecule[2] = {1, 2};
 	double element_Z[2] = {6, 1};
 	double element_A[2] = {12, 2};
 	materials[0].SetElements(num_per_molecule, element_Z, element_A);
 	
-	if(targ_mat_id == 0){
-		std::cout << "  Target Material: CD2\n";
-	}
+	if(use_target_eloss){
+		if(targ_mat_id == 0){
+			std::cout << "  Target Material: CD2\n";
+		}
 	
-	targ.SetDensity(materials[targ_mat_id].GetDensity());
-	targ.SetRadLength(materials[targ_mat_id].GetRadLength());
-	std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
+		targ.SetDensity(materials[targ_mat_id].GetDensity());
+		targ.SetRadLength(materials[targ_mat_id].GetRadLength());
+		std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
+	
+		// Calculate the stopping power table for the beam particles in the target
+		if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
+			std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
+			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Zbeam, Abeam*amu2mev, &materials[targ_mat_id]);
+			std::cout << " Done!\n";
+		}
+	}
 
-	// Calculate the stopping power table for the beam particles in the target
-	if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
-		std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-		beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Zbeam, Abeam*amu2mev, &materials[targ_mat_id]);
-		std::cout << " Done!\n";
-	}
-	
-	// Calculate the stopping power table for the ejectiles in the target
+	// Calculate the stopping power table for the ejectiles in the materials
 	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
+			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
 			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zeject, Aeject*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
 		//eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
 	}
-	
-	
-	// Calculate the stopping power table for the recoils in the target
+
+
+	// Calculate the stopping power table for the recoils in the materials
 	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
+			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
 			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zrecoil, Arecoil*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
@@ -710,44 +731,47 @@ int main(int argc, char* argv[]){
 		// Calculate the beam particle energy, varied with energy spread (in MeV)
 		Ebeam = Ebeam0 + rndgauss0(beamEspread); 
 
-		// Calculate the beam particle range in the target (in m)
-		range_beam = beam_targ.GetRange(Ebeam);
+		if(use_target_eloss){ // Calculate energy loss in the target
+			// Calculate the beam particle range in the target (in m)
+			range_beam = beam_targ.GetRange(Ebeam);
 		
-		// Calculate the new energy
-		if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
-			if(beam_stopped == 10000){
-				std::cout << "\n ATTENTION!\n";
-				std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
-				std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
-				std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
+			// Calculate the new energy
+			if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
+				if(beam_stopped == 10000){
+					std::cout << "\n ATTENTION!\n";
+					std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
+					std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
+					std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
 				
-				std::cout << "\n ------------------------------------------------\n";
-				std::cout << " Dumping target information!!!\n\n";
+					std::cout << "\n ------------------------------------------------\n";
+					std::cout << " Dumping target information!!!\n\n";
 				
-				materials[targ_mat_id].Print();
-				std::cout << std::endl;
+					materials[targ_mat_id].Print();
+					std::cout << std::endl;
 				
-				std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
-				std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
+					std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
+					std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
 				
-				std::cout << " Tracing ray through target... \n";
-				Vector3 dum1, dum2;
-				int temp1, temp2;
-				double tempx, tempy, tempz;
-				targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
-				std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
-				std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
-				std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
-			}
-			beam_stopped++;
+					std::cout << " Tracing ray through target... \n";
+					Vector3 dum1, dum2;
+					int temp1, temp2;
+					double tempx, tempy, tempz;
+					targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
+					std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
+					std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
+					std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
+				}
+				beam_stopped++;
 			
-			continue; 
-		}
-		Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
+				continue; 
+			}
+			Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
 		
-		// Determine the angle of the beam particle's trajectory at the
-		// interaction point, due to angular straggling and the incident trajectory.
-		targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
+			// Determine the angle of the beam particle's trajectory at the
+			// interaction point, due to angular straggling and the incident trajectory.
+			targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
+		}
+		else{ Ereact = Ebeam; }
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
 		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }

@@ -86,6 +86,7 @@ class Material{
 	double rad_length; // The radiation length of the material (mg/cm^2)
 	double lnIbar; // The natural log of the average ionization potential
 	bool init;
+	bool use_eloss;
 	
 	void _initialize();
 
@@ -129,6 +130,7 @@ class Material{
 	
 	bool Init(unsigned int);
 	
+	void SetUseFlag(bool state_=true){ use_eloss = state_; }
 	void SetDensity(double density_){ density = density_; }
 	void SetMolarMass(double Mmass_){ Mmass = Mmass_; }
 	void SetElements(unsigned int*, double*, double*);
