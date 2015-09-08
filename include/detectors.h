@@ -282,21 +282,4 @@ unsigned int ReadEffFile(const char*, double*, double*);
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
 unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector);
 
-// Perform a monte carlo simulation on an arbitrary configuration
-// of detectors from an array. Returns the number of hits detected
-// Generates one output root file named 'mcarlo.root'
-// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
-// angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_=0.0, double angle_=0.0);
-
-// Perform a monte carlo simulation on an arbitrary configuration
-// of detectors from an array. Returns the number of hits detected
-// Generates one output root file named 'mcarlo.root' and an output
-// ascii file named 'mcarlo.hist' which contains bin contents of
-// a histogram of event center of mass angles.
-// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
-// angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(Planar *bar_array, Kindeux *kind_, unsigned int num_bars, unsigned int num_trials, double beamE_,
-						  unsigned int num_bins_, double start_, double stop_, double fwhm_=0.0, double angle_=0.0);
-
 #endif

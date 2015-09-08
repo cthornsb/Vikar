@@ -1,0 +1,402 @@
+#include <iostream>
+
+#include "vikar_core.h"
+#include "detectors.h"
+#include "Structures.h"
+
+#include "TFile.h"
+#include "TTree.h"
+#include "TH1D.h"
+
+struct DataPack{
+	TFile *file;
+	TTree *tree;
+	TH1D *hist;
+	bool init;
+
+	EjectObjectStructure EJECTdata;
+	RecoilObjectStructure RECOILdata;
+	ReactionObjectStructure REACTIONdata;
+
+	DataPack(){
+		file = NULL;
+		tree = NULL;
+		hist = NULL;
+		init = false;
+	}
+	
+	DataPack(std::string fname_, unsigned int Nbins_, double low_, double high_, bool write_rxn_){
+		Open(fname_, Nbins_, low_, high_, write_rxn_);
+	}
+
+	~DataPack(){
+		if(init){ Close(); }
+	}
+
+	bool IsInit(){ return init; }
+
+	bool Open(std::string fname_, unsigned int Nbins_, double low_, double high_, bool write_rxn_){
+		if(init){ return false; }
+
+		file = new TFile(fname_.c_str(), "RECREATE");
+		
+		if(!file->IsOpen()){
+			init = false;
+			delete file;
+		}
+		
+		tree = new TTree("VIKAR", "Monte carlo detector efficiency tree");
+		hist = new TH1D("hist", "Detector Hits vs. CoM Angle", Nbins_, low_, high_);
+		
+		tree->Branch("Eject", &EJECTdata);
+		tree->Branch("Recoil", &RECOILdata);
+		if(write_rxn_){ tree->Branch("Reaction", &REACTIONdata); }
+		
+		return (init = true);
+	}
+
+	bool Close(){
+		if(!init){ return false; }
+		
+		file->cd();
+		tree->Write();
+		hist->Write();
+		file->Close();
+		
+		init = false;
+		
+		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
+		
+		return true;
+	}
+	
+	void Zero(){
+		EJECTdata.Zero();
+		RECOILdata.Zero();
+		REACTIONdata.Zero();
+	}
+};
+
+double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_=false){
+	double output = -1;
+	while(true){
+		std::cout << " " << prompt_;
+		std::cin >> output;
+		if(!ge_){
+			if(output > min_){ break; }
+			std::cout << "  Error: Invalid value! Input must be > " << min_ << ".\n";
+		}
+		else{
+			if(output >= min_){ break; }
+			std::cout << "  Error: Invalid value! Input must be >= " << min_ << ".\n";
+		}
+	}
+	return output;
+}
+
+// Perform a monte carlo simulation on an arbitrary configuration
+// of detectors from an array. Returns the number of hits detected
+// Generates one output root file named 'mcarlo.root'
+// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
+// angle_ (rad) allows the rotation of the particle source about the y-axis
+unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, unsigned int num_bars, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true){	
+	if(!pack || !bar_array){ return 0; }
+	double tempx, tempy, tempz;
+	double dummyR, hitTheta, hitPhi;
+	unsigned int count, total;
+	unsigned int bar;
+	Vector3 flight_path;
+	Vector3 temp_vector1;
+	Vector3 temp_vector2;
+	Vector3 temp_ray, offset, dummyVector;
+	int face1, face2;
+	
+	double penetration, dist_traveled;
+	double fpath1, fpath2;
+	
+	Matrix3 matrix;
+	bool use_gaussian_beam = true;
+	bool use_rotated_source = false;
+	if(fwhm_ == 0.0){ 
+		offset = zero_vector; 
+		use_gaussian_beam = false;
+	}
+	if(angle_ != 0.0){ 
+		use_rotated_source = true; 
+		matrix.SetRotationMatrixSphere(angle_, 0.0);
+	}
+	
+	total = 0; count = 0;
+	while(count < num_trials){
+		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
+		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
+			double x_offset = rndgauss0(fwhm_);
+			double y_offset = rndgauss0(fwhm_);
+			offset.axis[0] = x_offset;
+			offset.axis[1] = y_offset;
+			offset.axis[2] = 0.0;
+			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
+		}
+		if(WriteRXN_){ 
+			pack->REACTIONdata.Zero();
+			pack->REACTIONdata.Append(0.0, 0.0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
+		}
+		for(bar = 0; bar < num_bars; bar++){
+			if(bar_array[bar].IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
+				flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
+				penetration = frand(); // The fraction of the bar which the neutron travels through
+				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
+				fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
+				fpath2 = temp_vector2.Length(); // Distance from reaction to second intersection point
+		
+				// Calculate the total distance traveled and the interaction point inside the detector
+				if(fpath1 <= fpath2){ 
+					dist_traveled += fpath1; 
+					flight_path = temp_vector1 + flight_path*penetration;
+				}
+				else{ 
+					dist_traveled += fpath2; 
+					flight_path = temp_vector2 + flight_path*penetration;
+				}
+
+				dummyVector = (offset + temp_ray);
+				Cart2Sphere(dummyVector.axis[0], dummyVector.axis[1], dummyVector.axis[2], dummyR, hitTheta, hitPhi);
+				
+				if(ejectile_ && bar_array[bar].IsEjectileDet()){
+					pack->EJECTdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
+					count++;
+				}
+				else if(!ejectile_ && bar_array[bar].IsRecoilDet()){
+					pack->RECOILdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
+					count++;
+				}
+				
+				break;
+			}
+		}
+		
+		if(WriteRXN_ || pack->EJECTdata.eject_mult > 0 || pack->RECOILdata.recoil_mult > 0){
+			pack->tree->Fill();
+			pack->REACTIONdata.Zero();
+			pack->EJECTdata.Zero();
+			pack->RECOILdata.Zero();
+		}
+		
+		total++;
+	}
+
+	return total;
+}
+
+// Perform a monte carlo simulation on an arbitrary configuration
+// of detectors from an array. Returns the number of hits detected
+// Generates an output ascii file named 'mcarlo.hist' which contains 
+// bin contents of a histogram of event center of mass angles.
+// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
+// angle_ (rad) allows the rotation of the particle source about the y-axis
+unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, Kindeux *kind_, unsigned int num_bars, unsigned int num_trials, double beamE_,
+						  unsigned int num_bins_, double start_, double stop_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){
+	if(!pack || !bar_array || !kind_ || !kind_->IsInit()){ return 0; }
+	double tempx, tempy, tempz;
+	unsigned int count, total;
+	unsigned int bar;
+	Vector3 flight_path;
+	Vector3 temp_vector1;
+	Vector3 temp_vector2;
+	Vector3 Ejectile, EjectSphere;
+	Vector3 Recoil, RecoilSphere;
+	Vector3 offset, dummyVector;
+	int face1, face2;
+	
+	double ejectE, recoilE;
+	double com_angle;
+	bool eject_hit, recoil_hit;
+	
+	Matrix3 matrix;
+	bool use_gaussian_beam = true;
+	bool use_rotated_source = false;
+	if(fwhm_ == 0.0){ 
+		offset = zero_vector; 
+		use_gaussian_beam = false;
+	}
+	if(angle_ != 0.0){ 
+		use_rotated_source = true; 
+		matrix.SetRotationMatrixSphere(angle_, 0.0);
+	}
+
+	double dummyR, dummyPhi, ejectTheta, recoilTheta, alpha;
+	double m1m2 = kind_->GetMbeam()/kind_->GetMtarg();
+
+	total = 0; count = 0;
+	while(count < num_trials){
+		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
+			double x_offset = rndgauss0(fwhm_);
+			double y_offset = rndgauss0(fwhm_);
+			offset.axis[0] = x_offset;
+			offset.axis[1] = y_offset;
+			offset.axis[2] = 0.0;
+			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
+		}
+		
+		kind_->FillVars(beamE_, ejectE, recoilE, EjectSphere, RecoilSphere, com_angle);
+		Sphere2Cart(EjectSphere, Ejectile); 
+		Sphere2Cart(RecoilSphere, Recoil);
+		
+		eject_hit = false; recoil_hit = false;
+		for(bar = 0; bar < num_bars; bar++){
+			if(!eject_hit && bar_array[bar].IsEjectileDet()){
+				if(bar_array[bar].IntersectPrimitive(offset, Ejectile, temp_vector1, dummyVector, face1, face2, tempx, tempy, tempz)){ eject_hit = true; }
+			}
+			else if(!recoil_hit && bar_array[bar].IsRecoilDet()){
+				if(bar_array[bar].IntersectPrimitive(offset, Recoil, temp_vector2, dummyVector, face1, face2, tempx, tempy, tempz)){ recoil_hit = true; }
+			}
+			
+			if(eject_hit && recoil_hit){
+				// Encountered coincidence event
+				//com_angle = Ejectile.Dot(Recoil)*rad2deg;
+				
+				Cart2Sphere(Ejectile, dummyR, ejectTheta, dummyPhi);
+				Cart2Sphere(Recoil, dummyR, recoilTheta, dummyPhi);
+				
+				alpha = std::tan(recoilTheta)/std::tan(ejectTheta);
+				com_angle = std::acos((1-alpha*m1m2)/(1+alpha))*rad2deg;
+				
+				pack->hist->Fill(com_angle);
+
+				count++;
+				break;
+			}
+		}
+		total++;
+	}
+	
+	return total;
+}
+
+void help(char * prog_name_){
+	std::cout << "  SYNTAX: " << prog_name_ << " [detfile]\n";
+}
+
+int main(int argc, char *argv[]){
+	if(argc < 2){
+		std::cout << " Error: Invalid number of arguments to " << argv[0] << ". Expected 1, received " << argc-1 << ".\n";
+		help(argv[0]);
+		return 1;
+	}
+
+	bool do_hist_run = false;
+
+	// Read VIKAR detector setup file or manually setup simple systems
+	std::cout << "\n Reading in NewVIKAR detector setup file...\n";
+	std::ifstream detfile(argv[1]);
+	if(!detfile.good()){ 
+		std::cout << " Error: failed to load detector setup file!\n";
+		return 1; 
+	}
+	
+	std::vector<NewVIKARDet> temp_detectors;
+	std::string line;
+
+	while(true){
+		getline(detfile, line);
+		if(detfile.eof()){ break; }
+		if(line[0] == '#'){ continue; } // Commented line
+	
+		temp_detectors.push_back(NewVIKARDet(line));
+	}	
+	detfile.close();
+
+	// Generate the Planar bar arrays
+	Planar *detectors = new Planar[temp_detectors.size()];
+	
+	// Fill the detector
+	unsigned int Ndet = 0;
+	for(std::vector<NewVIKARDet>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
+		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
+			detectors[Ndet].SetEjectile();
+			if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
+			else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
+			else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
+			else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+		}
+		else{
+			if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
+			else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+				detectors[Ndet].SetRecoil(); 
+				detectors[Ndet].SetEjectile();
+			}
+			detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
+		}
+		
+		// Set the position and rotation
+		detectors[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+		detectors[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+		detectors[Ndet].SetType(iter->type);
+		detectors[Ndet].SetSubtype(iter->subtype);
+		Ndet++;
+	}
+
+	// Report on how many detectors were read in
+	std::cout << " Found " << Ndet << " detectors in file " << argv[1] << "\n\n";
+
+	// Check there's at least 1 detector!
+	if(Ndet < 1){
+		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
+		return 1;
+	}
+
+	double beamspot = 0.0, targangle = 0.0;
+	unsigned int Nwanted = 0;
+	unsigned int total_found = 0;
+	bool WriteReaction = false;
+
+	beamspot = proper_value("Enter source FWHM (m) (0 for point source): ", 0.0, true);
+	if(beamspot > 0.0){ targangle = proper_value("Enter target angle (degrees): ", 0.0, true); }
+	std::cout << " Write reaction data? "; std::cin >> WriteReaction; 
+
+	DataPack pack;
+
+	unsigned int Nbins;
+	double startAngle;
+	double stopAngle;
+
+	if(do_hist_run){
+		Nbins = (unsigned int)proper_value("Enter number of CoM bins: ", 0.0, false);
+		startAngle = proper_value("Enter start CoM angle (degrees): ", 0.0, true);
+		stopAngle = proper_value("Enter stop CoM angle (degrees): ", startAngle, false);
+		pack.Open("mcarlo.root", Nbins, startAngle, stopAngle, WriteReaction);
+	}
+	else{ pack.Open("mcarlo.root", 1, 0, 1, WriteReaction); }
+		
+	Nwanted = (unsigned int)proper_value("Enter number of ejectile MC events: ", 0.0, true);
+
+	// Process ejectile detectors
+	if(Nwanted > 0){
+		std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
+		total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, true);
+		if(do_hist_run){
+			//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+		}
+		
+		std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
+	}
+
+	Nwanted = (unsigned int)proper_value("Enter number of recoil MC events: ", 0.0, true);
+
+	// Process recoil detectors
+	if(Nwanted > 0){
+		std::cout << "  Performing Monte Carlo test on recoil detectors...\n";
+		total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, false);
+		if(do_hist_run){
+			//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+		}
+		
+		std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
+	}
+
+	std::cout << " Finished geometric efficiency test on detector setup...\n";
+	
+	delete[] detectors;
+
+	return 0;
+}

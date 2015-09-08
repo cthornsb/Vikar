@@ -111,14 +111,14 @@ LONG	Structure for storing information about the reaction
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-vector:double	reactE	
-vector:double	reactCOM	
-vector:double	reactX	
-vector:double	reactY	
-vector:double	reactZ	
-vector:double	trajectoryX	
-vector:double	trajectoryY	
-vector:double	trajectoryZ	
+double	reactE	
+double	reactCOM	
+double	reactX	
+double	reactY	
+double	reactZ	
+double	trajectoryX	
+double	trajectoryY	
+double	trajectoryZ	
 
 # Trace output data types and names (must end with _wave)
 # type	name	description

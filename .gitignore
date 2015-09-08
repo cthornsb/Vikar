@@ -1,8 +1,15 @@
+# VIKAR files #
+###############
+input/*
+detectors/*
+xsections/*
+
 # Root files and data files #
 #############################
 *.root
 *.dat
 *.out 
+*.pcm
 RootDict.cpp
 RootDict.h
 Structures.cpp
@@ -24,4 +31,6 @@ kindist
 root2raw
 integrator
 range
+eloss
+testSetup
 elastic.sh

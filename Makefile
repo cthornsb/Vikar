@@ -1,21 +1,20 @@
 #####################################################################
 
 # Set the RootPixieScan directory
-PIXIE_SCAN_DIR = /home/cthorns/RootPixieScan
+PIXIE_SCAN_DIR = /home/pixie16/cthorns/RootPixieScan
 
 #####################################################################
 
 COMPILER = g++
 
-CFLAGS = -g -fPIC -Wall -O3 `root-config --cflags` -Iinclude
+CFLAGS = -g -fPIC -Wall -O3 -Iinclude
+RFLAGS = -g -fPIC -Wall -O3 `root-config --cflags` -Iinclude
 LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
-SOURCES = vikar_core.cpp detectors.cpp materials.cpp vikar.cpp
-SOURCES2 = vikar_core.cpp detectors.cpp materials.cpp
+SOURCES = vikar_core.cpp detectors.cpp materials.cpp
 OBJECTS = $(addprefix $(OBJ_DIR)/,$(SOURCES:.cpp=.o))
-OBJECTS2 = $(addprefix $(OBJ_DIR)/,$(SOURCES2:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
 INCLUDE_DIR = $(shell pwd)/include
@@ -24,7 +23,6 @@ OBJ_DIR = $(shell pwd)/obj
 
 TOOL_DIR = $(shell pwd)/tools
 TOOL_SRC_DIR = $(TOOL_DIR)/source
-TOOL_OBJ_DIR = $(TOOL_DIR)/obj
 
 DICT_DIR = $(shell pwd)/dict
 DICT_OBJ_DIR = $(DICT_DIR)/obj
@@ -53,13 +51,18 @@ ROOT2RAW_SRC = $(TOOL_SRC_DIR)/root2raw.cpp
 INTEGRATOR_EXE = $(TOOL_DIR)/integrator
 INTEGRATOR_SRC = $(TOOL_SRC_DIR)/Integrator.cpp
 RANGE_EXE = $(TOOL_DIR)/range
-RANGE_OBJ = $(TOOL_OBJ_DIR)/range.o
 RANGE_SRC = $(TOOL_SRC_DIR)/range.cpp
+ELOSS_EXE = $(TOOL_DIR)/eloss
+ELOSS_SRC = $(TOOL_SRC_DIR)/eloss.cpp
+TEST_SETUP_EXE = $(TOOL_DIR)/testSetup
+TEST_SETUP_SRC = $(TOOL_SRC_DIR)/testSetup.cpp
 
-TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) $(INTEGRATOR_EXE) $(RANGE_EXE)
-TOOLS_OBJ = $(RANGE_OBJ)
+TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE)
 
 # Main executable
+MAIN_SRC = $(SOURCE_DIR)/vikar.cpp
+MAIN_OBJ = $(OBJ_DIR)/vikar.o
+
 EXECUTABLE = vikar
 
 ########################################################################
@@ -67,18 +70,22 @@ EXECUTABLE = vikar
 all: directory dictionary $(EXECUTABLE)
 	@echo " Finished Compilation"
 
-dictionary:
+dictionary: directory
 #	Create root dictionary objects
 	@$(PIXIE_SCAN_DIR)/tools/rcbuild.sh -t $(PIXIE_SCAN_DIR)/tools -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
 
-directory: $(OBJ_DIR) $(TOOL_OBJ_DIR)
-#	Make all directories
+directory: $(OBJ_DIR)
+#	Make all directories and setup the default config files
+	@if [ ! -e ./input/default.in ] || [ ! -e ./detectors/default.det ] || [ ! -e ./xsections/default.xsect ]; then \
+		echo " Unpacking default config files"; \
+		tar -xf $(TOP_LEVEL)/config.tar; \
+	fi
 
-libs: $(OBJECTS)
+libs: directory $(OBJECTS)
 #	Make only library objects
 	@echo " Done making libs"
 
-tools: $(TOOLS)
+tools: directory $(TOOLS)
 #	Make all support tools
 	@echo " Done making tools"
 
@@ -88,9 +95,9 @@ $(OBJ_DIR)/%.o: $(SOURCE_DIR)/%.cpp
 #	Compile C++ source files
 	$(COMPILER) -c $(CFLAGS) $< -o $@
 
-$(TOOL_OBJ_DIR)/%.o: $(TOOL_SRC_DIR)/%.cpp
-#	Compile C++ source files
-	$(COMPILER) -c $(CFLAGS) $< -o $@
+$(MAIN_OBJ): $(MAIN_SRC)
+#	Compile the main
+	$(COMPILER) -c $(RFLAGS) $< -o $@
 
 #####################################################################
 
@@ -100,41 +107,40 @@ $(OBJ_DIR):
 		echo "Making directory: "$@; \
 		mkdir $@; \
 	fi
-	
-$(TOOL_OBJ_DIR):
-#	Make the object file directory
-	@if [ ! -d $@ ]; then \
-		echo "Making directory: "$@; \
-		mkdir $@; \
-	fi
 
 #####################################################################
 
 $(VIKAR_FRONT_EXE): $(VIKAR_FRONT_SRC)
-	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude -o $@ $^
+	$(COMPILER) $(CFLAGS) -o $@ $^
 
 $(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vikar_core.o $(ANGLE_CONVERT_SRC)
-	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+	$(COMPILER) $(CFLAGS) $^ -o $@
 
 $(KINEMATICS_EXE): $(OBJ_DIR)/vikar_core.o $(KINEMATICS_SRC)
-	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+	$(COMPILER) $(CFLAGS) $^ -o $@
 
 $(KINDIST_EXE): $(OBJ_DIR)/vikar_core.o $(KINDIST_SRC)
-	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+	$(COMPILER) $(CFLAGS) $^ -o $@
 
 $(ROOT2RAW_EXE): $(ROOT2RAW_SRC)
-	$(COMPILER) $(CFLAGS) $^ -o $@ $(LDLIBS)
+	$(COMPILER) $(RFLAGS) $^ -o $@ $(LDLIBS)
 
 $(INTEGRATOR_EXE): $(INTEGRATOR_SRC)
-	$(COMPILER) -g -fPIC -Wall -O3 -Iinclude $^ -o $@
+	$(COMPILER) $(CFLAGS) $^ -o $@
 
-$(RANGE_EXE): $(OBJECTS2) $(ROOTOBJ) $(RANGE_OBJ)
-	$(COMPILER) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+$(RANGE_EXE): $(OBJECTS) $(RANGE_SRC)
+	$(COMPILER) $(CFLAGS) $^ -o $@
+
+$(ELOSS_EXE): $(OBJECTS) $(ELOSS_SRC)
+	$(COMPILER) $(CFLAGS) $^ -o $@
+	
+$(TEST_SETUP_EXE): dictionary $(OBJECTS) $(TEST_SETUP_SRC)
+	$(COMPILER) $(RFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) $(TEST_SETUP_SRC) -o $@ $(LDLIBS)
 
 ########################################################################
 
-$(EXECUTABLE): $(OBJECTS)
-	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
+$(EXECUTABLE): $(OBJECTS) dictionary $(MAIN_OBJ)
+	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(MAIN_OBJ) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
 	@echo " Done making "$(EXECUTABLE)
 
 ########################################################################
@@ -164,4 +170,4 @@ clean_dict:
 
 clean_tools:
 	@echo "Removing tools..."
-	@rm -f $(TOOLS) $(TOOLS_OBJ)
+	@rm -f $(TOOLS)

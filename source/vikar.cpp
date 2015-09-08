@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.18"
+#define VERSION "1.19"
 
 struct debugData{
 	double var1, var2, var3;
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]){
 	double beamEspread = 0.0; // Beam energy spread (MeV)
 	double beamAngdiv = 0.0; // Beam angular divergence (radians)
 
-	double timeRes = 3E-9; // Pixie-16 time resolution (s)
+	double timeRes = 2E-9; // Pixie-16 time resolution (s)
 	double BeamRate = 0.0; // Beam rate (1/s)
 	
 	std::string det_fname; // Detector filename
@@ -152,7 +152,6 @@ int main(int argc, char* argv[]){
 	bool ADists = false;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
-	bool TestSetup = false;
 	bool DoRutherford = false;
 	bool CylindricalBeam = true;
 
@@ -364,16 +363,12 @@ int main(int argc, char* argv[]){
 				// Write Debug data to file?
 				SetBool(input, "  Write Debug Info", WriteDebug);
 			}
-			else if(count == 24){
-				// Perform monte carlo simulation on detector setup?
-				SetBool(input, "  Test Detector Setup", TestSetup);
-			}
 			
 			count++;
 		}
 		
 		input_file.close();
-		if(count <= 24){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		if(count <= 23){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
 		std::cout << " Error! Missing required variable\n";
@@ -450,21 +445,6 @@ int main(int argc, char* argv[]){
 	if(Ndet< 1){
 		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
 		return 1;
-	}
-
-	if(TestSetup){
-		std::cout << "  Performing Monte Carlo test...\n";
-		//unsigned int total_found = TestDetSetup(vandle_bars, Ndet, Nwanted, WriteReaction, beamspot, targ.GetAngle());
-		unsigned int total_found = TestDetSetup(vandle_bars, &kind, Ndet, Nwanted, Ebeam0, 180, 0.0, 180.0, beamspot, targ.GetAngle());
-		std::cout << "  Found " << Nwanted << " events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n";
-		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
-		std::cout << " Finished geometric efficiency test on detector setup...\n";
-
-		// Continue simulation after test?
-		if(!Prompt("\n Continue with Vikar simulation?")){
-			std::cout << "  ABORTING...\n";
-			return 1;
-		}
 	}
 
 	// Load VIKAR material files
@@ -723,6 +703,7 @@ int main(int argc, char* argv[]){
 			// The 1m offset ensures the particle originates outside the target
 			if(CylindricalBeam){ RandomCircle(beamspot, 1.0, lab_beam_start); } 
 			else{ RandomGauss(beamspot, 1.0, lab_beam_start); } 
+			lab_beam_start.axis[2] *= -1; // This is done to place the beam particle upstream of the target
 			Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 		}	
 
@@ -830,7 +811,8 @@ process:
 				fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
 				temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
-				
+				dist_traveled = 0.0;
+
 				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
 						if(Zeject > 0){ // Calculate energy loss for the ejectile in the detector

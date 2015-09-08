@@ -273,8 +273,8 @@ class Particle{
 		SetParticle(name_, Z_, A_); 
 		init = false;
 	}
-	Particle(std::string name_, double Z_, double A_, double mass_){ 
-		SetParticle(name_, Z_, A_, mass_); 
+	Particle(std::string name_, double Z_, double A_, double BE_A_){ 
+		SetParticle(name_, Z_, A_, BE_A_); 
 		init = false;
 	}
 	
@@ -299,6 +299,7 @@ class Particle{
 	double GetMaxE(){ return maxE; } // Return the maximum particle energy (MeV)
 	std::string GetName(){ return name; }
 	Material *GetMaterial(){ return mat; }
+	RangeTable *GetTable(){ return &table; }
 	
 	double GetEnergy(double range_){ 
 		if(!init){ return -1.0; }
