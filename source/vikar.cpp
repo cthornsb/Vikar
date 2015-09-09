@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.19b"
+#define VERSION "1.19c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -771,7 +771,10 @@ int main(int argc, char* argv[]){
 			// interaction point, due to angular straggling and the incident trajectory.
 			targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
 		}
-		else{ Ereact = Ebeam; }
+		else{ 
+			Ereact = Ebeam; 
+			lab_beam_stragtraject = lab_beam_trajectory;
+		}
 
 		// the 2 body kinematics routine to generate the ejectile and recoil
 		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
@@ -790,11 +793,13 @@ int main(int argc, char* argv[]){
 		rotation_matrix.Transform(Recoil);
 
 		// Calculate the energy loss for the ejectile and recoils in the target
-		/*if(Zeject > 0){
-			range_eject = eject_targ->GetRange(Eeject);
-		}
-		if(Zrecoil > 0){
-			range_recoil = recoil_targ->GetRange(Erecoil);
+		/*if(use_target_eloss){
+			if(Zeject > 0){
+				range_eject = eject_targ->GetRange(Eeject);
+			}
+			if(Zrecoil > 0){
+				range_recoil = recoil_targ->GetRange(Erecoil);
+			}
 		}*/
 		
 		if(WriteDebug){ 
@@ -846,7 +851,7 @@ process:
 					}
 					else{ 
 						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
-							QDC = Erecoil - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(Erecoil, penetration);		
+							QDC = Erecoil - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(Erecoil, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
@@ -897,14 +902,14 @@ process:
 			if(proc_eject){ 
 				proc_eject = false; 
 				if(vandle_bars[bar].IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
-			}			
+			}
 		} // for(unsigned int bar = 0; bar < Ndet; bar++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
-					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2], com_angle*rad2deg);
+					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				VIKARtree->Fill(); 
 				Ndetected++;
@@ -914,8 +919,8 @@ process:
 			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
-					REACTIONdata.Append(Ereact, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2], com_angle*rad2deg);
+					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				VIKARtree->Fill(); 
 				Ndetected++;
