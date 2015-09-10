@@ -126,3 +126,38 @@ END_TYPES
 
 # End this class
 END_CLASS
+
+#####################################################################
+# MonteCarlo
+#####################################################################
+# Class name
+BEGIN_CLASS	MonteCarlo
+
+# Short class description
+SHORT	Monte Carlo detector test information
+
+# Longer class description
+LONG	Structure for storing information about Monte Carlo hits on the detector setup
+
+# Data types and names
+# type	name	description
+BEGIN_TYPES
+vector:double	face1_hitX	X component of the entrance face intersect
+vector:double	face1_hitY	Y component of the entrance face intersect
+vector:double	face1_hitZ	Z component of the entrance face intersect
+vector:double	face2_hitX	X component of the exit face intersect
+vector:double	face2_hitY	Y component of the exit face intersect
+vector:double	face2_hitZ	Z component of the exit face intersect
+vector:double	hitTheta	Theta lab angle of the detector intersection
+vector:double	hitPhi	Phi lab angle of the detector intersection
+vector:int	face1_ID	ID of the face where the ray enters the detector
+vector:int	face2_ID	ID of the face where the ray exits the detector
+vector:int	location	The detector location in the detector setup file
+vector:int	type	Type of detector (0 == ejectile, 1 == recoil, 2 == both)
+
+# Trace output data types and names (must end with _wave)
+# type	name	description
+END_TYPES
+
+# End this class
+END_CLASS

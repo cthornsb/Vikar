@@ -14,8 +14,7 @@ struct DataPack{
 	TH1D *hist;
 	bool init;
 
-	EjectObjectStructure EJECTdata;
-	RecoilObjectStructure RECOILdata;
+	MonteCarloStructure MCARLOdata;
 	ReactionObjectStructure REACTIONdata;
 
 	DataPack(){
@@ -48,8 +47,7 @@ struct DataPack{
 		tree = new TTree("VIKAR", "Monte carlo detector efficiency tree");
 		hist = new TH1D("hist", "Detector Hits vs. CoM Angle", Nbins_, low_, high_);
 		
-		tree->Branch("Eject", &EJECTdata);
-		tree->Branch("Recoil", &RECOILdata);
+		tree->Branch("MCarlo", &MCARLOdata);
 		if(write_rxn_){ tree->Branch("Reaction", &REACTIONdata); }
 		
 		return (init = true);
@@ -71,8 +69,7 @@ struct DataPack{
 	}
 	
 	void Zero(){
-		EJECTdata.Zero();
-		RECOILdata.Zero();
+		MCARLOdata.Zero();
 		REACTIONdata.Zero();
 	}
 };
@@ -109,10 +106,8 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, unsigned int num_ba
 	Vector3 temp_vector1;
 	Vector3 temp_vector2;
 	Vector3 temp_ray, offset, dummyVector;
-	int face1, face2;
-	
-	double penetration, dist_traveled;
-	double fpath1, fpath2;
+	int face1, face2, type;
+	bool found_hit;
 	
 	Matrix3 matrix;
 	bool use_gaussian_beam = true;
@@ -126,8 +121,10 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, unsigned int num_ba
 		matrix.SetRotationMatrixSphere(angle_, 0.0);
 	}
 	
-	total = 0; count = 0;
+	total = 0; count = 0; type = 0;
 	while(count < num_trials){
+		found_hit = false;
+	
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
 		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
 			double x_offset = rndgauss0(fwhm_);
@@ -143,43 +140,32 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, unsigned int num_ba
 		}
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
-				flight_path = (temp_vector2-temp_vector1); // The vector pointing from the first intersection point to the second
-				penetration = frand(); // The fraction of the bar which the neutron travels through
-				dist_traveled = flight_path.Length()*penetration; // Random distance traveled through bar
-				fpath1 = temp_vector1.Length(); // Distance from reaction to first intersection point
-				fpath2 = temp_vector2.Length(); // Distance from reaction to second intersection point
-		
-				// Calculate the total distance traveled and the interaction point inside the detector
-				if(fpath1 <= fpath2){ 
-					dist_traveled += fpath1; 
-					flight_path = temp_vector1 + flight_path*penetration;
+				if(bar_array[bar].IsEjectileDet()){
+					if(bar_array[bar].IsRecoilDet()){ type = 2; } // Both ejectile & recoil
+					else{ type = 0; } // Ejectile
 				}
-				else{ 
-					dist_traveled += fpath2; 
-					flight_path = temp_vector2 + flight_path*penetration;
-				}
-
+				else if(bar_array[bar].IsRecoilDet()){ type = 1; } // Recoil
+				else{ continue; }
+				
 				dummyVector = (offset + temp_ray);
 				Cart2Sphere(dummyVector.axis[0], dummyVector.axis[1], dummyVector.axis[2], dummyR, hitTheta, hitPhi);
 				
-				if(ejectile_ && bar_array[bar].IsEjectileDet()){
-					pack->EJECTdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
-					count++;
+				// Is this a valid event?
+				if(type == 2 || (ejectile_ && type == 0) || (!ejectile_ && type == 1)){
+					pack->MCARLOdata.Append(temp_vector1.axis[0], temp_vector1.axis[1], temp_vector1.axis[2],
+										   temp_vector2.axis[0], temp_vector2.axis[1], temp_vector2.axis[2],
+										   hitTheta*rad2deg, hitPhi*rad2deg, face1, face2, bar, type);
+					found_hit = true;
 				}
-				else if(!ejectile_ && bar_array[bar].IsRecoilDet()){
-					pack->RECOILdata.Append(flight_path.axis[0], flight_path.axis[1], flight_path.axis[2], hitTheta*rad2deg, hitPhi*rad2deg, 0.0, 0.0, tempx, tempy, tempz, bar);
-					count++;
-				}
-				
-				break;
 			}
 		}
 		
-		if(WriteRXN_ || pack->EJECTdata.eject_mult > 0 || pack->RECOILdata.recoil_mult > 0){
+		if(WriteRXN_ || found_hit){
 			pack->tree->Fill();
 			pack->REACTIONdata.Zero();
-			pack->EJECTdata.Zero();
-			pack->RECOILdata.Zero();
+			pack->MCARLOdata.Zero();
+			pack->MCARLOdata.Zero();
+			if(found_hit){ count++; }
 		}
 		
 		total++;
@@ -287,7 +273,7 @@ int main(int argc, char *argv[]){
 	bool do_hist_run = false;
 
 	// Read VIKAR detector setup file or manually setup simple systems
-	std::cout << "\n Reading in NewVIKAR detector setup file...\n";
+	std::cout << " Reading in NewVIKAR detector setup file...\n";
 	std::ifstream detfile(argv[1]);
 	if(!detfile.good()){ 
 		std::cout << " Error: failed to load detector setup file!\n";
@@ -312,21 +298,19 @@ int main(int argc, char *argv[]){
 	// Fill the detector
 	unsigned int Ndet = 0;
 	for(std::vector<NewVIKARDet>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
-		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
-			detectors[Ndet].SetEjectile();
-			if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
-			else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
-			else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
-			else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-		}
-		else{
-			if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
-			else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+		// Set the detector type
+		if(iter->type == "eject" || iter->type == "vandle"){ detectors[Ndet].SetEjectile(); } // Vandle bars only detect ejectiles (neutrons)
+		else if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
+		else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
 				detectors[Ndet].SetRecoil(); 
 				detectors[Ndet].SetEjectile();
-			}
-			detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]);
 		}
+		
+		// Set the detector subtype	
+		if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
+		else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
+		else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
+		else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
 		
 		// Set the position and rotation
 		detectors[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
@@ -336,14 +320,22 @@ int main(int argc, char *argv[]){
 		Ndet++;
 	}
 
-	// Report on how many detectors were read in
-	std::cout << " Found " << Ndet << " detectors in file " << argv[1] << "\n\n";
+	unsigned int Nrecoil = 0;
+	unsigned int Nejectile = 0;
+	for(size_t index = 0; index < temp_detectors.size(); index++){
+		if(detectors[index].IsRecoilDet()){ Nrecoil++; }
+		if(detectors[index].IsEjectileDet()){ Nejectile++; }
+	}
 
 	// Check there's at least 1 detector!
-	if(Ndet < 1){
+	if((Nejectile+Nrecoil) < 1){
 		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
 		return 1;
 	}
+
+	// Report on how many detectors were read in
+	std::cout << " Found " << (Nejectile+Nrecoil) << " detectors in file " << argv[1] << "\n";
+	std::cout << "  " << Nejectile << " ejectile detectors and " << Nrecoil << " recoil detectors\n\n";
 
 	double beamspot = 0.0, targangle = 0.0;
 	unsigned int Nwanted = 0;
@@ -367,32 +359,40 @@ int main(int argc, char *argv[]){
 		pack.Open("mcarlo.root", Nbins, startAngle, stopAngle, WriteReaction);
 	}
 	else{ pack.Open("mcarlo.root", 1, 0, 1, WriteReaction); }
-		
-	Nwanted = (unsigned int)proper_value("Enter number of ejectile MC events: ", 0.0, true);
 
-	// Process ejectile detectors
-	if(Nwanted > 0){
-		std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
-		total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, true);
-		if(do_hist_run){
-			//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+	std::cout << std::endl;
+
+	if(Nejectile > 0){		
+		Nwanted = (unsigned int)proper_value("Enter number of ejectile MC events: ", 0.0, true);
+
+		// Process ejectile detectors
+		if(Nwanted > 0){
+			std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
+			total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, true);
+			if(do_hist_run){
+				//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+			}
+		
+			std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 		}
-		
-		std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 	}
+	else{ std::cout << " Note: Found no ejectile detectors in detector file.\n\n"; }
 
-	Nwanted = (unsigned int)proper_value("Enter number of recoil MC events: ", 0.0, true);
+	if(Nrecoil > 0){
+		Nwanted = (unsigned int)proper_value("Enter number of recoil MC events: ", 0.0, true);
 
-	// Process recoil detectors
-	if(Nwanted > 0){
-		std::cout << "  Performing Monte Carlo test on recoil detectors...\n";
-		total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, false);
-		if(do_hist_run){
-			//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+		// Process recoil detectors
+		if(Nwanted > 0){
+			std::cout << "  Performing Monte Carlo test on recoil detectors...\n";
+			total_found = TestDetSetup(&pack, detectors, Ndet, Nwanted, WriteReaction, beamspot, targangle, false);
+			if(do_hist_run){
+				//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
+			}
+		
+			std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 		}
-		
-		std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 	}
+	else{ std::cout << " Note: Found no recoil detectors in detector file.\n\n"; }
 
 	std::cout << " Finished geometric efficiency test on detector setup...\n";
 	

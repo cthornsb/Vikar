@@ -1,7 +1,7 @@
 #####################################################################
 
 # Set the RootPixieScan directory
-PIXIE_SCAN_DIR = /home/pixie16/cthorns/RootPixieScan
+PIXIE_SCAN_DIR = /home/cory/Research/Pixie16/RootPixieScan
 
 #####################################################################
 
@@ -31,6 +31,9 @@ DICT_OBJ_DIR = $(DICT_DIR)/obj
 DICT_SOURCE = RootDict
 STRUCT_FILE = Structures
 
+DEFINITION_FILE = $(DICT_DIR)/def.struct
+SHARED_OBJ_FILE = $(DICT_OBJ_DIR)/libRootDict.so
+
 ROOTOBJ = $(DICT_OBJ_DIR)/$(DICT_SOURCE).o 
 ROOTOBJ += $(OBJ_DIR)/$(STRUCT_FILE).o
 SFLAGS = $(addprefix -l,$(DICT_SOURCE))
@@ -56,8 +59,11 @@ ELOSS_EXE = $(TOOL_DIR)/eloss
 ELOSS_SRC = $(TOOL_SRC_DIR)/eloss.cpp
 TEST_SETUP_EXE = $(TOOL_DIR)/testSetup
 TEST_SETUP_SRC = $(TOOL_SRC_DIR)/testSetup.cpp
+TEST_VIEWER_EXE = $(TOOL_DIR)/testViewer
+TEST_VIEWER_SRC = $(TOOL_SRC_DIR)/testViewer.cpp
 
-TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE)
+TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) \
+        $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE) $(TEST_VIEWER_EXE)
 
 # Main executable
 MAIN_SRC = $(SOURCE_DIR)/vikar.cpp
@@ -67,27 +73,32 @@ EXECUTABLE = vikar
 
 ########################################################################
 
-all: directory dictionary $(EXECUTABLE)
-	@echo " Finished Compilation"
+$(EXECUTABLE): $(OBJ_DIR) $(SHARED_OBJ_FILE) $(OBJECTS) $(MAIN_OBJ)
+#	Link the executable
+	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(MAIN_OBJ) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
+	@echo " Done making "$(EXECUTABLE)
 
-dictionary: directory
-#	Create root dictionary objects
-	@$(PIXIE_SCAN_DIR)/tools/rcbuild.sh -t $(PIXIE_SCAN_DIR)/tools -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
-
-directory: $(OBJ_DIR)
 #	Make all directories and setup the default config files
 	@if [ ! -e ./input/default.in ] || [ ! -e ./detectors/default.det ] || [ ! -e ./xsections/default.xsect ]; then \
 		echo " Unpacking default config files"; \
 		tar -xf $(TOP_LEVEL)/config.tar; \
 	fi
 
-libs: directory $(OBJECTS)
+########################################################################
+
+$(SHARED_OBJ_FILE): $(OBJ_DIR) $(DEFINITION_FILE)
+#	Create root dictionary objects
+	@$(PIXIE_SCAN_DIR)/tools/rcbuild.sh -t $(PIXIE_SCAN_DIR)/tools -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
+
+libs: $(OBJ_DIR) $(OBJECTS)
 #	Make only library objects
 	@echo " Done making libs"
 
-tools: directory $(TOOLS)
+tools: $(TOOLS)
 #	Make all support tools
 	@echo " Done making tools"
+	
+.PHONY: libs tools install tidy clean clean_obj clean_dict clean_tools
 
 #####################################################################
 
@@ -103,10 +114,7 @@ $(MAIN_OBJ): $(MAIN_SRC)
 
 $(OBJ_DIR):
 #	Make the object file directory
-	@if [ ! -d $@ ]; then \
-		echo "Making directory: "$@; \
-		mkdir $@; \
-	fi
+	mkdir -p $@
 
 #####################################################################
 
@@ -134,14 +142,11 @@ $(RANGE_EXE): $(OBJECTS) $(RANGE_SRC)
 $(ELOSS_EXE): $(OBJECTS) $(ELOSS_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 	
-$(TEST_SETUP_EXE): dictionary $(OBJECTS) $(TEST_SETUP_SRC)
+$(TEST_SETUP_EXE): $(SHARED_OBJ_FILE) $(OBJECTS) $(TEST_SETUP_SRC)
 	$(COMPILER) $(RFLAGS) $(OBJECTS) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) $(TEST_SETUP_SRC) -o $@ $(LDLIBS)
-
-########################################################################
-
-$(EXECUTABLE): $(OBJECTS) dictionary $(MAIN_OBJ)
-	$(COMPILER) $(LDFLAGS) $(OBJECTS) $(MAIN_OBJ) $(ROOTOBJ) -L$(DICT_OBJ_DIR) $(SFLAGS) -o $@ $(LDLIBS)
-	@echo " Done making "$(EXECUTABLE)
+	
+$(TEST_VIEWER_EXE): $(TEST_VIEWER_SRC)
+	$(COMPILER) $(RFLAGS) $^ -o $@ $(LDLIBS)
 
 ########################################################################
 

@@ -10,6 +10,7 @@ xsections/*
 *.dat
 *.out 
 *.pcm
+*.bkp
 RootDict.cpp
 RootDict.h
 Structures.cpp
@@ -33,4 +34,5 @@ integrator
 range
 eloss
 testSetup
+testViewer
 elastic.sh
