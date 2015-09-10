@@ -37,6 +37,7 @@ Planar::Planar(){
 	use_material = false;
 	type = "unknown";
 	subtype = "unknown";
+	material_name = "";
 }
 
 // Set the global face coordinates (wrt global origin)
@@ -406,49 +407,53 @@ std::string Wall::DumpDetWall(){
 // Returns the number of detectors loaded from the file
 // Assumes the following detector file format for each bar in file
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
-unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector){
+int ReadDetFile(const char* fname_, Planar* &detectors){
+	if(detectors){ delete[] detectors; }
+
+	// Read VIKAR detector setup file or manually setup simple systems
 	std::ifstream detfile(fname_);
-	if(!detfile.good()){ return 0; }
-	bar_vector.clear();
-	
-	std::vector<NewVIKARDet> detectors;
+	if(!detfile.good()){ return -1; }
+
+	std::vector<NewVIKARDet> temp_detectors;
 	std::string line;
 
 	while(true){
 		getline(detfile, line);
 		if(detfile.eof()){ break; }
 		if(line[0] == '#'){ continue; } // Commented line
-	
-		detectors.push_back(NewVIKARDet(line));
+
+		temp_detectors.push_back(NewVIKARDet(line));
 	}	
 	detfile.close();
+
+	// Generate the Planar bar arrays
+	detectors = new Planar[temp_detectors.size()];
+
+	// Fill the detector
+	int Ndet = 0;
+	for(std::vector<NewVIKARDet>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
+		// Set the detector type
+		if(iter->type == "eject" || iter->type == "vandle"){ detectors[Ndet].SetEjectile(); } // Vandle bars only detect ejectiles (neutrons)
+		else if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
+		else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
+				detectors[Ndet].SetRecoil(); 
+				detectors[Ndet].SetEjectile();
+		}
 	
-	Planar *current_det;
-	for(std::vector<NewVIKARDet>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
-		current_det = new Planar();
-		if(iter->type == "vandle"){ // Vandle bars only detect ejectiles (neutrons)
-			current_det->SetEjectile();
-			if(iter->subtype == "small"){ current_det->SetSmall(); }
-			else if(iter->subtype == "medium"){ current_det->SetMedium(); }
-			else if(iter->subtype == "large"){ current_det->SetLarge(); }
-			else{ current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-		}
-		else{
-			if(iter->type == "recoil"){ current_det->SetRecoil(); } // Recoil detectors only detect recoils
-			else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
-				current_det->SetRecoil(); 
-				current_det->SetEjectile();
-			}
-			current_det->SetSize(iter->data[6],iter->data[7],iter->data[8]);
-		}
-		
+		// Set the detector subtype	
+		if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
+		else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
+		else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
+		else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
+	
 		// Set the position and rotation
-		current_det->SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
-		current_det->SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
-		current_det->SetType(iter->type);
-		current_det->SetSubtype(iter->subtype);
-		bar_vector.push_back(current_det);
+		detectors[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
+		detectors[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
+		detectors[Ndet].SetType(iter->type);
+		detectors[Ndet].SetSubtype(iter->subtype);
+		detectors[Ndet].SetMaterialName(iter->material);
+		Ndet++;
 	}
 	
-	return bar_vector.size();
+	return Ndet;
 }

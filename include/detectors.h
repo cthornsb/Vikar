@@ -105,6 +105,7 @@ class Planar{
 	bool use_recoil;
 	bool use_eject;
 	std::string type, subtype;
+	std::string material_name;
     
     public:
 	Planar();
@@ -131,6 +132,8 @@ class Planar{
 	std::string GetType(){ return type; }
 
 	std::string GetSubtype(){ return subtype; }
+	
+	std::string GetMaterialName(){ return material_name; }
 
 	// Return the local bar frame coordinates of a global coordinate
 	void GetLocalCoords(const Vector3&, double&, double&, double&);
@@ -151,6 +154,8 @@ class Planar{
 		material_id = material_id_; 
 		use_material = true;
 	}
+	
+	void SetMaterialName(std::string name_){ material_name = name_; }
 
 	void SetType(std::string type_){ type = type_; }
 
@@ -280,6 +285,6 @@ unsigned int ReadEffFile(const char*, double*, double*);
 // Returns the number of detectors loaded from the file
 // Assumes the following detector file format for each bar in file
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
-unsigned int ReadDetFile(const char* fname_, std::vector<Planar*> &bar_vector);
+int ReadDetFile(const char* fname_, Planar* &detectors);
 
 #endif

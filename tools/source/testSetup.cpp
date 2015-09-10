@@ -272,64 +272,26 @@ int main(int argc, char *argv[]){
 
 	bool do_hist_run = false;
 
-	// Read VIKAR detector setup file or manually setup simple systems
+	Planar *detectors = NULL;
+
 	std::cout << " Reading in NewVIKAR detector setup file...\n";
-	std::ifstream detfile(argv[1]);
-	if(!detfile.good()){ 
+	int Ndet = ReadDetFile(argv[1], detectors);
+	if(Ndet < 0){
 		std::cout << " Error: failed to load detector setup file!\n";
 		return 1; 
 	}
-	
-	std::vector<NewVIKARDet> temp_detectors;
-	std::string line;
-
-	while(true){
-		getline(detfile, line);
-		if(detfile.eof()){ break; }
-		if(line[0] == '#'){ continue; } // Commented line
-	
-		temp_detectors.push_back(NewVIKARDet(line));
-	}	
-	detfile.close();
-
-	// Generate the Planar bar arrays
-	Planar *detectors = new Planar[temp_detectors.size()];
-	
-	// Fill the detector
-	unsigned int Ndet = 0;
-	for(std::vector<NewVIKARDet>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
-		// Set the detector type
-		if(iter->type == "eject" || iter->type == "vandle"){ detectors[Ndet].SetEjectile(); } // Vandle bars only detect ejectiles (neutrons)
-		else if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
-		else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
-				detectors[Ndet].SetRecoil(); 
-				detectors[Ndet].SetEjectile();
-		}
-		
-		// Set the detector subtype	
-		if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
-		else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
-		else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
-		else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-		
-		// Set the position and rotation
-		detectors[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
-		detectors[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
-		detectors[Ndet].SetType(iter->type);
-		detectors[Ndet].SetSubtype(iter->subtype);
-		Ndet++;
-	}
+	else if(Ndet == 0){ std::cout << " Error: Found no detectors in the detector setup file!\n"; }
 
 	unsigned int Nrecoil = 0;
 	unsigned int Nejectile = 0;
-	for(size_t index = 0; index < temp_detectors.size(); index++){
+	for(int index = 0; index < Ndet; index++){
 		if(detectors[index].IsRecoilDet()){ Nrecoil++; }
 		if(detectors[index].IsEjectileDet()){ Nejectile++; }
 	}
 
 	// Check there's at least 1 detector!
 	if((Nejectile+Nrecoil) < 1){
-		std::cout << " Error: Found no detectors. Check that the filename is correct\n"; 
+		std::cout << " Error: Found no valid detectors in the detector setup file!\n"; 
 		return 1;
 	}
 
