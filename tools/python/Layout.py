@@ -193,7 +193,6 @@ class VandleBar:
 	def GetSubtendedPhi(self, R):
 		return 2*math.asin(1/math.sqrt((2*R/self.body.width)**2 + 1))
 
-
 # Class for the drawing of the lab model
 class BeExpSetup:
 	def __init__(self, room_=1, beam_axis_=0, target_pos_=(0,0,0)):
@@ -215,48 +214,48 @@ class BeExpSetup:
 		self.Walls = []
 		self.Columns = []
 		self.Others = []		
-		
-		if(self.room == 1): self.BuildRoom1()
-		elif(self.room == 2): self.BuildRoom2()
 
-		chamber_radius = 0.25
-		self.Beamline1 = visual.cylinder(pos=Translate(self.target_pos,GetCartesianCoords(chamber_radius, math.pi/2.0, DegToRad(180+self.beam_axis))), axis=ConvIM3(71.75,0,-71.75*math.tan(DegToRad(180-self.beam_axis))), radius=ConvIM(1.75), color=visual.color.blue) # East beamline
-		self.Beamline2 = visual.cylinder(pos=Translate(self.target_pos,GetCartesianCoords(chamber_radius, math.pi/2.0, DegToRad(self.beam_axis))), axis=ConvIM3(-217.5,0,217.5*math.tan(DegToRad(180-self.beam_axis))), radius=ConvIM(1.75), color=visual.color.blue) # West beamline
-		self.OneMeterChamber = visual.cylinder(pos=self.target_pos, axis=(0,chamber_radius*2,0), radius=chamber_radius, color=visual.color.blue)
-		self.OneMeterChamber.pos[1] = -0.5
+		self.BuildRoom()
+
+		if(self.room == 1 or self.room == 2):
+			chamber_radius = 0.25
+			self.Beamline1 = visual.cylinder(pos=Translate(self.target_pos,GetCartesianCoords(chamber_radius, math.pi/2.0, DegToRad(180+self.beam_axis))), axis=ConvIM3(71.75,0,-71.75*math.tan(DegToRad(180-self.beam_axis))), radius=ConvIM(1.75), color=visual.color.blue) # East beamline
+			self.Beamline2 = visual.cylinder(pos=Translate(self.target_pos,GetCartesianCoords(chamber_radius, math.pi/2.0, DegToRad(self.beam_axis))), axis=ConvIM3(-217.5,0,217.5*math.tan(DegToRad(180-self.beam_axis))), radius=ConvIM(1.75), color=visual.color.blue) # West beamline
+			self.OneMeterChamber = visual.cylinder(pos=self.target_pos, axis=(0,chamber_radius*2,0), radius=chamber_radius, color=visual.color.blue)
+			self.OneMeterChamber.pos[1] = -0.5
 			
-	def BuildRoom1(self):
-		self.Floors.append(visual.box(pos=ConvIM3(0,-69.0,24.625), axis=ConvIM3(241.5,0,0), width=ConvIM(346.5), height=0.01)) # Main floor
-		self.Floors.append(visual.box(pos=ConvIM3(144.625,-69.0,0), axis=ConvIM3(47.75,0,0), width=ConvIM(72.75), height=0.01)) # Beam pipe access floor
-		self.Walls.append(visual.box(pos=ConvIM3(0.0,29.425,-148.625), axis=ConvIM3(241.5,0.0,0.0), width=0.01, height=ConvIM(196.85))) # North Wall
-		self.Walls.append(visual.box(pos=ConvIM3(0.0,29.425,197.875), axis=ConvIM3(241.5,0.0,0.0), width=0.01, height=ConvIM(196.85)))	# South Wall
-		self.Walls.append(visual.box(pos=ConvIM3(120.75,29.425,-92.5), axis=(0.01,0,0), width=ConvIM(112.25), height=ConvIM(196.85))) # North-East Wall
-		self.Walls.append(visual.box(pos=ConvIM3(144.625,-27.125,-36.375), axis=ConvIM3(47.75,0,0), width=0.01, height=ConvIM(83.75))) # North beam pipe access wall
-		self.Walls.append(visual.box(pos=ConvIM3(168.5,-27.125,0), axis=(0.01,0,0), width=ConvIM(72.75), height=ConvIM(83.75))) # East beam pipe access wall
-		self.Walls.append(visual.box(pos=ConvIM3(120.75,71.3,0), axis=(0.01,0,0), width=ConvIM(72.75), height=ConvIM(113.1))) # Opening header wall
-		self.Walls.append(visual.box(pos=ConvIM3(144.625,-27.125,36.375), axis=ConvIM3(47.75,0,0), width=0.01, height=ConvIM(83.75))) # South beam pipe access wall
-		self.Walls.append(visual.box(pos=ConvIM3(120.75,29.425,117.125), axis=(0.01,0,0), width=ConvIM(161.5), height=ConvIM(196.85))) # South-East Wall
-		self.Others.append(visual.box(pos=ConvIM3(96.75,-9.04,114.385), axis=ConvIM3(48.0,0,0), width=ConvIM(156.02), height=ConvIM(119.92))) # Shield door
-		self.Columns.append(visual.box(pos=ConvIM3(-93.75,29.425,109.375), axis=ConvIM3(14.0,0,0), width=ConvIM(14), height=ConvIM(196.85))) # South Column
-		self.Columns.append(visual.box(pos=ConvIM3(-93.75,29.425,-148.625), axis=ConvIM3(14.0,0,0), width=ConvIM(14), height=ConvIM(196.85))) # North Column
-
-	def BuildRoom2(self):
-		self.Floors.append(visual.box(axis=(19.1, 0, 0), width=9.5, height=0.01)) # Main floor
-		self.Floors.append(visual.box(pos=(-6.85, 0, -7.8), axis=(5.4, 0, 0), width=6.1, height=0.01)) # Small northern floor
-		self.Walls.append(visual.box(pos=(-9.55, 0, -3.05), axis=(0.01, 0, 0), width=15.6, height=5)) # West wall 
-		self.Walls.append(visual.box(pos=(9.55, 0, 0), axis=(0.01, 0, 0), width=9.5, height=5)) # East wall
-		self.Walls.append(visual.box(pos=(0, 0, 4.75), axis=(19.1, 0, 0), width=0.01, height=5)) # South wall
-		self.Walls.append(visual.box(pos=(2.7, 0, -4.75), axis=(13.9, 0, 0), width=0.01, height=5)) # North Wall
-		self.Walls.append(visual.box(pos=(-4.15, 0, -7.8), axis=(0.01, 0, 0), width=6.1, height=5)) # East small wall
-		self.Walls.append(visual.box(pos=(-6.85, 0, -10.85), axis=(5.4, 0, 0), width=0.01, height=5)) # North small wall
-		self.Others.append(visual.box(pos=(9.25, 0, -0.95), axis=(0.6, 0, 0), width=4.1, height=5)) # Shield wall
-		self.Columns.append(visual.box(pos=(-7.65, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Southernmost row column a
-		self.Columns.append(visual.box(pos=(-2.05, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5))	# Southernmost row column b
-		self.Columns.append(visual.box(pos=(3.55, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Southernmost row column c
-		self.Columns.append(visual.box(pos=(-7.65, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Middle row column a
-		self.Columns.append(visual.box(pos=(-2.05, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Middle row column b
-		self.Columns.append(visual.box(pos=(3.55, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5))	# Middle row column c
-		self.Columns.append(visual.box(pos=(-7.65, 0, -10.75), axis=(0.6, 0, 0), width=0.6, height=5)) # Northernmost row column a
+	def BuildRoom(self):
+		if(self.room == 1):
+			self.Floors.append(visual.box(pos=ConvIM3(0,-69.0,24.625), axis=ConvIM3(241.5,0,0), width=ConvIM(346.5), height=0.01)) # Main floor
+			self.Floors.append(visual.box(pos=ConvIM3(144.625,-69.0,0), axis=ConvIM3(47.75,0,0), width=ConvIM(72.75), height=0.01)) # Beam pipe access floor
+			self.Walls.append(visual.box(pos=ConvIM3(0.0,29.425,-148.625), axis=ConvIM3(241.5,0.0,0.0), width=0.01, height=ConvIM(196.85))) # North Wall
+			self.Walls.append(visual.box(pos=ConvIM3(0.0,29.425,197.875), axis=ConvIM3(241.5,0.0,0.0), width=0.01, height=ConvIM(196.85)))	# South Wall
+			self.Walls.append(visual.box(pos=ConvIM3(120.75,29.425,-92.5), axis=(0.01,0,0), width=ConvIM(112.25), height=ConvIM(196.85))) # North-East Wall
+			self.Walls.append(visual.box(pos=ConvIM3(144.625,-27.125,-36.375), axis=ConvIM3(47.75,0,0), width=0.01, height=ConvIM(83.75))) # North beam pipe access wall
+			self.Walls.append(visual.box(pos=ConvIM3(168.5,-27.125,0), axis=(0.01,0,0), width=ConvIM(72.75), height=ConvIM(83.75))) # East beam pipe access wall
+			self.Walls.append(visual.box(pos=ConvIM3(120.75,71.3,0), axis=(0.01,0,0), width=ConvIM(72.75), height=ConvIM(113.1))) # Opening header wall
+			self.Walls.append(visual.box(pos=ConvIM3(144.625,-27.125,36.375), axis=ConvIM3(47.75,0,0), width=0.01, height=ConvIM(83.75))) # South beam pipe access wall
+			self.Walls.append(visual.box(pos=ConvIM3(120.75,29.425,117.125), axis=(0.01,0,0), width=ConvIM(161.5), height=ConvIM(196.85))) # South-East Wall
+			self.Others.append(visual.box(pos=ConvIM3(96.75,-9.04,114.385), axis=ConvIM3(48.0,0,0), width=ConvIM(156.02), height=ConvIM(119.92))) # Shield door
+			self.Columns.append(visual.box(pos=ConvIM3(-93.75,29.425,109.375), axis=ConvIM3(14.0,0,0), width=ConvIM(14), height=ConvIM(196.85))) # South Column
+			self.Columns.append(visual.box(pos=ConvIM3(-93.75,29.425,-148.625), axis=ConvIM3(14.0,0,0), width=ConvIM(14), height=ConvIM(196.85))) # North Column
+		elif(self.room == 2):
+			self.Floors.append(visual.box(axis=(19.1, 0, 0), width=9.5, height=0.01)) # Main floor
+			self.Floors.append(visual.box(pos=(-6.85, 0, -7.8), axis=(5.4, 0, 0), width=6.1, height=0.01)) # Small northern floor
+			self.Walls.append(visual.box(pos=(-9.55, 0, -3.05), axis=(0.01, 0, 0), width=15.6, height=5)) # West wall 
+			self.Walls.append(visual.box(pos=(9.55, 0, 0), axis=(0.01, 0, 0), width=9.5, height=5)) # East wall
+			self.Walls.append(visual.box(pos=(0, 0, 4.75), axis=(19.1, 0, 0), width=0.01, height=5)) # South wall
+			self.Walls.append(visual.box(pos=(2.7, 0, -4.75), axis=(13.9, 0, 0), width=0.01, height=5)) # North Wall
+			self.Walls.append(visual.box(pos=(-4.15, 0, -7.8), axis=(0.01, 0, 0), width=6.1, height=5)) # East small wall
+			self.Walls.append(visual.box(pos=(-6.85, 0, -10.85), axis=(5.4, 0, 0), width=0.01, height=5)) # North small wall
+			self.Others.append(visual.box(pos=(9.25, 0, -0.95), axis=(0.6, 0, 0), width=4.1, height=5)) # Shield wall
+			self.Columns.append(visual.box(pos=(-7.65, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Southernmost row column a
+			self.Columns.append(visual.box(pos=(-2.05, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5))	# Southernmost row column b
+			self.Columns.append(visual.box(pos=(3.55, 0, 1.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Southernmost row column c
+			self.Columns.append(visual.box(pos=(-7.65, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Middle row column a
+			self.Columns.append(visual.box(pos=(-2.05, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5)) # Middle row column b
+			self.Columns.append(visual.box(pos=(3.55, 0, -4.85), axis=(0.6, 0, 0), width=0.6, height=5))	# Middle row column c
+			self.Columns.append(visual.box(pos=(-7.65, 0, -10.75), axis=(0.6, 0, 0), width=0.6, height=5)) # Northernmost row column a
 		
 	def KeyPress(self, s):
 		if(s == " "): print "Camera Position =", GetString(GetSphericalCoords(Translate(self.labScene.mouse.camera,self.labScene.center,-1), True))
@@ -318,7 +317,7 @@ class BeExpSetup:
 		for i in range(len(self.Columns)): self.Columns[i].color = color_
 
 
-# Generate VIKAR planar detector string
+# Generate VIKAR planar detector string (kept for backwards compatibility)
 # Offset is the physical position of the target
 # Angle is the beam-axis angle (must be in degrees)
 def VIKARdet(detector, offset=(0,0,0), angle=0):
@@ -359,134 +358,17 @@ def NewVIKAR(detector, offset=(0,0,0), angle=0):
 	output_str += "\t" + str(-(detector.GetTheta()+DegToRad(angle))) # Rotation theta about y-axis (rad)	
 	output_str += "\t" + str(detector.GetPhi()) # Rotation phi about z-axis (rad)
 	output_str += "\t" + str(detector.GetPsi()) # Rotation psi about x-axis (rad)
-	if(detector.GetLength() == 0.6 and detector.GetWidth() == 0.03 and detector.GetHeight() == 0.03): output_str += "\tsmall\n"
-	elif(detector.GetLength() == 1.2 and detector.GetWidth() == 0.05 and detector.GetHeight() == 0.03): output_str += "\tmedium\n"
-	elif(detector.GetLength() == 2.0 and detector.GetWidth() == 0.05 and detector.GetHeight() == 0.05): output_str += "\tlarge\n"
+	if(detector.GetLength() == 0.6 and detector.GetWidth() == 0.03 and detector.GetHeight() == 0.03): output_str += "\tvandle\tsmall\n"
+	elif(detector.GetLength() == 1.2 and detector.GetWidth() == 0.05 and detector.GetHeight() == 0.03): output_str += "\tvandle\tmedium\n"
+	elif(detector.GetLength() == 2.0 and detector.GetWidth() == 0.05 and detector.GetHeight() == 0.05): output_str += "\tvandle\tlarge\n"
 	else:
+		output_str += "\tdual\tunknown\n" # Type and subtype
 		output_str += "\t" + str(detector.GetLength()) # Length (m)
 		output_str += "\t" + str(detector.GetWidth()) # Width (m)
-		output_str += "\t" + str(detector.GetHeight()) + "\n" # Depth (m)
+		output_str += "\t" + str(detector.GetHeight()) # Depth (m)
+		output_str += "\tNONE\n" # Material name
 
 	return output_str
-
-# +x is the beam direction
-# +y is vertically upward
-# +z is beam right
-def main():
-	# axis = dx
-	# height = dy
-	# width = dz
-	
-	# Target and beam data
-	target_origin = ConvIM3(96.75,0.0,6.4308)
-	#target_origin = TranslateXZ(target_origin, 1.0, DegToRad(165)) # Shift chamber 1 meter down beam
-	beam_axis = 165
-	#beam_axis = 0
-	
-	# Large bar data
-	num_large_bars = 0 #45
-	large_bar_R = 3.0
-	large_start_angle = 20
-	large_packing_coeff = 0.2
-	large_packing_angle = BarSpacingAngle(large_bar_R, 0.01350, 0.05)
-	
-	# Small bar data
-	num_small_bars = 28
-	small_bar_R = 0.5
-	small_start_angle = 190 #70
-	small_packing_coeff = 0.2
-	small_packing_angle = BarSpacingAngle(small_bar_R, 0.01488, 0.03)
-	
-	# Wall data
-	minimum_z = ConvIM(-148.625)
-	maximum_x = ConvIM(120.75)
-
-	SmallBars = []
-	LargeBars = []
-	dphiSmall = 0.0
-	dphiLarge = 0.0
-	
-	myLab = BeExpSetup(room_=1, beam_axis_=beam_axis, target_pos_=target_origin)
-	
-	for i in range(num_large_bars):
-		if large_start_angle+RadToDeg(i*dphiLarge) >= 180: print "Warning! Large bar", i, "intersects beam pipe..."
-		LargeBars.append(VandleBar(target=target_origin, R=large_bar_R, theta=math.pi/2.0, phi=DegToRad(large_start_angle+beam_axis)+i*dphiLarge, bar_length=2.0, bar_width=0.05, bar_height=0.05, bar_color=visual.color.red))
-		LargeBars[i].SetTheta(-DegToRad(large_start_angle+beam_axis)-i*dphiLarge)
-		if i == 0: 
-			#dphiLarge = LargeBars[0].GetSubtendedPhi(large_bar_R)
-			#dphiLarge += dphiLarge*large_packing_coeff
-			dphiLarge = large_packing_angle
-			
-		#Position Check
-		elif LargeBars[i].GetX() >= maximum_x: 
-			print " Warning! Large bar", i+1, "intersects East wall...", "Position = (", large_bar_R, ",", RadToDeg(math.pi/2.0), ",", large_start_angle+RadToDeg(i*dphiLarge), ")"
-			LargeBars[i].SetColor(visual.color.black)
-		elif LargeBars[i].GetZ() <= minimum_z: 
-			print " Warning! Large bar", i+1, "intersects North wall...", "Position = (", large_bar_R, ",", RadToDeg(math.pi/2.0), ",", large_start_angle+RadToDeg(i*dphiLarge), ")"
-			LargeBars[i].SetColor(visual.color.black)
-
-	for i in range(num_small_bars):	
-		if small_start_angle+RadToDeg(i*dphiSmall) >= 180: print "Warning! Small bar", i, "intersects beam pipe..."
-		SmallBars.append(VandleBar(target=target_origin, R=small_bar_R, theta=math.pi/2.0, phi=DegToRad(small_start_angle+beam_axis)+i*dphiSmall, bar_length=0.6, bar_width=0.03, bar_height=0.03, bar_color=visual.color.green))
-		SmallBars[i].SetTheta(-DegToRad(small_start_angle+beam_axis)-i*dphiSmall)
-		if i == 0: 
-			#dphiSmall = SmallBars[0].GetSubtendedPhi(small_bar_R)
-			#dphiSmall += dphiSmall*small_packing_coeff
-			dphiSmall = small_packing_angle
-
-		#Position Check
-		if SmallBars[i].GetX() >= maximum_x: 
-			print " Warning! Small bar", i+1, "intersects East wall...", "Position = (", small_bar_R, ",", RadToDeg(math.pi/2.0), ",", small_start_angle+RadToDeg(i*dphiSmall), ")"
-			SmallBars[i].SetColor(visual.color.black)
-		if SmallBars[i].GetZ() <= minimum_z: 
-			print " Warning! Small bar", i+1, "intersects North wall...", "Position = (", small_bar_R, ",", RadToDeg(math.pi/2.0), ",", small_start_angle+RadToDeg(i*dphiSmall), ")"
-			SmallBars[i].SetColor(visual.color.black)
-
-	# Model information
-	print " Target X:", target_origin[0], "m"
-	print " Target Y:", target_origin[1], "m"
-	print " Target Z:", target_origin[2], "m"
-	print " Beam Axis:", beam_axis, "degrees\n"
-
-	print " Number Large Bars:", num_large_bars
-	print " Large Bar Radial Distance:", large_bar_R, "m"
-	print " Large Bar Angular Packing: 1 bar per", RadToDeg(dphiLarge), "degrees"
-	print " Large Bar Start Angle:", large_start_angle, "degrees"
-	print " Large Bar End Angle:", large_start_angle+RadToDeg((num_large_bars-1)*dphiLarge), "degrees\n"
-	
-	print " Number Small Bars:", num_small_bars
-	print " Small Bar Radial Distance:", small_bar_R, "m"
-	print " Small Bar Angular Packing: 1 bar per", RadToDeg(dphiSmall), "degrees"
-	print " Small Bar Start Angle:", small_start_angle, "degrees"
-	print " Small Bar End Angle:", small_start_angle+RadToDeg((num_small_bars-1)*dphiSmall), "degrees\n"
-
-	# Main drawing loop
-	s_ = ""
-	print "Press \'escape\' to quit"
-	print "Press \'h\' for help\n"
-	while True:
-		visual.rate(60)
-		if myLab.labScene.kb.keys:
-			s_ = myLab.labScene.kb.getkey()
-			
-			if(s_ == "esc"): wx.Exit()
-			elif(s_ == "h"): myLab.PrintHelp()
-			elif(s_ == "p"): 
-				f = open("/home/cory/Research/vikar311/detectors/VANDLE.det", "w")
-				for i in range(len(LargeBars)): f.write(NewVIKAR(LargeBars[i], offset=target_origin, angle=beam_axis))
-				for i in range(len(SmallBars)): f.write(NewVIKAR(SmallBars[i], offset=target_origin, angle=beam_axis))
-				print "Wrote detector file /home/cory/Research/vikar311/detectors/VANDLE.det"
-				f.close()
-			elif(s_ == "ctrl+p"): 
-				f = open("/home/cory/Research/vikar311/detectors/LargeBars.det", "w")
-				f2 = open("/home/cory/Research/vikar311/detectors/SmallBars.det", "w")
-				for i in range(len(LargeBars)): f.write(VIKARdet(LargeBars[i], offset=target_origin, angle=beam_axis))
-				for i in range(len(SmallBars)): f2.write(VIKARdet(SmallBars[i], offset=target_origin, angle=beam_axis))
-				print " Wrote Large bar detector file /home/cory/Research/vikar311/detectors/LargeBars.det"
-				print " Wrote Small bardetector file /home/cory/Research/vikar311/detectors/SmallBars.det"
-				f.close()
-				f2.close()
-			else: myLab.KeyPress(s_)
 
 # Read xyz coordinate tuple data
 def RawRead(fname, pt_size):
@@ -603,22 +485,120 @@ def Hist3D(det_fname, data_fname):
 	
 	return output
 
+# +x is the beam direction
+# +y is vertically upward
+# +z is beam right
+def main():
+	# axis = dx
+	# height = dy
+	# width = dz
+	
+	# Target and beam data
+	target_origin = (0.0, 0.0, 0.0)
+	#target_origin = ConvIM3(96.75,0.0,6.4308)
+	#target_origin = TranslateXZ(target_origin, 1.0, DegToRad(165)) # Shift chamber 1 meter down beam
+	#beam_axis = 165
+	beam_axis = 180
+	
+	# Large bar data
+	num_large_bars = 0 #45
+	large_bar_R = 3.0
+	large_start_angle = 20
+	large_packing_coeff = 0.2
+	large_packing_angle = BarSpacingAngle(large_bar_R, 0.01350, 0.05)
+	
+	# Small bar data
+	num_small_bars = 14
+	small_bar_R = 0.5
+	small_start_angle = 200
+	small_packing_coeff = 0.2
+	small_packing_angle = BarSpacingAngle(small_bar_R, 0.01488, 0.03)
+	
+	# Wall data
+	minimum_z = ConvIM(-148.625)
+	maximum_x = ConvIM(120.75)
+
+	SmallBars = []
+	LargeBars = []
+	dphiSmall = 0.0
+	dphiLarge = 0.0
+	
+	myLab = BeExpSetup(room_=3, beam_axis_=beam_axis, target_pos_=target_origin)
+	
+	for i in range(num_large_bars):
+		LargeBars.append(VandleBar(target=target_origin, R=large_bar_R, theta=math.pi/2.0, phi=DegToRad(large_start_angle+beam_axis)+i*dphiLarge, bar_length=2.0, bar_width=0.05, bar_height=0.05, bar_color=visual.color.red))
+		LargeBars[i].SetTheta(-DegToRad(large_start_angle+beam_axis)-i*dphiLarge)
+		if i == 0: 
+			dphiLarge = large_packing_angle
+
+	for i in range(num_small_bars):	
+		SmallBars.append(VandleBar(target=target_origin, R=small_bar_R, theta=math.pi/2.0, phi=DegToRad(small_start_angle+beam_axis)+i*dphiSmall, bar_length=0.6, bar_width=0.03, bar_height=0.03, bar_color=visual.color.green))
+		SmallBars[i].SetTheta(-DegToRad(small_start_angle+beam_axis)-i*dphiSmall)
+		if i == 0: 
+			dphiSmall = small_packing_angle
+
+	# Model information
+	print " Target X:", target_origin[0], "m"
+	print " Target Y:", target_origin[1], "m"
+	print " Target Z:", target_origin[2], "m"
+	print " Beam Axis:", beam_axis, "degrees\n"
+
+	print " Number Large Bars:", num_large_bars
+	print " Large Bar Radial Distance:", large_bar_R, "m"
+	print " Large Bar Angular Packing: 1 bar per", RadToDeg(dphiLarge), "degrees"
+	print " Large Bar Start Angle:", large_start_angle, "degrees"
+	print " Large Bar End Angle:", large_start_angle+RadToDeg((num_large_bars-1)*dphiLarge), "degrees\n"
+	
+	print " Number Small Bars:", num_small_bars
+	print " Small Bar Radial Distance:", small_bar_R, "m"
+	print " Small Bar Angular Packing: 1 bar per", RadToDeg(dphiSmall), "degrees"
+	print " Small Bar Start Angle:", small_start_angle, "degrees"
+	print " Small Bar End Angle:", small_start_angle+RadToDeg((num_small_bars-1)*dphiSmall), "degrees\n"
+
+	# Main drawing loop
+	s_ = ""
+	print "Press \'escape\' to quit"
+	print "Press \'h\' for help\n"
+	while True:
+		visual.rate(60)
+		if myLab.labScene.kb.keys:
+			s_ = myLab.labScene.kb.getkey()
+			
+			if(s_ == "esc"): wx.Exit()
+			elif(s_ == "h"): myLab.PrintHelp()
+			elif(s_ == "p"): 
+				f = open("/home/cory/Research/Vikar/detectors/VANDLE.det", "w")
+				f.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
+				for i in range(len(LargeBars)): f.write(NewVIKAR(LargeBars[i], offset=target_origin, angle=beam_axis))
+				for i in range(len(SmallBars)): f.write(NewVIKAR(SmallBars[i], offset=target_origin, angle=beam_axis))
+				print "Wrote detector file /home/cory/Research/Vikar/detectors/VANDLE.det"
+				f.close()
+			elif(s_ == "ctrl+p"): 
+				f = open("/home/cory/Research/Vikar/detectors/LargeBars.det", "w")
+				f2 = open("/home/cory/Research/Vikar/detectors/SmallBars.det", "w")
+				f.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
+				f2.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
+				for i in range(len(LargeBars)): f.write(VIKARdet(LargeBars[i], offset=target_origin, angle=beam_axis))
+				for i in range(len(SmallBars)): f2.write(VIKARdet(SmallBars[i], offset=target_origin, angle=beam_axis))
+				print " Wrote Large bar detector file /home/cory/Research/Vikar/detectors/LargeBars.det"
+				print " Wrote Small bar detector file /home/cory/Research/Vikar/detectors/SmallBars.det"
+				f.close()
+				f2.close()
+			else: myLab.KeyPress(s_)
+
 def main2():  
 	thickness = 0.001
 	labScene = visual.display(title="7Be(d,n)8B Experiment", width=800, height=600, background=GetRGBcode(153,204,255))
 	axisx = visual.box(pos=(0,0,0), axis=(10.0,0,0), width=thickness, height=thickness, color=visual.color.red, opacity=0.5)
 	axisy = visual.box(pos=(0,0,0), axis=(0,10.0,0), width=thickness, height=thickness, color=visual.color.blue, opacity=0.5)
 	axisz = visual.box(pos=(0,0,0), axis=(0,0,10.0), width=thickness, height=thickness, color=visual.color.green, opacity=0.5)
-	#labelx = visual.label(pos=(5.0,0,0), text="Z-Axis")
-	#labely = visual.label(pos=(0,5.0,0), text="Y-Axis")
-	#labelz = visual.label(pos=(0,0,5.0), text="X-Axis")
+	labelx = visual.label(pos=(5.0,0,0), text="Z-Axis")
+	labely = visual.label(pos=(0,5.0,0), text="Y-Axis")
+	labelz = visual.label(pos=(0,0,-5.0), text="X-Axis")
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
-	#RawRead("/home/cory/Research/VANDLE/Vikar/xyz.dat", 2)
-	RawRead("/home/cory/Research/VANDLE/Vikar/dump.out", 2)
-	RawRead("/home/cory/Research/VANDLE/Vikar/dump2.out", 2)
 	#RawRead("/home/cory/Research/VANDLE/Vikar/test.out", 2)
 	#VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
-	VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Elastic.det")
+	VBars = DetRead("/home/cory/Research/Vikar/detectors/VANDLE.det")
 
 	while True:
 		visual.rate(60)
@@ -627,5 +607,5 @@ def main2():
 		
 			if(s_ == "esc"): wx.Exit()
 
-main2() 
-#main()
+#main2() 
+main()
