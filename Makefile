@@ -1,7 +1,7 @@
 #####################################################################
 
 # Set the RootPixieScan directory
-PIXIE_SCAN_DIR = /home/cory/Research/Pixie16/RootPixieScan
+PIXIE_SCAN_DIR = $(HOME)/RootPixieScan
 
 #####################################################################
 
