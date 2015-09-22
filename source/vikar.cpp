@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.19d"
+#define VERSION "1.19e"
 
 struct debugData{
 	double var1, var2, var3;
@@ -205,11 +205,6 @@ int main(int argc, char* argv[]){
 			
 			if(count == 0){ 
 				std::cout << "  Version: " << input;
-				if(input != VERSION){ 
-					std::cout << " (FAIL)\n";
-					std::cout << "   Warning! This input file has the wrong version number. Check to make sure input is correct\n"; 
-				}
-				else{ std::cout << " (PASS)\n"; }
 			}
 			else if(count == 1){ 
 				Zbeam = atof(input.c_str());  
@@ -827,8 +822,8 @@ process:
 			
 				// Calculate the particle ToF (ns)
 				tof = 0.0;
-				if(proc_eject){ tof = dist_traveled*std::sqrt(kind.GetMeject()/(2*Eeject*1.60217657E-13*6.02214129E26)); }
-				else{ tof = dist_traveled*std::sqrt(kind.GetMrecoil()/(2*Erecoil*1.60217657E-13*6.02214129E26)); }
+				if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/Eeject); }
+				else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/Erecoil); }
 
 				// Smear tof due to PIXIE resolution
 				tof += rndgauss0(timeRes); 
@@ -836,14 +831,16 @@ process:
 				// Main output
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 				if(proc_eject){
+					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar);
 				}
 				else{
+					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, QDC, tof*(1E9), hit_x, hit_y, hit_z, bar);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar);
 				}
 				
 				// Adjust the particle energies to take energy loss into account

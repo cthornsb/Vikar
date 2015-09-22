@@ -135,22 +135,15 @@ class Kindeux{
 
 	bool IsInit(){ return init; }
 
-	double GetMbeam(bool in_kg=false){ 
-		if(!in_kg){ return Mbeam; }
-		else{ return Mbeam/6.02214129E26; }
-	}
-	double GetMtarg(bool in_kg=false){ 
-		if(!in_kg){ return Mtarg; }
-		else{ return Mtarg/6.02214129E26; }
-	}
-	double GetMrecoil(bool in_kg=false){ 
-		if(!in_kg){ return Mrecoil; }
-		else{ return Mrecoil/6.02214129E26; }
-	}
-	double GetMeject(bool in_kg=false){ 
-		if(!in_kg){ return Meject; }
-		else{ return Meject/6.02214129E26; }
-	}
+	double GetMbeam(bool in_kg=false){ return (!in_kg ? Mbeam : Mbeam/6.02214129E26); } /// Return the mass of the beam particle in amu or kg
+	double GetMtarg(bool in_kg=false){ return (!in_kg ? Mbeam : Mbeam/6.02214129E26); } /// Return the mass of the beam particle in amu or kg
+	double GetMrecoil(bool in_kg=false){ return (!in_kg ? Mbeam : Mbeam/6.02214129E26); } /// Return the mass of the beam particle in amu or kg
+	double GetMeject(bool in_kg=false){ return (!in_kg ? Mbeam : Mbeam/6.02214129E26); } /// Return the mass of the beam particle in amu or kg
+
+	double GetMbeamMeV(){ return 931.49*Mbeam; } /// Return the mass of the beam particle in MeV/c^2
+	double GetMtargMeV(){ return 931.49*Mtarg; } /// Return the mass of the target particle in MeV/c^2
+	double GetMrecoilMeV(){ return 931.49*Mrecoil; } /// Return the mass of the recoil particle in MeV/c^2
+	double GetMejectMeV(){ return 931.49*Meject; } /// Return the mass of the ejectile particle in MeV/c^2
    	
    	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);
 	bool SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current);
