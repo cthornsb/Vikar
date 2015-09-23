@@ -52,6 +52,7 @@ vector:double	recoil_faceX
 vector:double	recoil_faceY	
 vector:double	recoil_faceZ	
 vector:int	recoil_loc
+vector:bool	recoil_bg	
 u_int	recoil_mult	Multiplicity of recoil detector hits	
 
 # Trace output data types and names (must end with _wave)
@@ -87,6 +88,7 @@ vector:double	eject_faceX
 vector:double	eject_faceY	
 vector:double	eject_faceZ	
 vector:int	eject_loc
+vector:bool	eject_bg	
 u_int	eject_mult	Multiplicity of ejectile detector hits	
 
 # Trace output data types and names (must end with _wave)

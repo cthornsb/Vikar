@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.19e"
+#define VERSION "1.20"
 
 struct debugData{
 	double var1, var2, var3;
@@ -87,6 +87,7 @@ int main(int argc, char* argv[]){
 	double hit_x, hit_y, hit_z;
 
 	// Vectors and rotation matrices
+	Vector3 ZeroVector; // The zero vector
 	Vector3 Ejectile, Recoil, Gamma;
 	Vector3 HitDetect1, HitDetect2;
 	Vector3 EjectSphere, RecoilSphere;
@@ -129,6 +130,11 @@ int main(int argc, char* argv[]){
 
 	double timeRes = 2E-9; // Pixie-16 time resolution (s)
 	double BeamRate = 0.0; // Beam rate (1/s)
+
+	// Background variables
+	unsigned int backgroundRate = 0;
+	unsigned int backgroundWait = 0;
+	double detWindow = 0.0;
 	
 	std::string det_fname; // Detector filename
 	std::string output_fname_prefix = "VIKAR";
@@ -141,10 +147,11 @@ int main(int argc, char* argv[]){
 	unsigned int NdetHit = 0; // Total number of particles which collided with a bar
 	unsigned int Nreactions = 0; // Total number of particles which react with the target
 	int Ndet = 0; // Total number of detectors
+	int NdetEject = 0; // Total number of ejectile detectors
+	int NdetRecoil = 0; // Total number of recoil detectors
 	clock_t timer; // Clock object for calculating time taken and remaining
 
 	// Default options
-	bool SimGamma = false;
 	bool InCoincidence = true;
 	bool WriteReaction = false;
 	bool WriteDebug = false;
@@ -181,7 +188,7 @@ int main(int argc, char* argv[]){
 	std::cout << " How about a nice cup of tea?\n"; 
 	std::cout << " No? Well let me just load the input file then\n";
 	std::cout << "\n ==  ==  ==  ==  == \n";
-	sleep(3);
+	sleep(1);
 
 	std::ifstream input_file;
 	if(argc >= 2){
@@ -204,7 +211,7 @@ int main(int argc, char* argv[]){
 			if(input == ""){ continue; }
 			
 			if(count == 0){ 
-				std::cout << "  Version: " << input;
+				std::cout << "  Version: " << input << std::endl;
 			}
 			else if(count == 1){ 
 				Zbeam = atof(input.c_str());  
@@ -343,8 +350,15 @@ int main(int argc, char* argv[]){
 				std::cout << "  Desired Detections: " << Nwanted << std::endl; 
 			}
 			else if(count == 20){
-				// Simulate prompt gamma flash?
-				SetBool(input, "  Detect Prompt Gammas", SimGamma);
+				// Background rate (per detection event)
+				backgroundRate = atol(input.c_str());
+				std::cout << "  Background Rate: " << backgroundRate << " events per detection\n";
+				if(backgroundRate > 0){ // Get the detection ToF window
+					getline(input_file, input); input = Parse(input);
+					detWindow = atof(input.c_str());
+					backgroundWait = backgroundRate;
+					std::cout << "  Detection Window: " << detWindow << " ns\n";
+				}
 			}
 			else if(count == 21){
 				// Require ejectile and recoil particle coincidence?
@@ -363,7 +377,7 @@ int main(int argc, char* argv[]){
 		}
 		
 		input_file.close();
-		if(count <= 23){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		if(count <= 24){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
 		std::cout << " Error! Missing required variable\n";
@@ -397,10 +411,13 @@ int main(int argc, char* argv[]){
 		if(!IsInVector(vandle_bars[i].GetMaterialName(), needed_materials)){
 			needed_materials.push_back(vandle_bars[i].GetMaterialName());
 		}
+		
+		if(vandle_bars[i].IsEjectileDet()){ NdetEject++; }
+		if(vandle_bars[i].IsRecoilDet()){ NdetRecoil++; }
 	}
 
 	// Report on how many detectors were read in
-	std::cout << " Found " << Ndet << " detectors in file " << det_fname << std::endl;
+	std::cout << " Found " << NdetEject << " ejectile and " << NdetRecoil << " recoil detectors in file " << det_fname << std::endl;
 
 	bool use_target_eloss = true;
 
@@ -625,141 +642,168 @@ int main(int argc, char* argv[]){
 	unsigned int beam_stopped = 0;
 	unsigned int recoil_stopped = 0;
 	unsigned int eject_stopped = 0;
+	int detectorSelect = 0;
 	timer = clock();
 	
 	bool proc_eject = false;
 	
 	while(Ndetected < Nwanted){
-		// ****************Time Estimate**************
-		if(flag && (Ndetected % chunk == 0)){
-			flag = false;
-			totTime = (float)(clock()-timer)/CLOCKS_PER_SEC;
-			std::cout << "\n ------------------------------------------------\n"; 
-			std::cout << " Number of particles Simulated: " << Nsimulated << std::endl; 
-			std::cout << " Number of particles Detected: " << Ndetected << std::endl; 
-			if(SupplyRates && ADists){ std::cout << " Number of Reactions: " << Nreactions << std::endl; }
+		if(backgroundWait != 0){
+			backgroundWait--;
+
+			// Pick a random detector for the background event
+			detectorSelect = (int)frand(0, Ndet);
+
+			// Select the "tof" of the background event
+			tof = (double)frand(0, detWindow)*(1E-9);
 			
-			std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
-			if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
-			else{
-				std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
-				std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
+			// Select a random point insde the detector
+			vandle_bars[detectorSelect].GetRandomPointInside(temp_vector);
+			Cart2Sphere(temp_vector_sphere);
+			
+			// Calculate the apparent energy of the particle using the tof
+			if(vandle_bars[detectorSelect].IsEjectileDet()){
+				double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+				EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
+								 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, detectorSelect, true);
+				VIKARtree->Fill(); 
+				EJECTdata.Zero();
 			}
-			if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
+			else if(vandle_bars[detectorSelect].IsRecoilDet()){
+				double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+				RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
+								  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, detectorSelect, true);
+				VIKARtree->Fill();
+				RECOILdata.Zero();
+			}
+
+			continue;
+		}
+		else{
+			// ****************Time Estimate**************
+			if(flag && (Ndetected % chunk == 0)){
+				flag = false;
+				totTime = (float)(clock()-timer)/CLOCKS_PER_SEC;
+				std::cout << "\n ------------------------------------------------\n"; 
+				std::cout << " Number of particles Simulated: " << Nsimulated << std::endl; 
+				std::cout << " Number of particles Detected: " << Ndetected << std::endl; 
+				if(SupplyRates && ADists){ std::cout << " Number of Reactions: " << Nreactions << std::endl; }
 			
-			std::cout << "  Simulation Time: " << totTime << " seconds\n";
-			std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
-			counter++; 
-		}
-		Nsimulated++; 
-		
-		// Simulate a beam particle before entering the target
-		// Randomly select a point uniformly distributed on the beamspot
-		// Calculate where the beam particle reacts inside the target
-		// beamspot as well as the distance traversed through the target
-		if(BeamFocus){ 
-			// In this case, lab_beam_focus is the originating point of the beam particle
-			// (or the terminating point for beams focused downstream of the target)
-			// The direction is given by the cartesian vector 'lab_beam_trajectory'
-			if(CylindricalBeam){ RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Cylindrical beam
-			else{ RandomGauss(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Gaussian beam
-			Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
-		}
-		else{ 
-			// In this case, lab_beam_start stores the originating point of the beam particle
-			// The direction is given simply by the +z-axis
-			// The 1m offset ensures the particle originates outside the target
-			if(CylindricalBeam){ RandomCircle(beamspot, 1.0, lab_beam_start); } 
-			else{ RandomGauss(beamspot, 1.0, lab_beam_start); } 
-			lab_beam_start.axis[2] *= -1; // This is done to place the beam particle upstream of the target
-			Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
-		}	
-
-		// Calculate the beam particle energy, varied with energy spread (in MeV)
-		Ebeam = Ebeam0 + rndgauss0(beamEspread); 
-
-		if(use_target_eloss){ // Calculate energy loss in the target
-			// Calculate the beam particle range in the target (in m)
-			range_beam = beam_targ.GetRange(Ebeam);
-		
-			// Calculate the new energy
-			if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
-				if(beam_stopped == 10000){
-					std::cout << "\n ATTENTION!\n";
-					std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
-					std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
-					std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
-				
-					std::cout << "\n ------------------------------------------------\n";
-					std::cout << " Dumping target information!!!\n\n";
-				
-					materials[targ_mat_id].Print();
-					std::cout << std::endl;
-				
-					std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
-					std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
-				
-					std::cout << " Tracing ray through target... \n";
-					Vector3 dum1, dum2;
-					int temp1, temp2;
-					double tempx, tempy, tempz;
-					targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
-					std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
-					std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
-					std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
+				std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
+				if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
+				else{
+					std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
+					std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
 				}
-				beam_stopped++;
+				if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 			
-				continue; 
+				std::cout << "  Simulation Time: " << totTime << " seconds\n";
+				std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
+				counter++; 
 			}
-			Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
+			Nsimulated++; 
 		
-			// Determine the angle of the beam particle's trajectory at the
-			// interaction point, due to angular straggling and the incident trajectory.
-			targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
-		}
-		else{ 
-			Ereact = Ebeam; 
-			lab_beam_stragtraject = lab_beam_trajectory;
-		}
-
-		// the 2 body kinematics routine to generate the ejectile and recoil
-		if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
-		else{ continue; } // A reaction did not occur
-
-		// Convert the reaction vectors to cartesian coordinates
-		// EjectSphere and RecoilSphere are unit vectors (no need to normalize)
-		Sphere2Cart(EjectSphere, Ejectile); 
-		Sphere2Cart(RecoilSphere, Recoil);
-		
-		// Transform the ejectile and recoil vectors (cartesian) from the beam trajectory frame into the Lab frame
-		// This transformation will overwrite the Ejectile and Recoil vectors
-		//rotation_matrix.SetRotationMatrixCart(lab_beam_trajectory); // Turn OFF angular straggling effects
-		rotation_matrix.SetRotationMatrixCart(lab_beam_stragtraject); // Turn ON angular straggling effects
-		rotation_matrix.Transform(Ejectile);
-		rotation_matrix.Transform(Recoil);
-
-		// Calculate the energy loss for the ejectile and recoils in the target
-		/*if(use_target_eloss){
-			if(Zeject > 0){
-				range_eject = eject_targ->GetRange(Eeject);
+			// Simulate a beam particle before entering the target
+			// Randomly select a point uniformly distributed on the beamspot
+			// Calculate where the beam particle reacts inside the target
+			// beamspot as well as the distance traversed through the target
+			if(BeamFocus){ 
+				// In this case, lab_beam_focus is the originating point of the beam particle
+				// (or the terminating point for beams focused downstream of the target)
+				// The direction is given by the cartesian vector 'lab_beam_trajectory'
+				if(CylindricalBeam){ RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Cylindrical beam
+				else{ RandomGauss(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Gaussian beam
+				Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 			}
-			if(Zrecoil > 0){
-				range_recoil = recoil_targ->GetRange(Erecoil);
-			}
-		}*/
-		
-		if(WriteDebug){ 
-			DEBUGdata.Set(Ejectile.axis[0], Ejectile.axis[1], Ejectile.axis[2]);
-			DEBUGtree->Fill();
-		}
+			else{ 
+				// In this case, lab_beam_start stores the originating point of the beam particle
+				// The direction is given simply by the +z-axis
+				// The 1m offset ensures the particle originates outside the target
+				if(CylindricalBeam){ RandomCircle(beamspot, 1.0, lab_beam_start); } 
+				else{ RandomGauss(beamspot, 1.0, lab_beam_start); } 
+				lab_beam_start.axis[2] *= -1; // This is done to place the beam particle upstream of the target
+				Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
+			}	
 
-		// Gammas are indistinguishable from the ejectile (to a VANDLE bar)
-		/*if(SimGamma && RecoilState > 0){
-			// Simulate gamma decays for excited recoils
-			double gamma_theta, gamma_phi;
-			UnitSphereRandom(gamma_theta, gamma_phi);
-		}*/
+			// Calculate the beam particle energy, varied with energy spread (in MeV)
+			Ebeam = Ebeam0 + rndgauss0(beamEspread); 
+
+			if(use_target_eloss){ // Calculate energy loss in the target
+				// Calculate the beam particle range in the target (in m)
+				range_beam = beam_targ.GetRange(Ebeam);
+		
+				// Calculate the new energy
+				if(range_beam - Zdepth <= 0.0){ // The beam stops in the target (no reaction)
+					if(beam_stopped == 10000){
+						std::cout << "\n ATTENTION!\n";
+						std::cout << "  A large number of beam particles (" << 100.0*beam_stopped/Nsimulated << "%) have stopped in the target!\n";
+						std::cout << "  A high percentage of stopped particles could mean that the target is too thick.\n";
+						std::cout << "  If this is the case, change the target thickness and restart the simulation.\n";
+				
+						std::cout << "\n ------------------------------------------------\n";
+						std::cout << " Dumping target information!!!\n\n";
+				
+						materials[targ_mat_id].Print();
+						std::cout << std::endl;
+				
+						std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
+						std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
+				
+						std::cout << " Tracing ray through target... \n";
+						Vector3 dum1, dum2;
+						int temp1, temp2;
+						double tempx, tempy, tempz;
+						targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
+						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
+						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
+						std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
+					}
+					beam_stopped++;
+			
+					continue; 
+				}
+				Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
+		
+				// Determine the angle of the beam particle's trajectory at the
+				// interaction point, due to angular straggling and the incident trajectory.
+				targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
+			}
+			else{ 
+				Ereact = Ebeam; 
+				lab_beam_stragtraject = lab_beam_trajectory;
+			}
+
+			// the 2 body kinematics routine to generate the ejectile and recoil
+			if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
+			else{ continue; } // A reaction did not occur
+
+			// Convert the reaction vectors to cartesian coordinates
+			// EjectSphere and RecoilSphere are unit vectors (no need to normalize)
+			Sphere2Cart(EjectSphere, Ejectile); 
+			Sphere2Cart(RecoilSphere, Recoil);
+		
+			// Transform the ejectile and recoil vectors (cartesian) from the beam trajectory frame into the Lab frame
+			// This transformation will overwrite the Ejectile and Recoil vectors
+			//rotation_matrix.SetRotationMatrixCart(lab_beam_trajectory); // Turn OFF angular straggling effects
+			rotation_matrix.SetRotationMatrixCart(lab_beam_stragtraject); // Turn ON angular straggling effects
+			rotation_matrix.Transform(Ejectile);
+			rotation_matrix.Transform(Recoil);
+
+			// Calculate the energy loss for the ejectile and recoils in the target
+			/*if(use_target_eloss){
+				if(Zeject > 0){
+					range_eject = eject_targ->GetRange(Eeject);
+				}
+				if(Zrecoil > 0){
+					range_recoil = recoil_targ->GetRange(Erecoil);
+				}
+			}*/
+		
+			if(WriteDebug){ 
+				DEBUGdata.Set(Ejectile.axis[0], Ejectile.axis[1], Ejectile.axis[2]);
+				DEBUGtree->Fill();
+			}
+		}
 
 		// Process the reaction products
 		for(int bar = 0; bar < Ndet; bar++){
@@ -834,13 +878,13 @@ process:
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar);
+									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
 				}
 				else{
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
 				}
 				
 				// Adjust the particle energies to take energy loss into account
@@ -860,6 +904,7 @@ process:
 					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
 										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
+				backgroundWait = backgroundRate;
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}
@@ -871,6 +916,7 @@ process:
 					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
 										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
+				backgroundWait = backgroundRate;
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}

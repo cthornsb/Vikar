@@ -73,6 +73,18 @@ void Planar::GetLocalCoords(const Vector3 &world_coords, double &x, double &y, d
 	z = temp.Dot(detZ);
 }
 
+/// Get a vector pointing to a 3d point inside of this geometry
+void Planar::GetRandomPointInside(Vector3& output){
+	// Get a random point inside the 3d detector
+	Vector3 temp = Vector3(frand(-length/2, length/2), frand(-width/2, width/2), frand(-depth/2, depth/2));
+	
+	// Rotate the random point based on the detector rotation
+	rotationMatrix.Transform(temp);
+	
+	// Get the vector pointing from the origin to the random point
+	output = position + temp;
+}
+
 // Set the physical size of the bar
 // For known bar sizes, it is better to use SetSmall/SetMedium/SetLarge methods
 // Unknown bar types will not include efficiency data
@@ -123,7 +135,12 @@ void Planar::SetRotation(double theta_, double phi_, double psi_){
 	
 	// Normalize the unit vectors
 	detX.Normalize(); detY.Normalize(); detZ.Normalize();
-	need_set = true;    		
+	need_set = true;
+	
+	// Set the rotation matrix
+	rotationMatrix.SetUnitX(detX);
+	rotationMatrix.SetUnitY(detY);
+	rotationMatrix.SetUnitZ(detZ);
 }
 
 // Manually set the local bar unit vectors
@@ -132,8 +149,14 @@ void Planar::SetRotation(double theta_, double phi_, double psi_){
 //  and should therefore only be used for testing and debugging
 void Planar::SetUnitVectors(const Vector3 &unitX, const Vector3 &unitY, const Vector3 &unitZ){
 	detX = unitX; detY = unitY; detZ = unitZ;
+	
 	detX.Normalize(); detY.Normalize(); detZ.Normalize();
 	need_set = true;
+	
+	// Set the rotation matrix
+	rotationMatrix.SetUnitX(detX);
+	rotationMatrix.SetUnitY(detY);
+	rotationMatrix.SetUnitZ(detZ);
 }
 
 // Check if a point (in local coordinates) is within the bounds of the primitive

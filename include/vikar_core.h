@@ -54,12 +54,15 @@ class Matrix3{
 	Matrix3();
 	Matrix3(double theta_, double phi_);
 	Matrix3(const Vector3 &vector_);
-	void GetUnitX(Vector3 &vector){ vector.axis[0] = components[0][0];  vector.axis[1] = components[1][0];  vector.axis[2] = components[2][0]; }
-	void GetUnitY(Vector3 &vector){ vector.axis[0] = components[0][1];  vector.axis[1] = components[1][1];  vector.axis[2] = components[2][1]; }
-	void GetUnitZ(Vector3 &vector){ vector.axis[0] = components[0][2];  vector.axis[1] = components[1][2];  vector.axis[2] = components[2][2]; }
+	void GetUnitX(Vector3 &vector_){ vector_.axis[0] = components[0][0];  vector_.axis[1] = components[1][0];  vector_.axis[2] = components[2][0]; }
+	void GetUnitY(Vector3 &vector_){ vector_.axis[0] = components[0][1];  vector_.axis[1] = components[1][1];  vector_.axis[2] = components[2][1]; }
+	void GetUnitZ(Vector3 &vector_){ vector_.axis[0] = components[0][2];  vector_.axis[1] = components[1][2];  vector_.axis[2] = components[2][2]; }
 	Vector3 GetUnitX(){ return Vector3(components[0][0], components[1][0], components[2][0]); }
 	Vector3 GetUnitY(){ return Vector3(components[0][1], components[1][1], components[2][1]); }
 	Vector3 GetUnitZ(){ return Vector3(components[0][2], components[1][2], components[2][2]); }
+	void SetUnitX(const Vector3 &vector_){ components[0][0] = vector_.axis[0]; components[1][0] = vector_.axis[1]; components[2][0] = vector_.axis[2]; }
+	void SetUnitY(const Vector3 &vector_){ components[0][1] = vector_.axis[0]; components[1][1] = vector_.axis[1]; components[2][1] = vector_.axis[2]; }
+	void SetUnitZ(const Vector3 &vector_){ components[0][2] = vector_.axis[0]; components[1][2] = vector_.axis[1]; components[2][2] = vector_.axis[2]; }
 	void SetRow1(double p1, double p2, double p3){ components[0][0] = p1; components[0][1] = p2; components[0][2] = p3; }
 	void SetRow2(double p1, double p2, double p3){ components[1][0] = p1; components[1][1] = p2; components[1][2] = p3; }
 	void SetRow3(double p1, double p2, double p3){ components[2][0] = p1; components[2][1] = p2; components[2][2] = p3; }

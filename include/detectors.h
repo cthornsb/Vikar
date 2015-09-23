@@ -99,6 +99,7 @@ class Planar{
 	Vector3 position; // Center, cartesian position
 	Vector3 detX, detY, detZ; // Local face unit vectors
 	Vector3 GlobalFace[6]; // 6 global face coordinates
+	Matrix3 rotationMatrix; // The rotation matrix of the detector
 	double length, width, depth; // Physical size (meters)
 	double theta, phi, psi; // Local rotation (radians)
 	bool small, med, large;
@@ -137,6 +138,9 @@ class Planar{
 
 	// Return the local bar frame coordinates of a global coordinate
 	void GetLocalCoords(const Vector3&, double&, double&, double&);
+	
+	/// Get a vector pointing to a 3d point inside of this geometry
+	void GetRandomPointInside(Vector3& output);
 	
 	bool IsSmall(){ return small; }
 
