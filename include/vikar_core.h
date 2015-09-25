@@ -166,6 +166,7 @@ bool IsInVector(const std::string &input_, const std::vector<std::string> &str_v
 void RandomCircle(double radius_, double offset_, Vector3 &beam);
 void RandomGauss(double fwhm_, double offset_, Vector3 &beam);
 bool SetBool(std::string input_, std::string text_, bool &output);
+bool SetBool(std::string input_, bool &output);
 bool Prompt(std::string prompt_);
 std::string Parse(std::string input);
 void Parse(std::string input, float *arr, unsigned int num_values);

@@ -3,6 +3,7 @@
 input/*
 detectors/*
 xsections/*
+efficiency/*
 
 # Root files and data files #
 #############################

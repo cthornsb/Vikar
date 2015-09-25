@@ -341,6 +341,13 @@ bool SetBool(std::string input_, std::string text_, bool &output){
 	return output;
 }
 
+bool SetBool(std::string input_, bool &output){
+	int idummy = atoi(input_.c_str());
+	if(idummy == 1){ output = true; }
+	else{ output = false; }
+	return output;
+}
+
 bool Prompt(std::string prompt_){
 	std::string temp_input;
 	while(true){

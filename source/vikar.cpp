@@ -14,7 +14,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.20"
+#define VERSION "1.20b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -23,6 +23,16 @@ struct debugData{
 		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
+
+double MeV2MeVee(const double &Tp_){
+	// Coefficients for NE102 (BC408)
+	const double Acoeff = 0.95;
+	const double Bcoeff = 8.00;
+	const double Ccoeff = 0.10;
+	const double Dcoeff = 0.90;
+	
+	return (Acoeff*Tp_ - Bcoeff*(1 - std::exp(-Ccoeff*std::pow(Tp_, Dcoeff))));
+}
 
 int main(int argc, char* argv[]){ 
 	// A Monte-Carlo charged particle experiment simulation program - details below
@@ -122,6 +132,7 @@ int main(int argc, char* argv[]){
 	// Energy variables
 	double Ebeam = 0.0, Ebeam0 = 0.0;
 	double Erecoil = 0.0, Eeject = 0.0;
+	double ErecoilMod = 0.0, EejectMod = 0.0;
 		
 	// Beam variables
 	double beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
@@ -135,6 +146,7 @@ int main(int argc, char* argv[]){
 	unsigned int backgroundRate = 0;
 	unsigned int backgroundWait = 0;
 	double detWindow = 0.0;
+	bool bgPerDetection = false;
 	
 	std::string det_fname; // Detector filename
 	std::string output_fname_prefix = "VIKAR";
@@ -327,15 +339,15 @@ int main(int argc, char* argv[]){
 				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
 				if(!SetBool(input, "  Perfect Detector", PerfectDet)){ 
 					// Load small bar efficiency data
-					getline(input_file, input); input = Parse(input); 
+					getline(input_file, input); input = "./efficiency/" + Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadSmall(input.c_str()) << " small bar data points in file " << input << "\n";
 					
 					// Load medium bar efficiency data
-					getline(input_file, input); input = Parse(input); 
+					getline(input_file, input); input = "./efficiency/" + Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadMedium(input.c_str()) << " medium bar data points in file " << input << "\n";
 					
 					// Load large bar efficiency data
-					getline(input_file, input); input = Parse(input); 
+					getline(input_file, input); input = "./efficiency/" + Parse(input); 
 					std::cout << "   Found " << bar_eff.ReadLarge(input.c_str()) << " large bar data points in file " << input << "\n";
 				}
 			}
@@ -352,13 +364,17 @@ int main(int argc, char* argv[]){
 			else if(count == 20){
 				// Background rate (per detection event)
 				backgroundRate = atol(input.c_str());
-				std::cout << "  Background Rate: " << backgroundRate << " events per detection\n";
 				if(backgroundRate > 0){ // Get the detection ToF window
 					getline(input_file, input); input = Parse(input);
 					detWindow = atof(input.c_str());
 					backgroundWait = backgroundRate;
-					std::cout << "  Detection Window: " << detWindow << " ns\n";
+					getline(input_file, input); input = Parse(input);
+					SetBool(input, bgPerDetection);
+					if(bgPerDetection){	std::cout << "  Background Rate: " << backgroundRate << " events per detection\n"; }
+					else{ std::cout << "  Background Rate: " << backgroundRate << " events per recoil\n"; }
+					std::cout << "  Background Time Width: " << detWindow << " ns\n";
 				}
+				else{ std::cout << "  Background Rate: NONE\n"; }
 			}
 			else if(count == 21){
 				// Require ejectile and recoil particle coincidence?
@@ -377,7 +393,7 @@ int main(int argc, char* argv[]){
 		}
 		
 		input_file.close();
-		if(count <= 24){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		if(count <= 23){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
 		std::cout << " Error! Missing required variable\n";
@@ -642,65 +658,70 @@ int main(int argc, char* argv[]){
 	unsigned int beam_stopped = 0;
 	unsigned int recoil_stopped = 0;
 	unsigned int eject_stopped = 0;
-	int detectorSelect = 0;
 	timer = clock();
 	
 	bool proc_eject = false;
 	
 	while(Ndetected < Nwanted){
-		if(backgroundWait != 0){
+		// ****************Time Estimate**************
+		if(flag && (Ndetected % chunk == 0)){
+			flag = false;
+			totTime = (float)(clock()-timer)/CLOCKS_PER_SEC;
+			std::cout << "\n ------------------------------------------------\n"; 
+			std::cout << " Number of particles Simulated: " << Nsimulated << std::endl; 
+			std::cout << " Number of particles Detected: " << Ndetected << std::endl; 
+			if(SupplyRates && ADists){ std::cout << " Number of Reactions: " << Nreactions << std::endl; }
+		
+			std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
+			if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
+			else{
+				std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
+				std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
+			}
+			if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
+		
+			std::cout << "  Simulation Time: " << totTime << " seconds\n";
+			std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
+			counter++; 
+		}
+
+		if(backgroundWait != 0){ // Simulating background events
 			backgroundWait--;
 
-			// Pick a random detector for the background event
-			detectorSelect = (int)frand(0, Ndet);
+			// Process the background event for each detector
+			for(int bar = 0; bar < Ndet; bar++){
+				if(!(vandle_bars[bar].IsEjectileDet() || vandle_bars[bar].IsRecoilDet())){ continue; } // This detector cannot detect particles
 
-			// Select the "tof" of the background event
-			tof = (double)frand(0, detWindow)*(1E-9);
+				// Select the "tof" of the background event
+				tof = (double)frand(0, detWindow)*(1E-9);
 			
-			// Select a random point insde the detector
-			vandle_bars[detectorSelect].GetRandomPointInside(temp_vector);
-			Cart2Sphere(temp_vector_sphere);
+				// Select a random point insde the detector
+				vandle_bars[bar].GetRandomPointInside(temp_vector);
+				Cart2Sphere(temp_vector_sphere);
 			
-			// Calculate the apparent energy of the particle using the tof
-			if(vandle_bars[detectorSelect].IsEjectileDet()){
-				double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-				EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
-								 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, detectorSelect, true);
-				VIKARtree->Fill(); 
-				EJECTdata.Zero();
+				// Calculate the apparent energy of the particle using the tof
+				if(vandle_bars[bar].IsEjectileDet()){
+					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+					//if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2Mevee(dummyE); }
+					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
+									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, bar, true);
+					VIKARtree->Fill(); 
+					EJECTdata.Zero();
+				}
+				else if(vandle_bars[bar].IsRecoilDet()){
+					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, bar, true);
+					VIKARtree->Fill();
+					RECOILdata.Zero();
+				}
 			}
-			else if(vandle_bars[detectorSelect].IsRecoilDet()){
-				double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-				RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-								  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, detectorSelect, true);
-				VIKARtree->Fill();
-				RECOILdata.Zero();
-			}
-
+			
 			continue;
 		}
-		else{
-			// ****************Time Estimate**************
-			if(flag && (Ndetected % chunk == 0)){
-				flag = false;
-				totTime = (float)(clock()-timer)/CLOCKS_PER_SEC;
-				std::cout << "\n ------------------------------------------------\n"; 
-				std::cout << " Number of particles Simulated: " << Nsimulated << std::endl; 
-				std::cout << " Number of particles Detected: " << Ndetected << std::endl; 
-				if(SupplyRates && ADists){ std::cout << " Number of Reactions: " << Nreactions << std::endl; }
-			
-				std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
-				if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
-				else{
-					std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
-					std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
-				}
-				if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
-			
-				std::cout << "  Simulation Time: " << totTime << " seconds\n";
-				std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
-				counter++; 
-			}
+		else{ // A reaction occured
+			if(!bgPerDetection){ backgroundWait = backgroundRate; }
+
 			Nsimulated++; 
 		
 			// Simulate a beam particle before entering the target
@@ -777,6 +798,9 @@ int main(int argc, char* argv[]){
 			if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
 			else{ continue; } // A reaction did not occur
 
+			EejectMod = Eeject;
+			ErecoilMod = Erecoil;
+
 			// Convert the reaction vectors to cartesian coordinates
 			// EjectSphere and RecoilSphere are unit vectors (no need to normalize)
 			Sphere2Cart(EjectSphere, Ejectile); 
@@ -808,11 +832,11 @@ int main(int argc, char* argv[]){
 		// Process the reaction products
 		for(int bar = 0; bar < Ndet; bar++){
 			if(vandle_bars[bar].IsEjectileDet()){ // This detector can detect ejectiles
-				if(Eeject <= 0.0){ continue; } // There still may be recoil detectors left
+				if(EejectMod <= 0.0){ continue; } // There still may be recoil detectors left
 				proc_eject = true; 
 			}
 			else if(vandle_bars[bar].IsRecoilDet()){ // This detector can detect recoils
-				if(Erecoil <= 0.0){ continue; } // There still may be ejectile detectors left
+				if(ErecoilMod <= 0.0){ continue; } // There still may be ejectile detectors left
 				proc_eject = false; 
 			}
 			else{ continue; } // This detector cannot detect particles, so skip it
@@ -836,21 +860,21 @@ process:
 				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
 						if(Zeject > 0){ // Calculate energy loss for the ejectile in the detector
-							QDC = Eeject - eject_tables[vandle_bars[bar].GetMaterial()].GetNewE(Eeject, penetration);
+							QDC = EejectMod - eject_tables[vandle_bars[bar].GetMaterial()].GetNewE(EejectMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else{ 
 						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
-							QDC = Erecoil - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(Erecoil, penetration);
+							QDC = ErecoilMod - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(ErecoilMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
 				}
 				else{ // Do not do energy loss calculations
 					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
-					if(proc_eject){ QDC = Eeject*frand(); } // The ejectile may leave any portion of its energy inside the detector
-					else{ QDC = Erecoil*frand(); } // The recoil may leave any portion of its energy inside the detector
+					if(proc_eject){ QDC = EejectMod*frand(); } // The ejectile may leave any portion of its energy inside the detector
+					else{ QDC = ErecoilMod*frand(); } // The recoil may leave any portion of its energy inside the detector
 				}
 
 				// Calculate the total distance traveled and the interaction point inside the detector
@@ -866,8 +890,8 @@ process:
 			
 				// Calculate the particle ToF (ns)
 				tof = 0.0;
-				if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/Eeject); }
-				else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/Erecoil); }
+				if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod); }
+				else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/ErecoilMod); }
 
 				// Smear tof due to PIXIE resolution
 				tof += rndgauss0(timeRes); 
@@ -876,6 +900,7 @@ process:
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 				if(proc_eject){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+					if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2Mevee(dummyE); }
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
@@ -888,8 +913,8 @@ process:
 				}
 				
 				// Adjust the particle energies to take energy loss into account
-				if(proc_eject){ Eeject = Eeject - QDC; }
-				else{ Erecoil = Erecoil - QDC; }
+				if(proc_eject){ EejectMod = EejectMod - QDC; }
+				else{ ErecoilMod = ErecoilMod - QDC; }
 			} // if(hit)
 			
 			if(proc_eject){ 
@@ -901,10 +926,11 @@ process:
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
-					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+					REACTIONdata.Append(Ereact, Eeject, Erecoil, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], 
+					                    lab_beam_interaction.axis[2], lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], 
+					                    lab_beam_stragtraject.axis[2]);
 				}
-				backgroundWait = backgroundRate;
+				if(bgPerDetection){ backgroundWait = backgroundRate; }
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}
@@ -913,10 +939,11 @@ process:
 			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
-					REACTIONdata.Append(Ereact, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-										lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+					REACTIONdata.Append(Ereact, Eeject, Erecoil, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], 
+					                    lab_beam_interaction.axis[2], lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], 
+					                    lab_beam_stragtraject.axis[2]);
 				}
-				backgroundWait = backgroundRate;
+				if(bgPerDetection){ backgroundWait = backgroundRate; }
 				VIKARtree->Fill(); 
 				Ndetected++;
 			}

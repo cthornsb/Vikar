@@ -113,8 +113,10 @@ LONG	Structure for storing information about the reaction
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-double	reactE	
-double	reactCOM	
+double	energy	
+double	Eeject
+double	Erecoil
+double	comAngle	
 double	reactX	
 double	reactY	
 double	reactZ	
