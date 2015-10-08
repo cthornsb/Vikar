@@ -10,11 +10,12 @@
 #include "TTree.h"
 
 #include "vikar_core.h"
+#include "kindeux.h"
 #include "materials.h"
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.20b"
+#define VERSION "1.21"
 
 struct debugData{
 	double var1, var2, var3;
@@ -112,9 +113,7 @@ int main(int argc, char* argv[]){
 
 	double tof; // Neutron time of flight (s)
 	double Zdepth; // Interaction depth inside of the target (m)
-	double Ereact; // Energy at which the reaction occurs (MeV)
 	double range_beam;
-	double com_angle; // Center of mass angle of the reaction products
 		
 	unsigned int num_materials = 0;
 	Material *materials = NULL; // Array of materials
@@ -131,7 +130,6 @@ int main(int argc, char* argv[]){
 
 	// Energy variables
 	double Ebeam = 0.0, Ebeam0 = 0.0;
-	double Erecoil = 0.0, Eeject = 0.0;
 	double ErecoilMod = 0.0, EejectMod = 0.0;
 		
 	// Beam variables
@@ -662,6 +660,9 @@ int main(int argc, char* argv[]){
 	
 	bool proc_eject = false;
 	
+	// Struct for storing reaction information.
+	reactData rdata;
+	
 	while(Ndetected < Nwanted){
 		// ****************Time Estimate**************
 		if(flag && (Ndetected % chunk == 0)){
@@ -702,7 +703,7 @@ int main(int argc, char* argv[]){
 				// Calculate the apparent energy of the particle using the tof
 				if(vandle_bars[bar].IsEjectileDet()){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					//if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2Mevee(dummyE); }
+					//if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
 									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, bar, true);
 					VIKARtree->Fill(); 
@@ -783,23 +784,23 @@ int main(int argc, char* argv[]){
 			
 					continue; 
 				}
-				Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
+				rdata.Ereact = beam_targ.GetEnergy(range_beam - Zdepth);
 		
 				// Determine the angle of the beam particle's trajectory at the
 				// interaction point, due to angular straggling and the incident trajectory.
 				targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
 			}
 			else{ 
-				Ereact = Ebeam; 
+				rdata.Ereact = Ebeam; 
 				lab_beam_stragtraject = lab_beam_trajectory;
 			}
 
 			// the 2 body kinematics routine to generate the ejectile and recoil
-			if(kind.FillVars(Ereact, Eeject, Erecoil, EjectSphere, RecoilSphere, com_angle)){ Nreactions++; }
+			if(kind.FillVars(rdata, EjectSphere, RecoilSphere)){ Nreactions++; }
 			else{ continue; } // A reaction did not occur
 
-			EejectMod = Eeject;
-			ErecoilMod = Erecoil;
+			EejectMod = rdata.Eeject;
+			ErecoilMod = rdata.Erecoil;
 
 			// Convert the reaction vectors to cartesian coordinates
 			// EjectSphere and RecoilSphere are unit vectors (no need to normalize)
@@ -900,7 +901,7 @@ process:
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 				if(proc_eject){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2Mevee(dummyE); }
+					if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
@@ -925,10 +926,10 @@ process:
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
-				if(WriteReaction){
-					REACTIONdata.Append(Ereact, Eeject, Erecoil, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], 
-					                    lab_beam_interaction.axis[2], lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], 
-					                    lab_beam_stragtraject.axis[2]);
+				if(WriteReaction){ // Set some extra reaction data variables.
+					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
+					                    lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				if(bgPerDetection){ backgroundWait = backgroundRate; }
 				VIKARtree->Fill(); 
@@ -939,9 +940,9 @@ process:
 			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
-					REACTIONdata.Append(Ereact, Eeject, Erecoil, com_angle*rad2deg, lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], 
-					                    lab_beam_interaction.axis[2], lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], 
-					                    lab_beam_stragtraject.axis[2]);
+					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
+					                    lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				if(bgPerDetection){ backgroundWait = backgroundRate; }
 				VIKARtree->Fill(); 

@@ -117,6 +117,7 @@ double	energy
 double	Eeject
 double	Erecoil
 double	comAngle	
+u_int	state	
 double	reactX	
 double	reactY	
 double	reactZ	

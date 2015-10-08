@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "vikar_core.h"
+#include "kindeux.h"
 
 // Return true if substr is found in the character array
 bool FindSubstring(char *input, char* substr, unsigned short len){

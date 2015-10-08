@@ -155,11 +155,11 @@ class VandleBar:
 	
 	def SetPhi(self, phi):
 		self.rotation[1] = phi
-		self.body.rotate(angle=phi, axis=(0, 0, 1))
+		self.body.rotate(angle=phi, axis=(1, 0, 0))
 	
 	def SetPsi(self, psi):
 		self.rotation[2] = psi
-		self.body.rotate(angle=psi, axis=(1, 0, 0))
+		self.body.rotate(angle=psi, axis=(0, 0, 1))
 	
 	def SetColor(self, color_):
 		self.body.color = color_
@@ -399,7 +399,7 @@ def DetRead(fname, opacity=0.25):
 			output[num_det].SetY(float(arr[1]))
 			output[num_det].SetZ(float(arr[0]))
 			output[num_det].SetTheta(-1*float(arr[3]))
-			output[num_det].SetPhi(float(arr[4]))
+			output[num_det].SetPhi(-1*float(arr[4]))
 			output[num_det].SetPsi(float(arr[5]))
 			output[num_det].body.opacity = opacity
 			num_det += 1
@@ -597,8 +597,7 @@ def main2():
 	labelz = visual.label(pos=(0,0,-5.0), text="X-Axis")
 	#histogram = Hist3D("/home/cory/Research/vikar311/detectors/7BeExp.det","/home/cory/Research/vikar311/source/rewrite/VIKARoutput.dat")
 	#RawRead("/home/cory/Research/VANDLE/Vikar/test.out", 2)
-	#VBars = DetRead("/home/cory/Research/VANDLE/Vikar/detectors/Phoswich.det")
-	VBars = DetRead("/home/cory/Research/Vikar/detectors/VANDLE.det")
+	#VBars = DetRead("/home/cory/Research/Vikar/detectors/default.det")
 
 	while True:
 		visual.rate(60)

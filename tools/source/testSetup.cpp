@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "vikar_core.h"
+#include "kindeux.h"
 #include "detectors.h"
 #include "Structures.h"
 
@@ -136,7 +137,7 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, unsigned int num_ba
 		}
 		if(WriteRXN_){ 
 			pack->REACTIONdata.Zero();
-			pack->REACTIONdata.Append(0.0, 0.0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
+			pack->REACTIONdata.Append(0.0, 0.0, 0.0, 0.0, 0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
 		}
 		for(bar = 0; bar < num_bars; bar++){
 			if(bar_array[bar].IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
@@ -194,8 +195,6 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, Kindeux *kind_, uns
 	Vector3 offset, dummyVector;
 	int face1, face2;
 	
-	double ejectE, recoilE;
-	double com_angle;
 	bool eject_hit, recoil_hit;
 	
 	Matrix3 matrix;
@@ -213,6 +212,9 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, Kindeux *kind_, uns
 	double dummyR, dummyPhi, ejectTheta, recoilTheta, alpha;
 	double m1m2 = kind_->GetMbeam()/kind_->GetMtarg();
 
+	// Struct for storing reaction information.
+	reactData rdata;
+
 	total = 0; count = 0;
 	while(count < num_trials){
 		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
@@ -224,7 +226,7 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, Kindeux *kind_, uns
 			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
 		}
 		
-		kind_->FillVars(beamE_, ejectE, recoilE, EjectSphere, RecoilSphere, com_angle);
+		kind_->FillVars(rdata, EjectSphere, RecoilSphere);
 		Sphere2Cart(EjectSphere, Ejectile); 
 		Sphere2Cart(RecoilSphere, Recoil);
 		
@@ -245,9 +247,9 @@ unsigned int TestDetSetup(DataPack *pack, Planar *bar_array, Kindeux *kind_, uns
 				Cart2Sphere(Recoil, dummyR, recoilTheta, dummyPhi);
 				
 				alpha = std::tan(recoilTheta)/std::tan(ejectTheta);
-				com_angle = std::acos((1-alpha*m1m2)/(1+alpha))*rad2deg;
+				rdata.comAngle = std::acos((1-alpha*m1m2)/(1+alpha))*rad2deg;
 				
-				pack->hist->Fill(com_angle);
+				pack->hist->Fill(rdata.comAngle);
 
 				count++;
 				break;

@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "vikar_core.h"
+#include "kindeux.h"
 
 int main(int argc, char* argv[]){
 	Kindeux kind;	
@@ -18,8 +19,6 @@ int main(int argc, char* argv[]){
 	unsigned int num_states;
 	unsigned int num_steps;
 	double *RecoilEx;
-	double Eeject, Erecoil;
-	double Eeject2, Erecoil2;
 	std::cout << "  Enter beam Energy (MeV): "; std::cin >> Ebeam;
 	std::cout << "  Enter beam Mass (A): "; std::cin >> Mbeam;
 	std::cout << "  Enter target Mass (A): "; std::cin >> Mtarg;
@@ -72,18 +71,18 @@ int main(int argc, char* argv[]){
 	outFile << "stop_angle\t" << stop_angle*rad2deg << " degrees (COM frame)\n";
 	outFile << "num_steps\t" << num_steps << "\n";
 	outFile << "CoMAngle\tEjectTheta1\tEjectE1\tEjectTheta2\tEjectE2\tRecoilTheta1\tRecoilE1\tRecoilTheta2\tRecoilE2\n";
-	
+
+	reactData rdata1, rdata2;	
 	Vector3 eject, recoil, eject2, recoil2;	
-	double com_angle;
 	double step_size = (stop_angle - start_angle)/num_steps;
 	for(unsigned int i = 0; i < num_steps; i++){
 		outFile << (start_angle+i*step_size)*rad2deg;
 		for(int j = 0; j < (int)num_states; j++){
-			kind.FillVars(Ebeam, Eeject, Erecoil, eject, recoil, com_angle, j, 0, (start_angle+i*step_size));
-			kind.FillVars(Ebeam, Eeject2, Erecoil2, eject2, recoil2, com_angle, j, 1, (start_angle+i*step_size));
+			kind.FillVars(rdata1, eject, recoil, j, 0, (start_angle+i*step_size));
+			kind.FillVars(rdata2, eject2, recoil2, j, 1, (start_angle+i*step_size));
 			
-			outFile << "\t" << eject.axis[1]*rad2deg << "\t" << Eeject << "\t" << eject2.axis[1]*rad2deg << "\t" << Eeject2 << "\t"; // Ejectile
-			outFile << recoil.axis[1]*rad2deg << "\t" << Erecoil << "\t" << recoil2.axis[1]*rad2deg << "\t" << Erecoil2; // Recoil
+			outFile << "\t" << eject.axis[1]*rad2deg << "\t" << rdata1.Eeject << "\t" << eject2.axis[1]*rad2deg << "\t" << rdata2.Eeject << "\t"; // Ejectile
+			outFile << recoil.axis[1]*rad2deg << "\t" << rdata1.Erecoil << "\t" << recoil2.axis[1]*rad2deg << "\t" << rdata2.Erecoil; // Recoil
 		}
 		outFile << std::endl;
 	}

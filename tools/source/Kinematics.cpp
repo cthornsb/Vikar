@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "vikar_core.h"
+#include "kindeux.h"
 
 int main(int argc, char* argv[]){
 	std::ifstream inFile;
@@ -82,14 +83,12 @@ int main(int argc, char* argv[]){
 	outFile << "num_trials\t" << num_trials << "\n";
 	outFile << "CoMAngle\tEjectAngle\tEjectE\tRecoilAngle\tRecoilE\n";
 	
-	double eject_energy;
-	double recoil_energy;
-	double com_angle;
 	Vector3 eject, recoil;
+	reactData rdata;
 	while(num_in_range < num_trials){
-		kind.FillVars(Ebeam, eject_energy, recoil_energy, eject, recoil, com_angle);
+		kind.FillVars(rdata, eject, recoil);
 		if(eject.axis[1] >= start_angle && eject.axis[1] <= stop_angle){ 
-			outFile << com_angle*rad2deg << "\t" << eject.axis[1]*rad2deg << "\t" << eject_energy << "\t" << recoil.axis[1]*rad2deg << "\t" << recoil_energy << "\n"; 
+			outFile << rdata.comAngle*rad2deg << "\t" << eject.axis[1]*rad2deg << "\t" << rdata.Eeject << "\t" << recoil.axis[1]*rad2deg << "\t" << rdata.Erecoil << "\n"; 
 			num_in_range++;
 		}
 	}

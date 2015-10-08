@@ -86,8 +86,11 @@ void Planar::GetRandomPointInside(Vector3& output){
 }
 
 // Set the physical size of the bar
+//  length_ = size along y-axis (in m)
+//  width_ = size along x-axis (in m)
+//  depth_ = size along z-axis (in m)
 // For known bar sizes, it is better to use SetSmall/SetMedium/SetLarge methods
-// Unknown bar types will not include efficiency data
+// Unknown bar types will not include efficiency data.
 void Planar::SetSize(double length_, double width_, double depth_){
 	if(length_ == 0.6 && width_ == 0.03 && depth_ == 0.03){ SetSmall(); }
 	else if(length_ == 1.2 && width_ == 0.05 && depth_ == 0.03){ SetMedium(); }

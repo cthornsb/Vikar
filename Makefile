@@ -13,7 +13,7 @@ LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
-SOURCES = vikar_core.cpp detectors.cpp materials.cpp
+SOURCES = vikar_core.cpp kindeux.cpp detectors.cpp materials.cpp
 OBJECTS = $(addprefix $(OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
@@ -121,13 +121,13 @@ $(OBJ_DIR):
 $(VIKAR_FRONT_EXE): $(VIKAR_FRONT_SRC)
 	$(COMPILER) $(CFLAGS) -o $@ $^
 
-$(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vikar_core.o $(ANGLE_CONVERT_SRC)
+$(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(ANGLE_CONVERT_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
-$(KINEMATICS_EXE): $(OBJ_DIR)/vikar_core.o $(KINEMATICS_SRC)
+$(KINEMATICS_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(KINEMATICS_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
-$(KINDIST_EXE): $(OBJ_DIR)/vikar_core.o $(KINDIST_SRC)
+$(KINDIST_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(KINDIST_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
 $(ROOT2RAW_EXE): $(ROOT2RAW_SRC)
