@@ -15,7 +15,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.21"
+#define VERSION "1.21b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -90,10 +90,10 @@ int main(int argc, char* argv[]){
 	RangeTable *eject_tables = NULL; // Array of range tables for ejectile in various materials
 	RangeTable *recoil_tables = NULL; // Array of range tables for recoil in various materials
 
-	double Zrecoil = 0.0, Arecoil = 0.0; // Recoil particle
-	double Zeject = 0.0, Aeject = 0.0; // Ejectile particle
-	double Zbeam = 0.0, Abeam = 0.0; // Beam particle
-	
+	Particle recoil_part; // Recoil particle
+	Particle eject_part;// Ejectile particle
+	Particle beam_part; // Beam particle
+
 	// Hit coordinates on the surface of a detector
 	double hit_x, hit_y, hit_z;
 
@@ -224,12 +224,12 @@ int main(int argc, char* argv[]){
 				std::cout << "  Version: " << input << std::endl;
 			}
 			else if(count == 1){ 
-				Zbeam = atof(input.c_str());  
-				std::cout << "  Beam-Z: " << Zbeam << std::endl;
+				beam_part.SetZ(atof(input.c_str()));  
+				std::cout << "  Beam-Z: " << beam_part.GetZ() << std::endl;
 			}
 			else if(count == 2){ 
-				Abeam = atof(input.c_str());  
-				std::cout << "  Beam-A: " << Abeam << std::endl;
+				beam_part.SetA(atof(input.c_str()));
+				std::cout << "  Beam-A: " << beam_part.GetA() << std::endl;
 			}
 			else if(count == 3){ 
 				targ.SetZ((double)atof(input.c_str()));
@@ -240,16 +240,16 @@ int main(int argc, char* argv[]){
 				std::cout << "  Target-A: " << targ.GetA() << std::endl;
 			}
 			else if(count == 5){ 
-				Zeject = atof(input.c_str());
-				Zrecoil = Zbeam + targ.GetZ() - Zeject;  
-				std::cout << "  Ejectile-Z: " << Zeject << std::endl;
+				eject_part.SetZ(atof(input.c_str()));
+				recoil_part.SetZ(beam_part.GetZ() + targ.GetZ() - eject_part.GetZ());
+				std::cout << "  Ejectile-Z: " << eject_part.GetZ() << std::endl;
 			}
 			else if(count == 6){ 
-				Aeject = atof(input.c_str()); 
-				Arecoil = Abeam + targ.GetA() - Aeject; 
-				std::cout << "  Ejectile-A: " << Aeject << std::endl;
-				std::cout << "  Recoil-Z: " << Zrecoil << std::endl;
-				std::cout << "  Recoil-A: " << Arecoil << std::endl;
+				eject_part.SetA(atof(input.c_str())); 
+				recoil_part.SetA(beam_part.GetA() + targ.GetA() - eject_part.GetA()); 
+				std::cout << "  Ejectile-A: " << eject_part.GetA() << std::endl;
+				std::cout << "  Recoil-Z: " << recoil_part.GetZ() << std::endl;
+				std::cout << "  Recoil-A: " << recoil_part.GetA() << std::endl;
 			}
 			else if(count == 7){ 
 				Ebeam0 = atof(input.c_str());  
@@ -409,7 +409,7 @@ int main(int argc, char* argv[]){
 	std::cout << "\n Initializing main simulation Kindeux object...\n";
 
 	// Initialize kinematics object
-	kind.Initialize(Abeam, targ.GetA(), Arecoil, Aeject, gsQvalue, NRecoilStates, ExRecoilStates);
+	kind.Initialize(beam_part.GetA(), targ.GetA(), recoil_part.GetA(), eject_part.GetA(), gsQvalue, NRecoilStates, ExRecoilStates);
 
 	// Read the detector setup file
 	std::cout << " Reading in NewVIKAR detector setup file...\n";
@@ -452,8 +452,8 @@ int main(int argc, char* argv[]){
 		}
 		
 		materials = new Material[names.size()+1];
-		if(Zeject > 0){ eject_tables = new RangeTable[names.size()+1]; }
-		if(Zrecoil > 0){ recoil_tables = new RangeTable[names.size()+1]; }
+		if(eject_part.GetZ() > 0){ eject_tables = new RangeTable[names.size()+1]; }
+		if(recoil_part.GetZ() > 0){ recoil_tables = new RangeTable[names.size()+1]; }
 		num_materials = 1; // Default CD2 material
 		for(std::vector<std::string>::iterator iter = names.begin(); iter != names.end(); iter++){
 			materials[num_materials].ReadMatFile(iter->c_str());
@@ -484,8 +484,8 @@ int main(int argc, char* argv[]){
 	else{ 
 		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
 		materials = new Material[1];
-		if(Zeject > 0){ eject_tables = new RangeTable[1]; }
-		if(Zrecoil > 0){ recoil_tables = new RangeTable[1]; }
+		if(eject_part.GetZ() > 0){ eject_tables = new RangeTable[1]; }
+		if(recoil_part.GetZ() > 0){ recoil_tables = new RangeTable[1]; }
 	}
 
 	// Setup default CD2 material
@@ -509,19 +509,19 @@ int main(int argc, char* argv[]){
 		std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
 	
 		// Calculate the stopping power table for the beam particles in the target
-		if(Zbeam > 0){ // The beam is a charged particle (not a neutron)
+		if(beam_part.GetZ() > 0){ // The beam is a charged particle (not a neutron)
 			std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), Zbeam, Abeam*amu2mev, &materials[targ_mat_id]);
+			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()*amu2mev, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 	}
 
 	// Calculate the stopping power table for the ejectiles in the materials
-	if(Zeject > 0){ // The ejectile is a charged particle (not a neutron)
+	if(eject_part.GetZ() > 0){ // The ejectile is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zeject, Aeject*amu2mev, &materials[i]);
+			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
 		//eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
@@ -529,11 +529,11 @@ int main(int argc, char* argv[]){
 
 
 	// Calculate the stopping power table for the recoils in the materials
-	if(Zrecoil > 0){ // The recoil is a charged particle (not a neutron)
+	if(recoil_part.GetZ() > 0){ // The recoil is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), Zrecoil, Arecoil*amu2mev, &materials[i]);
+			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
 		//recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
@@ -558,7 +558,7 @@ int main(int argc, char* argv[]){
 	for(int i = 0; i < Ndet; i++){ // Set the detector material for energy loss calculations
 		for(unsigned int j = 0; j < num_materials; j++){
 			if(vandle_bars[i].GetMaterialName() == materials[j].GetName()){
-				if((vandle_bars[i].IsRecoilDet() && Zrecoil > 0) || (vandle_bars[i].IsEjectileDet() && Zeject > 0)){ 
+				if((vandle_bars[i].IsRecoilDet() && recoil_part.GetZ() > 0) || (vandle_bars[i].IsEjectileDet() && eject_part.GetZ() > 0)){ 
 					// Only set detector to use material if the particle it is responsible for detecting has
 					// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
 					// and thus cannot use energy loss considerations.
@@ -586,10 +586,10 @@ int main(int argc, char* argv[]){
 	else if(DoRutherford){
 		double e = 1.60217657E-19; // C
 		double k = 8.987551E9; // N*m^2/C^2
-		double coefficient = k*Zbeam*targ.GetZ()*e*e/(4.0*Ebeam0*1.60218E-13); // m^2
+		double coefficient = k*beam_part.GetZ()*targ.GetZ()*e*e/(4.0*Ebeam0*1.60218E-13); // m^2
 		coefficient = coefficient * coefficient;
 		std::cout << "\n Generating Rutherford distribution...\n";
-		std::cout << "  Z-1 = " << Zbeam*e << " C\n";
+		std::cout << "  Z-1 = " << beam_part.GetZ()*e << " C\n";
 		std::cout << "  Z-2 = " << targ.GetZ()*e << " C\n";
 		std::cout << "  Energy = " << Ebeam0*1.60218E-13 << " J\n";
 		std::cout << "  Coefficient: " << coefficient << " m^2\n";
@@ -788,7 +788,7 @@ int main(int argc, char* argv[]){
 		
 				// Determine the angle of the beam particle's trajectory at the
 				// interaction point, due to angular straggling and the incident trajectory.
-				targ.AngleStraggling(lab_beam_trajectory, Abeam, Zbeam, Ebeam, lab_beam_stragtraject);
+				targ.AngleStraggling(lab_beam_trajectory, beam_part.GetA(), beam_part.GetZ(), Ebeam, lab_beam_stragtraject);
 			}
 			else{ 
 				rdata.Ereact = Ebeam; 
@@ -816,10 +816,10 @@ int main(int argc, char* argv[]){
 
 			// Calculate the energy loss for the ejectile and recoils in the target
 			/*if(use_target_eloss){
-				if(Zeject > 0){
+				if(eject_part.GetZ() > 0){
 					range_eject = eject_targ->GetRange(Eeject);
 				}
-				if(Zrecoil > 0){
+				if(recoil_part.GetZ() > 0){
 					range_recoil = recoil_targ->GetRange(Erecoil);
 				}
 			}*/
@@ -860,13 +860,13 @@ process:
 
 				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
-						if(Zeject > 0){ // Calculate energy loss for the ejectile in the detector
+						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
 							QDC = EejectMod - eject_tables[vandle_bars[bar].GetMaterial()].GetNewE(EejectMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else{ 
-						if(Zrecoil > 0){ // Calculate energy loss for the recoil in the detector
+						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
 							QDC = ErecoilMod - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(ErecoilMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
@@ -979,8 +979,8 @@ process:
 	
 	delete file;
 	delete[] materials;
-	if(Zeject > 0){ delete[] eject_tables; }
-	if(Zrecoil > 0){ delete[] recoil_tables; }
+	if(eject_part.GetZ() > 0){ delete[] eject_tables; }
+	if(recoil_part.GetZ() > 0){ delete[] recoil_tables; }
 	delete[] vandle_bars;
 	delete[] ExRecoilStates;
 	delete[] totXsect;

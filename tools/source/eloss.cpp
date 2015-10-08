@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
 	Particle part("", Z, A, BE_A);
 	part.SetMaterial(&mat, start, 0.1);
 	
-	double newE = part.GetNewE(start, thickness);
+	double newE = part.GetTableNewE(start, thickness);
 
 	std::cout << "  Eloss = " << start - newE << " MeV\n";
 	std::cout << "  Efinal = " << newE << " MeV\n";

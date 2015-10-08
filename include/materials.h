@@ -257,64 +257,84 @@ class RangeTable{
 
 class Particle{
   private:
-	double A, Z; // Mass and charge number of the particle
-	double maxE; // Maximum energy in the range table
-	double mass; // Rest mass energy of the particle (MeV)
-	std::string name;
-	bool init;
+	double A, Z; /// Mass and charge number of the particle
+	double maxE; /// Maximum energy in the range table
+	double mass; /// Rest mass energy of the particle (MeV/c^2)
+	std::string name; /// The name of the particle.
+	bool init; /// True if the material and range table have been initialized.
 	
-	RangeTable table;
-	Material *mat;
+	RangeTable table; /// The range table to use for energy loss calculations.
+	Material *mat; /// The material to use for energy loss calculations.
 	
   public:
 	Particle(){ 
 		A = 0.0; Z = 0.0; maxE = 0.0; mass = 0.0;
 		name = "unknown"; init = false; 
 	}
-	Particle(std::string name_, double Z_, double A_){ 
+	Particle(const std::string &name_, const double &Z_, const double &A_, const double &BE_A_=0.0){ 
 		SetParticle(name_, Z_, A_); 
 		init = false;
 	}
-	Particle(std::string name_, double Z_, double A_, double BE_A_){ 
-		SetParticle(name_, Z_, A_, BE_A_); 
-		init = false;
-	}
 	
-	void SetA(double A_){ A = A_; } // Set the mass number of the particle
-	void SetZ(double Z_){ Z = Z_; } // Set the atomic charge of the particle
-	void SetMass(double mass_){ mass = mass_; } // Set the mass of the particle (MeV)
-	void SetParticle(std::string name_, double Z_, double A_){ // Set the mass number, charge, and name of the particle
+	/** Set the mass number of the particle. This does NOT set 
+	  * the actual mass of the particle. To do that, call SetMass().
+	  */
+	void SetA(const double &A_){ A = A_; }
+	
+	/// Set the charge number of the particle.
+	void SetZ(const double &Z_){ Z = Z_; }
+	
+	/// Auto-set the mass of the particle in units of MeV/c^2. Assumes that Z and A have been set.
+	void SetMass(const double &BE_A_=0.0){ mass = Z*proton_RME + (A-Z)*neutron_RME - BE_A_*A; }
+	
+	/// Manually set the mass of the particle in units of MeV/c^2.
+	void SetMassMeV(const double &mass_){ mass = mass_; }
+	
+	/// Manually set the mass of the particle in units of amu.
+	void SetMassAMU(const double &mass_){ mass = mass_/amu2mev; } 
+	
+	/// Setup the particle name, charge number, and mass.
+	void SetParticle(const std::string &name_, const double &Z_, const double &A_, const double &BE_A_=0.0){
 		Z = Z_; A = A_; name = name_; 
-		mass = Z*proton_RME + (A-Z)*neutron_RME;
+		SetMass(BE_A_);
 	} 
-	void SetParticle(std::string name_, double Z_, double A_, double BE_A_){ // Set the mass number, charge, name and mass of the particle
-		Z = Z_; A = A_; name = name_; 
-		mass = Z*proton_RME + (A-Z)*neutron_RME - BE_A_*A;
-	}
-	void SetName(std::string name_){ name = name_; } // Set the name of the particle
-	bool SetMaterial(Material *mat_, double Ebeam_, double Espread_); // Set the material for the particle, and setup the range table
 	
-	double GetA(){ return A; } // Return the atomic mass of the particle
-	double GetZ(){ return Z; } // Return the atomic charge of the particle
-	double GetN(){ return A-Z; } // Return the number of neutrons
-	double GetMass(){ return mass; } // Return the rest mass of the particle (MeV)
-	double GetMaxE(){ return maxE; } // Return the maximum particle energy (MeV)
-	std::string GetName(){ return name; }
-	Material *GetMaterial(){ return mat; }
-	RangeTable *GetTable(){ return &table; }
+	/// Set the name of the particle.
+	void SetName(std::string name_){ name = name_; }
 	
-	double GetEnergy(double range_){ 
-		if(!init){ return -1.0; }
-		return table.GetEnergy(range_);
-	}
-	double GetRange(double energy_){ 
-		if(!init){ return -1.0; }
-		return table.GetRange(energy_);
-	}
-	double GetNewE(double energy_, double dist_){
-		if(!init){ return -1.0; }
-		return table.GetNewE(energy_, dist_);
-	}
+	/** Set the material for the particle to use for energy loss calculations.
+	  * This also sets up the range table.
+	  */
+	bool SetMaterial(Material *mat_, const double &Ebeam_, const double &Espread_);
+	
+	double GetA(){ return A; } /// Return the atomic mass of the particle
+	double GetZ(){ return Z; } /// Return the atomic charge of the particle
+	double GetN(){ return A-Z; } /// Return the number of neutrons
+	double GetMass(){ return mass; } /// Return the rest mass of the particle (MeV)
+	double GetMaxE(){ return maxE; } /// Return the maximum particle energy (MeV)
+	std::string GetName(){ return name; } /// Return the name of the particle.
+	Material *GetMaterial(){ return mat; } /// Return a pointer to the energy loss material.
+	RangeTable *GetTable(){ return &table; } /// Return a pointer to the range table.
+	
+	/// Get the relativistic factor of the particle (unitless).
+	double GetGamma(const double &velocity_){ return 1.0/std::sqrt(1.0-velocity_*velocity_/(c*c)); }
+	
+	/// Get the relativistic energy of the particle (MeV).
+	double GetEnergy(const double &velocity_);
+	
+	/// Get the relativistic velocity of the particle (m/s).
+	double GetMomentum(const double &energy_);
+	
+	/// Get the energy of a particle stopped in distance range_.
+	double GetTableEnergy(const double &range_);
+	
+	/// Get the range of the particle given an initial energy_.
+	double GetTableRange(const double &energy_);
+	
+	/** Get the final energy of a particle with energy_ moving a
+	  * distance dist_ through the material.
+	  */
+	double GetTableNewE(const double &energy_, const double &dist_);
 };
 
 #endif
