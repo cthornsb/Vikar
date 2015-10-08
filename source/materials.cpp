@@ -705,15 +705,16 @@ bool Particle::SetMaterial(Material *mat_, const double &Ebeam_, const double &E
 	return false;
 }
 
-/// Get the relativistic energy of the particle (MeV).
-double Particle::GetEnergy(const double &velocity_){
+/// Get the relativistic kinetic energy of the particle (MeV).
+double Particle::GetKEfromV(const double &velocity_){
 	double gamma = GetGamma(velocity_);
-	return (std::sqrt(gamma*gamma*velocity_*velocity_ + c*c)*c*mass);
+	return (gamma - 1)*mass;
 }
 
-/// Get the relativistic momentum of the particle (MeV/c).
-double Particle::GetMomentum(const double &energy_){
-	return std::sqrt(energy_*energy_/(c*c) - mass*mass*c*c);
+/// Get the relativistic total energy of the particle (MeV).
+double Particle::GetTEfromV(const double &velocity_){
+	double gamma = GetGamma(velocity_);
+	return (std::sqrt(gamma*gamma*velocity_*velocity_/(c*c) + 1.0)*mass);
 }
 
 /// Get the energy of a particle stopped in distance range_.
