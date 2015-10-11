@@ -15,7 +15,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.21b"
+#define VERSION "1.22"
 
 struct debugData{
 	double var1, var2, var3;
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]){
 	Kindeux kind; // Main kinematics object
 	Target targ; // The physical target
 	Efficiency bar_eff; // VANDLE bar efficiencies
-	Planar *vandle_bars = NULL; // Array of Planar detectors
+	std::vector<Planar*> vandle_bars; // Vector of Planar detectors
 
 	RangeTable beam_targ; // Range table for beam in target
 	//RangeTable *eject_targ = NULL; // Pointer to the range table for ejectile in target
@@ -421,13 +421,13 @@ int main(int argc, char* argv[]){
 	else if(Ndet == 0){ std::cout << " Error: Found no detectors in the detector setup file!\n"; } // Check there's at least 1 detector!
 	
 	std::vector<std::string> needed_materials;
-	for(int i = 0; i < Ndet; i++){
-		if(!IsInVector(vandle_bars[i].GetMaterialName(), needed_materials)){
-			needed_materials.push_back(vandle_bars[i].GetMaterialName());
+	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+		if(!IsInVector((*iter)->GetMaterialName(), needed_materials)){
+			needed_materials.push_back((*iter)->GetMaterialName());
 		}
 		
-		if(vandle_bars[i].IsEjectileDet()){ NdetEject++; }
-		if(vandle_bars[i].IsRecoilDet()){ NdetRecoil++; }
+		if((*iter)->IsEjectileDet()){ NdetEject++; }
+		if((*iter)->IsRecoilDet()){ NdetRecoil++; }
 	}
 
 	// Report on how many detectors were read in
@@ -555,14 +555,14 @@ int main(int argc, char* argv[]){
 	if(!BeamFocus){ lab_beam_trajectory = Vector3(0.0, 0.0, 1.0); }
 
 	std::cout << "\n Setting detector material types...\n";
-	for(int i = 0; i < Ndet; i++){ // Set the detector material for energy loss calculations
+	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){ // Set the detector material for energy loss calculations
 		for(unsigned int j = 0; j < num_materials; j++){
-			if(vandle_bars[i].GetMaterialName() == materials[j].GetName()){
-				if((vandle_bars[i].IsRecoilDet() && recoil_part.GetZ() > 0) || (vandle_bars[i].IsEjectileDet() && eject_part.GetZ() > 0)){ 
+			if((*iter)->GetMaterialName() == materials[j].GetName()){
+				if(((*iter)->IsRecoilDet() && recoil_part.GetZ() > 0) || ((*iter)->IsEjectileDet() && eject_part.GetZ() > 0)){ 
 					// Only set detector to use material if the particle it is responsible for detecting has
 					// a Z greater than zero. Particles with Z == 0 will not have calculated range tables
 					// and thus cannot use energy loss considerations.
-					vandle_bars[i].SetMaterial(j);  
+					(*iter)->SetMaterial(j);  
 				}
 				break; 
 			}
@@ -690,29 +690,29 @@ int main(int argc, char* argv[]){
 			backgroundWait--;
 
 			// Process the background event for each detector
-			for(int bar = 0; bar < Ndet; bar++){
-				if(!(vandle_bars[bar].IsEjectileDet() || vandle_bars[bar].IsRecoilDet())){ continue; } // This detector cannot detect particles
+			for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+				if(!((*iter)->IsEjectileDet() || (*iter)->IsRecoilDet())){ continue; } // This detector cannot detect particles
 
 				// Select the "tof" of the background event
 				tof = (double)frand(0, detWindow)*(1E-9);
 			
 				// Select a random point insde the detector
-				vandle_bars[bar].GetRandomPointInside(temp_vector);
+				(*iter)->GetRandomPointInside(temp_vector);
 				Cart2Sphere(temp_vector_sphere);
 			
 				// Calculate the apparent energy of the particle using the tof
-				if(vandle_bars[bar].IsEjectileDet()){
+				if((*iter)->IsEjectileDet()){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					//if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
+					//if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
-									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, bar, true);
+									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill(); 
 					EJECTdata.Zero();
 				}
-				else if(vandle_bars[bar].IsRecoilDet()){
+				else if((*iter)->IsRecoilDet()){
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, bar, true);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill();
 					RECOILdata.Zero();
 				}
@@ -831,20 +831,20 @@ int main(int argc, char* argv[]){
 		}
 
 		// Process the reaction products
-		for(int bar = 0; bar < Ndet; bar++){
-			if(vandle_bars[bar].IsEjectileDet()){ // This detector can detect ejectiles
+		for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+			if((*iter)->IsEjectileDet()){ // This detector can detect ejectiles
 				if(EejectMod <= 0.0){ continue; } // There still may be recoil detectors left
 				proc_eject = true; 
 			}
-			else if(vandle_bars[bar].IsRecoilDet()){ // This detector can detect recoils
+			else if((*iter)->IsRecoilDet()){ // This detector can detect recoils
 				if(ErecoilMod <= 0.0){ continue; } // There still may be ejectile detectors left
 				proc_eject = false; 
 			}
 			else{ continue; } // This detector cannot detect particles, so skip it
 
 process:			
-			if(proc_eject){ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
-			else{ hit = vandle_bars[bar].IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
+			if(proc_eject){ hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
+			else{ hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
 			
 			// If a geometric hit was detected, process the particle
 			if(hit){
@@ -858,16 +858,16 @@ process:
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
 				dist_traveled = 0.0;
 
-				if(vandle_bars[bar].UseMaterial()){ // Do energy loss and range considerations
+				if((*iter)->UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
 						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
-							QDC = EejectMod - eject_tables[vandle_bars[bar].GetMaterial()].GetNewE(EejectMod, penetration);
+							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else{ 
 						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
-							QDC = ErecoilMod - recoil_tables[vandle_bars[bar].GetMaterial()].GetNewE(ErecoilMod, penetration);
+							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, penetration);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
@@ -901,16 +901,16 @@ process:
 				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 				if(proc_eject){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					if(vandle_bars[bar].GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
+					if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
+									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				else{
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, bar, false);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				
 				// Adjust the particle energies to take energy loss into account
@@ -920,9 +920,9 @@ process:
 			
 			if(proc_eject){ 
 				proc_eject = false; 
-				if(vandle_bars[bar].IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
+				if((*iter)->IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
 			}
-		} // for(unsigned int bar = 0; bar < Ndet; bar++)
+		} // for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
@@ -981,9 +981,13 @@ process:
 	delete[] materials;
 	if(eject_part.GetZ() > 0){ delete[] eject_tables; }
 	if(recoil_part.GetZ() > 0){ delete[] recoil_tables; }
-	delete[] vandle_bars;
 	delete[] ExRecoilStates;
 	delete[] totXsect;
+
+	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+		delete *iter;
+	}
+	vandle_bars.clear();
 	
 	return 0;
 } 

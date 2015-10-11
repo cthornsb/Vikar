@@ -15,8 +15,191 @@ const double deg2rad = pi/180.0;
 const double rad2deg = 180.0/pi;
 const double LN2 = 0.6931471805;
 
+/** This function finds the point in 2d space where two rays intersect.
+  * Return the parameters t1 and t2 for the following parametric vector equations
+  *  P1(t1) = p1_ + d1_*t1
+  *  P2(t2) = p2_ + d2_*t2
+  *  such that P1(t1) = P2(t2) = P
+  */
+bool GetT1T2(const Vector3 &p1_, const Vector3 &d1_, const Vector3 &p2_, const Vector3 &d2_, double &t1, double &t2){
+	Vector3 V1 = p2_ - p1_;
+	if(d1_.axis[0] != 0 && d1_.axis[1] != 0 && d2_.axis[0] != 0 && d2_.axis[1] != 0){ // General case.
+		t2 = ((d1_.axis[0]/d1_.axis[1])*V1.axis[1] - V1.axis[0])*(1.0/(d2_.axis[0]*(1.0-d1_.axis[0]*d2_.axis[1]/(d1_.axis[1]*d2_.axis[0]))));
+		t1 = (V1.axis[0]+d2_.axis[0]*t2)/d1_.axis[0];	
+	}
+	else if(d1_.axis[0] == 0){ // Line 1 is vertical.
+		t2 = (p1_.axis[0] - p2_.axis[0]) / d2_.axis[0];
+		t1 = (p2_.axis[1] - p1_.axis[1] + d2_.axis[1]*t2) / d1_.axis[1];
+	}
+	else if(d1_.axis[1] == 0){ // Line 1 is horizontal.
+		t2 = (p1_.axis[1] - p2_.axis[1]) / d2_.axis[1];
+		t1 = (p2_.axis[1] - p1_.axis[1] + d2_.axis[0]*t2) / d1_.axis[0];		
+	}
+	else if(d2_.axis[0] == 0){ // Line 2 is vertical.
+		t1 = (p2_.axis[0] - p2_.axis[0]) / d1_.axis[0];
+		t2 = (p1_.axis[1] - p2_.axis[1] + d1_.axis[1]*t1) / d2_.axis[1];
+	}
+	else if(d2_.axis[1] == 0){ // Line 2 is horizontal.
+		t1 = (p2_.axis[1] - p2_.axis[1]) / d1_.axis[1];
+		t2 = (p1_.axis[0] - p2_.axis[0] + d1_.axis[0]*t1) / d2_.axis[0];
+	}
+	
+	return true;
+}
+
 /////////////////////////////////////////////////////////////////////
-// Vector3 Struct
+// Ray
+/////////////////////////////////////////////////////////////////////
+
+/** Construct a ray by supplying its starting point (x1_, y1_) and
+  * a point through which it passes (x2_, y2_).
+  */
+Ray::Ray(const double &x1_, const double &y1_, const double &x2_, const double &y2_){
+	pos = Vector3(x1_, y1_);
+	Vector3 destination(x2_, y2_);
+	dir = destination - pos;
+}
+
+/** Construct a ray by supplying its starting point pos_ and
+  * and its direction (dx_, dy_).
+  */
+Ray::Ray(const Vector3 &pos_, const double &dx_, const double &dy_){
+	pos = pos_;
+	dir = Vector3(dx_, dy_);
+}
+
+/** Construct a ray by supplying its starting point (x_, y_) and
+  * and its direction dir_.
+  */
+Ray::Ray(const double &x_, const double &y_, const Vector3 &dir_){
+	pos = Vector3(x_, y_);
+	dir = dir_;
+}
+
+/** Construct a ray by supplying its starting point pos_ and
+  * and its direction dir_.
+  */
+Ray::Ray(const Vector3 &pos_, const Vector3 &dir_){
+	pos = pos_;
+	dir = dir_;
+}
+
+/// Construct a ray from a line segment.
+Ray::Ray(const Line &line_){
+	pos = line_.p1;
+	dir = line_.p2 - line_.p1;
+}
+
+/// Assignment operator.
+const Ray& Ray::operator = (const Ray &other){
+	pos = other.pos;
+	dir = other.dir;
+	return *this;
+}
+
+/// Return true if this ray intersects another ray in 2d space.
+bool Ray::Intersect(const Ray &other_, Vector3 &p){
+	double t1, t2;
+	if(GetT1T2(pos, dir, other_.pos, other_.dir, t1, t2)){
+		p = pos + dir*t1;
+		return (t1 >= 0.0 && t2 >= 0.0);
+	}
+	return false;
+}
+
+/// Return true if this ray intersects a line segment in 2d space.
+bool Ray::Intersect(const Line &line_, Vector3 &p){
+	double t1, t2;
+	if(GetT1T2(pos, dir, line_.p1, line_.dir, t1, t2)){
+		p = pos + dir*t1;
+		return (t1 >= 0.0 && (t2 >= 0.0 && t2 <= 1.0));
+	}
+	return false;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Line
+/////////////////////////////////////////////////////////////////////
+
+/** Construct a line segment by supplying its starting point (x1_, y1_) and
+  * its ending point (x2_, y2_).
+  */
+Line::Line(const double &x1_, const double &y1_, const double &x2_, const double &y2_){
+	p1 = Vector3(x1_, y1_);
+	p2 = Vector3(x2_, y2_);
+	length = (p2 - p1).Length();
+	dir = p2 - p1;
+}
+
+/** Construct a line segment by supplying its starting point pos_ its
+  * direction (dx_, dy_) and its length_.
+  */
+Line::Line(const Vector3 &pos_, const double &dx_, const double &dy_, const double &length_){
+	p1 = pos_;
+	length = length_;
+	p2 = p1 + Vector3(dx_, dy_)*length;
+	dir = p2 - p1;
+}
+
+/** Construct a line segment by supplying its starting point (x_, y_) its
+  * direction dir_ and its length_.
+  */
+Line::Line(const double &x_, const double &y_, const Vector3 &dir_, const double &length_){
+	p1 = Vector3(x_, y_);
+	length = length_;
+	p2 = p1 + dir_ * length;
+	dir = p2 - p1;
+}
+
+/** Construct a line segment by supplying its starting point pos_ its
+  * direction dir_ and its length_.
+  */
+Line::Line(const Vector3 &pos_, const Vector3 &dir_, const double &length_){
+	p1 = pos_;
+	length = length_;
+	p2 = p1 + dir_*length;
+	dir = p2 - p1;
+}
+
+/// Construct a line segment from a ray by specifying its length_.
+Line::Line(const Ray &ray_, const double &length_){
+	p1 = ray_.pos;
+	dir = ray_.dir;
+	length = length_;
+	p2 = p1 + dir*length;
+}
+
+/// Assignment operator.
+const Line& Line::operator = (const Line& other_){
+	p1 = other_.p1;
+	p2 = other_.p2;
+	dir = other_.dir;
+	length = other_.length;
+	return *this;
+}
+
+/// Return true if this line segment intersects a ray in 2d space.
+bool Line::Intersect(const Line &other_, Vector3 &p){
+	double t1, t2;
+	if(GetT1T2(p1, dir, other_.p1, other_.dir, t1, t2)){
+		p = p1 + dir*t1;
+		return ((t1 >= 0.0 && t1 <= 1.0) && (t2 >= 0.0 && t2 <= 1.0));
+	}
+	return false;
+}
+
+/// Return true if this line segment intersects another line segment in 2d space.
+bool Line::Intersect(const Ray &ray_, Vector3 &p){
+	double t1, t2;
+	if(GetT1T2(p1, dir, ray_.pos, ray_.dir, t1, t2)){
+		p = p1 + dir*t1;
+		return ((t1 >= 0.0 && t1 <= 1.0) && t2 >= 0.0);
+	}
+	return false;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Vector3
 /////////////////////////////////////////////////////////////////////
 
 const Vector3& Vector3::operator = (const Vector3 &other){
@@ -102,7 +285,7 @@ std::string Vector3::Dump() const {
 }
 
 /////////////////////////////////////////////////////////////////////
-// Matrix3 Struct
+// Matrix3
 /////////////////////////////////////////////////////////////////////
 
 void Matrix3::_initialize(){

@@ -24,10 +24,16 @@ extern const double rad2deg, LN2;
 // Classes
 /////////////////////////////////////////////////////////////////////
 
-struct Vector3{
+// To handle the circular dependencies.
+class Ray;
+class Line;
+
+class Vector3{
+  public:
 	double axis[3];
 	
 	Vector3(){ axis[0] = 0.0; axis[1] = 0.0; axis[2] = 0.0; }
+	Vector3(double x, double y){ axis[0] = x; axis[1] = y; axis[2] = 0.0; }
 	Vector3(double x, double y, double z){ axis[0] = x; axis[1] = y; axis[2] = z; }
 	const Vector3& operator = (const Vector3&);
 	const Vector3& operator += (const Vector3&);
@@ -73,6 +79,90 @@ class Matrix3{
 	void Transform(Vector3 &vector_);
 	void Transpose(Vector3 &vector_);
 	void Dump();
+};
+
+class Ray{
+  public:
+	Vector3 pos; /// The originating point of the 2d ray.
+	Vector3 dir; /// The direction of the ray in 2d space.
+
+	/// Default constructor.
+	Ray(){}
+
+	/** Construct a ray by supplying its starting point (x1_, y1_) and
+	  * a point through which it passes (x2_, y2_).
+	  */	
+	Ray(const double &x1_, const double &y1_, const double &x2_, const double &y2_);
+
+	/** Construct a ray by supplying its starting point pos_ and
+	  * and its direction (dx_, dy_).
+	  */
+	Ray(const Vector3 &pos_, const double &dx_, const double &dy_);
+
+	/** Construct a ray by supplying its starting point (x_, y_) and
+	  * and its direction dir_.
+	  */
+	Ray(const double &x_, const double &y_, const Vector3 &dir_);
+
+	/** Construct a ray by supplying its starting point pos_ and
+	  * and its direction dir_.
+	  */
+	Ray(const Vector3 &pos_, const Vector3 &dir_);
+
+	/// Construct a ray from a line segment.
+	Ray(const Line &line_);
+	
+	/// Assignment operator.
+	const Ray& operator = (const Ray&);
+	
+	/// Return true if this ray intersects another ray in 2d space.
+	bool Intersect(const Ray &other_, Vector3 &p);
+
+	/// Return true if this ray intersects a line segment in 2d space.
+	bool Intersect(const Line &line_, Vector3 &p);
+};
+
+class Line{
+  public:
+ 	Vector3 p1; /// The originating point of the 2d line segment.
+	Vector3 p2; /// The terminating point of the 2d line segment.
+	Vector3 dir; /// The direction vector of the line segment.
+	double length; /// The length of the line segment.
+
+	/// Default constructor.
+	Line(){ length = 0.0; }
+
+	/** Construct a line segment by supplying its starting point (x1_, y1_) and
+	  * its ending point (x2_, y2_).
+	  */
+	Line(const double &x1_, const double &y1_, const double &x2_, const double &y2_);
+
+	/** Construct a line segment by supplying its starting point pos_ its
+	  * direction (dx_, dy_) and its length_.
+	  */
+	Line(const Vector3 &pos_, const double &dx_, const double &dy_, const double &length_);
+
+	/** Construct a line segment by supplying its starting point (x_, y_) its
+	  * direction dir_ and its length_.
+	  */
+	Line(const double &x_, const double &y_, const Vector3 &dir_, const double &length_);
+
+	/** Construct a line segment by supplying its starting point pos_ its
+	  * direction dir_ and its length_.
+	  */
+	Line(const Vector3 &pos_, const Vector3 &dir_, const double &length_);
+	
+	/// Construct a line segment from a ray by specifying its length_.
+	Line(const Ray &ray_, const double &length_);
+	
+	/// Assignment operator.
+	const Line& operator = (const Line&);
+
+	/// Return true if this line segment intersects a ray in 2d space.
+	bool Intersect(const Line &other_, Vector3 &p);
+
+	/// Return true if this line segment intersects another line segment in 2d space.
+	bool Intersect(const Ray &ray_, Vector3 &p);
 };
 
 class AngularDist{

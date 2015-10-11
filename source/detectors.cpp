@@ -11,8 +11,80 @@
 const Vector3 zero_vector = Vector3(0.0, 0.0, 0.0);
 
 /////////////////////////////////////////////////////////////////////
+// RegularPolygon
+/////////////////////////////////////////////////////////////////////
+
+/// Default constructor.
+RegularPolygon::RegularPolygon(){
+	nSides = 0;
+	sector = 0.0;
+	radius = 0.0;
+	chord_length = 0.0;
+	lines = NULL;
+	init = false;
+}
+
+/** Polygon constructor. radius_ is the radius of a circle
+  * which is completely bound within the polygon (in m) and
+  * nSides_ is the number of sides of the polygon.
+  */
+bool RegularPolygon::Initialize(const double &radius_, const unsigned int &nSides_){
+	if(init){ return false; }
+	
+	nSides = nSides_;
+	sector = 2.0*pi/nSides;
+	radius = radius_/std::cos(sector/2.0);
+	chord_length = 2.0*radius*std::sin(sector/2.0);
+	
+	lines = new Line[nSides];
+	
+	double theta = -sector/2.0;
+	for(unsigned int side = 0; side < nSides; side++){
+		lines[side].p1 = Vector3(radius*std::cos(theta), radius*std::sin(theta));
+		theta += sector;
+		lines[side].p2 = Vector3(radius*std::cos(theta), radius*std::sin(theta));
+		lines[side].dir = (lines[side].p2 - lines[side].p1);
+	}
+	
+	return (init = true);
+}
+
+/** Return true if the point pt_ is contained within the polygon or the
+  * point lies on one of its line segments and return false otherwise.
+  */
+bool RegularPolygon::IsInside(const Vector3 &pt_){
+	return (IsInside(pt_.axis[0], pt_.axis[1]));
+}
+
+/** Return true if the point pt_ is contained within the polygon or the
+  * point lies on one of its line segments and return false otherwise.
+  */
+bool RegularPolygon::IsInside(const double &x_, const double &y_){
+	Ray trace_ray(x_, y_, x_+1, y_); // Infinite ray along the x-axis.
+	Vector3 dummy_vector;
+	
+	int intersects = 0;
+	for(unsigned int side = 0; side < nSides; side++){
+		if(lines[side].Intersect(trace_ray, dummy_vector)){ 
+			intersects++; 
+		}
+	}
+	
+	return (intersects%2!=0?true:false);
+}
+
+/** Dump information about the line segments of the polygon.
+  *  line# p1x p1y p2x p2y
+  */
+void RegularPolygon::Dump(){
+	for(unsigned int side = 0; side < nSides; side++){
+		std::cout << side << "\t" << lines[side].p1.axis[0] << "\t" << lines[side].p1.axis[1] << "\t";
+		std::cout << lines[side].p2.axis[0] << "\t" << lines[side].p2.axis[1] << "\n";
+	}
+}
+
+/////////////////////////////////////////////////////////////////////
 // Planar Class
-//  Used to generate and control individual VANDLE bars
 /////////////////////////////////////////////////////////////////////
 
 // +X is defined as beam-right
@@ -22,6 +94,9 @@ const Vector3 zero_vector = Vector3(0.0, 0.0, 0.0);
 // Default constructor
 Planar::Planar(){
 	material_id = 0;
+	front_face = 0;
+	back_face = 2;
+	location = 0;
 	detX = Vector3(1.0, 0.0, 0.0);
 	detY = Vector3(0.0, 1.0, 0.0);
 	detZ = Vector3(0.0, 0.0, 1.0);
@@ -38,6 +113,39 @@ Planar::Planar(){
 	type = "unknown";
 	subtype = "unknown";
 	material_name = "";
+}
+
+/// Constructor using a NewVIKARDet object.
+Planar::Planar(const NewVIKARDet &det_){
+	material_id = 0;
+	front_face = 0;
+	back_face = 2;
+	location = det_.location;
+	detX = Vector3(1.0, 0.0, 0.0);
+	detY = Vector3(0.0, 1.0, 0.0);
+	detZ = Vector3(0.0, 0.0, 1.0);
+	SetPosition(det_.data[0], det_.data[1], det_.data[2]);
+	SetRotation(det_.data[3], det_.data[4], det_.data[5]);
+	small = false;
+	med = false;
+	large = false;
+	need_set = true;
+	if(det_.type=="vandle"){
+		if(det_.subtype=="small"){ SetSmall(); }
+		else if(det_.subtype=="medium"){ SetMedium(); }
+		else if(det_.subtype=="large"){ SetLarge(); }
+		else{
+			std::cout << " Planar: Unrecognized VANDLE subtype (" << det_.subtype << ")!\n";
+			SetSize(det_.data[6], det_.data[7], det_.data[8]);
+		}
+	}
+	else{ SetSize(det_.data[6], det_.data[7], det_.data[8]); }
+	use_recoil = (det_.type=="dual" || det_.type=="recoil");
+	use_eject = (det_.type=="vandle" || det_.type=="dual" || det_.type=="eject");
+	use_material = false;
+	type = det_.type;
+	subtype = det_.subtype;
+	material_name = det_.material;	
 }
 
 // Set the global face coordinates (wrt global origin)
@@ -83,6 +191,19 @@ void Planar::GetRandomPointInside(Vector3& output){
 	
 	// Get the vector pointing from the origin to the random point
 	output = position + temp;
+}
+
+/// Set the front and rear face ID for this detector.
+void Planar::SetFrontFace(unsigned int front_face_){ 
+	if(front_face_ == 0){ back_face = 2; }
+	else if(front_face_ == 1){ back_face = 3; }
+	else if(front_face_ == 2){ back_face = 0; }
+	else if(front_face_ == 3){ back_face = 1; }
+	else if(front_face_ == 4){ back_face = 5; }
+	else if(front_face_ == 5){ back_face = 4; }
+	else{ return; }
+	
+	front_face = front_face_;
 }
 
 // Set the physical size of the bar
@@ -164,7 +285,7 @@ void Planar::SetUnitVectors(const Vector3 &unitX, const Vector3 &unitY, const Ve
 
 // Check if a point (in local coordinates) is within the bounds of the primitive
 // Return true if the coordinates are within the primitive and false otherwise
-bool Planar::CheckBounds(unsigned int face_, double x_, double y_, double z_){
+bool Planar::CheckBounds(const unsigned int &face_, const double &x_, const double &y_, const double &z_){
 	if(face_ == 0 || face_ == 2){ // Front face (upstream) or back face (downstream)
 		if((x_ >= -width/2.0 && x_ <= width/2.0) && (y_ >= -length/2.0 && y_ <= length/2.0)){ return true; }
 	}
@@ -307,7 +428,7 @@ bool Planar::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction
 	
 	if(face_count == 2){ return true; }
 	else if(face_count == 0){ return false; }
-	else{ std::cout << " Unexpected number of face intersects: " << face_count << std::endl; }
+	//else{ std::cout << " Unexpected number of face intersects: " << face_count << std::endl; }
 	return false; 
 }
 
@@ -429,13 +550,73 @@ std::string Wall::DumpDetWall(){
 	return output;
 }
 
+/////////////////////////////////////////////////////////////////////
+// Elliptical
+/////////////////////////////////////////////////////////////////////
+
+void Elliptical::SetRadii(const double &rLong_, const double &rShort_){
+	rLong = (rLong_>=0.0)?rLong_:-1*rLong_;
+	rShort = (rShort_>=0.0)?rShort_:-1*rShort_;
+	length = rLong*2.0;
+	width = rShort*2.0;
+}
+
+/** Check if a point (in local coordinates) is within the bounds of the primitive
+  * Return true if the coordinates are within the primitive and false otherwise.
+  * The Elliptical class checks if the face intersect is within 
+  */
+bool Elliptical::CheckBounds(const unsigned int &face_, const double &x_, const double &y_, const double &z_){
+	if(face_ == front_face || face_ == back_face){ // Front face or back face.
+		if(x_*x_/(rLong*rLong) + y_*y_/(rShort*rShort) <= 1){ return true; }
+	}
+	return false;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Polygon
+/////////////////////////////////////////////////////////////////////
+
+/** Check if a point (in local coordinates) is within the bounds of the primitive
+  * Return true if the coordinates are within the primitive and false otherwise.
+  * The Elliptical class checks if the face intersect is within 
+  */
+bool Polygonal::CheckBounds(const unsigned int &face_, const double &x_, const double &y_, const double &z_){
+	if(face_ == front_face || face_ == back_face){ // Front face or back face.
+		// Use the even-odd crossing test.
+		if(poly.IsInside(x_, y_)){ return true; }
+	}
+	return false;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Annular
+/////////////////////////////////////////////////////////////////////
+
+void Annular::SetRadii(const double &inRadius_, const double &outRadius_){
+	inRadius = (inRadius_>=0.0)?inRadius_:-1*inRadius_;
+	outRadius = (outRadius_>=0.0)?outRadius_:-1*outRadius_;
+	length = inRadius*2.0;
+	width = outRadius*2.0;
+}
+
+/** Check if a point (in local coordinates) is within the bounds of the primitive
+  * Return true if the coordinates are within the primitive and false otherwise.
+  * The Elliptical class checks if the face intersect is within 
+  */
+bool Annular::CheckBounds(const unsigned int &face_, const double &x_, const double &y_, const double &z_){
+	if(face_ == front_face || face_ == back_face){ // Front face or back face.
+		double radius = std::sqrt(x_*x_ + y_*y_);
+		//std::cout << inRadius << ", " << outRadius << ", " << radius << std::endl;
+		if(radius >= inRadius && radius <= outRadius){ return true; }
+	}
+	return false;
+}
+
 // Read NewVIKAR detector file and load bars into an array
 // Returns the number of detectors loaded from the file
 // Assumes the following detector file format for each bar in file
 // X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Bar_Type [Length(m) Width(m) Depth(m)]
-int ReadDetFile(const char* fname_, Planar* &detectors){
-	if(detectors){ delete[] detectors; }
-
+int ReadDetFile(const char* fname_, std::vector<Planar*> &detectors){
 	// Read VIKAR detector setup file or manually setup simple systems
 	std::ifstream detfile(fname_);
 	if(!detfile.good()){ return -1; }
@@ -452,34 +633,17 @@ int ReadDetFile(const char* fname_, Planar* &detectors){
 	}	
 	detfile.close();
 
-	// Generate the Planar bar arrays
-	detectors = new Planar[temp_detectors.size()];
-
 	// Fill the detector
-	int Ndet = 0;
 	for(std::vector<NewVIKARDet>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
-		// Set the detector type
-		if(iter->type == "eject" || iter->type == "vandle"){ detectors[Ndet].SetEjectile(); } // Vandle bars only detect ejectiles (neutrons)
-		else if(iter->type == "recoil"){ detectors[Ndet].SetRecoil(); } // Recoil detectors only detect recoils
-		else if(iter->type == "dual"){ // Dual detectors detect both recoils and ejectiles
-				detectors[Ndet].SetRecoil(); 
-				detectors[Ndet].SetEjectile();
+		if(iter->type == "vandle" || iter->subtype == "planar"){ detectors.push_back(new Planar(*iter)); }
+		else if(iter->subtype == "ellipse"){ detectors.push_back(new Elliptical(*iter)); }
+		else if(iter->subtype == "polygon"){ detectors.push_back(new Polygonal(*iter)); }
+		else if(iter->subtype == "annular"){ detectors.push_back(new Annular(*iter)); }
+		else{ 
+			std::cout << " Unknown detector of type = " << iter->type << " and subtype = " << iter->subtype << std::endl;
+			continue; 
 		}
-	
-		// Set the detector subtype	
-		if(iter->subtype == "small"){ detectors[Ndet].SetSmall(); }
-		else if(iter->subtype == "medium"){ detectors[Ndet].SetMedium(); }
-		else if(iter->subtype == "large"){ detectors[Ndet].SetLarge(); }
-		else{ detectors[Ndet].SetSize(iter->data[6],iter->data[7],iter->data[8]); }
-	
-		// Set the position and rotation
-		detectors[Ndet].SetPosition(iter->data[0],iter->data[1],iter->data[2]); // Set the x,y,z position of the bar
-		detectors[Ndet].SetRotation(iter->data[3],iter->data[4],iter->data[5]); // Set the 3d rotation of the bar
-		detectors[Ndet].SetType(iter->type);
-		detectors[Ndet].SetSubtype(iter->subtype);
-		detectors[Ndet].SetMaterialName(iter->material);
-		Ndet++;
 	}
 	
-	return Ndet;
+	return detectors.size();
 }
