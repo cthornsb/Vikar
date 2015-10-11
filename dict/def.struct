@@ -41,16 +41,17 @@ LONG	Structure for storing information about the recoil particle
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-vector:double	recoil_hitX	
-vector:double	recoil_hitY	
-vector:double	recoil_hitZ	
-vector:double	recoil_hitTheta	
-vector:double	recoil_hitPhi	
-vector:double	recoil_qdc	
-vector:double	recoil_tof	
-vector:double	recoil_faceX	
-vector:double	recoil_faceY	
-vector:double	recoil_faceZ	
+vector:double	recoil_hitX	The x-component of position of the detector hit in 3d space (m).
+vector:double	recoil_hitY	The y-component of position of the detector hit in 3d space (m).
+vector:double	recoil_hitZ	The z-component of position of the detector hit in 3d space (m).
+vector:double	recoil_hitTheta	The angle of the recoil particle about the vertical-axis (deg).
+vector:double	recoil_hitPhi	The angle of the recoil particle about the beam-axis (deg).
+vector:double	recoil_qdc	The energy of the particle calculated from the time-of-flight (MeV).
+vector:double	recoil_tof	The time-of-flight of the particle from the reaction point to the detector (ns).
+vector:double	recoil_energy	The resolution smeared energy detected by the detector (MeV).
+vector:double	recoil_faceX	The x-component of the position of the detector hit on the face of the detector (m).
+vector:double	recoil_faceY	The y-component of the position of the detector hit on the face of the detector (m).
+vector:double	recoil_faceZ	The z-component of the position of the detector hit on the face of the detector (m).
 vector:int	recoil_loc
 vector:bool	recoil_bg	
 u_int	recoil_mult	Multiplicity of recoil detector hits	
@@ -77,16 +78,17 @@ LONG	Structure for storing information about the ejectile particle
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-vector:double	eject_hitX	
-vector:double	eject_hitY	
-vector:double	eject_hitZ	
-vector:double	eject_hitTheta	
-vector:double	eject_hitPhi	
-vector:double	eject_qdc	
-vector:double	eject_tof	
-vector:double	eject_faceX	
-vector:double	eject_faceY	
-vector:double	eject_faceZ	
+vector:double	eject_hitX	The x-component of position of the detector hit in 3d space (m).
+vector:double	eject_hitY	The y-component of position of the detector hit in 3d space (m).
+vector:double	eject_hitZ	The z-component of position of the detector hit in 3d space (m).
+vector:double	eject_hitTheta	The angle of the ejectile particle about the vertical-axis (deg).
+vector:double	eject_hitPhi	The angle of the ejectile particle about the beam-axis (deg).
+vector:double	eject_qdc	The energy of the particle calculated from the time-of-flight (MeV).
+vector:double	eject_tof	The time-of-flight of the particle from the reaction point to the detector (ns).
+vector:double	eject_energy	The resolution smeared energy detected by the detector (MeV).
+vector:double	eject_faceX	The x-component of the position of the detector hit on the face of the detector (m).
+vector:double	eject_faceY	The y-component of the position of the detector hit on the face of the detector (m).
+vector:double	eject_faceZ	The z-component of the position of the detector hit on the face of the detector (m).
 vector:int	eject_loc
 vector:bool	eject_bg	
 u_int	eject_mult	Multiplicity of ejectile detector hits	
@@ -113,17 +115,17 @@ LONG	Structure for storing information about the reaction
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-double	energy	
-double	Eeject
-double	Erecoil
-double	comAngle	
-u_int	state	
-double	reactX	
-double	reactY	
-double	reactZ	
-double	trajectoryX	
-double	trajectoryY	
-double	trajectoryZ	
+double	energy	The input kinetic energy of the reaction (MeV).
+double	Eeject	The outgoing ejectile particle kinetic energy (MeV).
+double	Erecoil	The outgoing recoil particle kinetic energy (MeV).
+double	comAngle	The center-of-mass angle of the reaction (deg).
+u_int	state	The ID of the recoil excited state used for the reaction (0 is the g.s.).
+double	reactX	The x-coordinate of the reaction point inside the target (m).
+double	reactY	The y-coordinate of the reaction point inside the target (m).
+double	reactZ	The z-coordinate of the reaction point inside the target (m).
+double	trajectoryX	The x-coordinate of the trajectory of the beam particle just before the reaction.
+double	trajectoryY	The y-coordinate of the trajectory of the beam particle just before the reaction.
+double	trajectoryZ	The z-coordinate of the trajectory of the beam particle just before the reaction.
 
 # Trace output data types and names (must end with _wave)
 # type	name	description

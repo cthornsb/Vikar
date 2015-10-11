@@ -15,7 +15,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.22"
+#define VERSION "1.22b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -705,14 +705,14 @@ int main(int argc, char* argv[]){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					//if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
-									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
+									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill(); 
 					EJECTdata.Zero();
 				}
 				else if((*iter)->IsRecoilDet()){
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill();
 					RECOILdata.Zero();
 				}
@@ -904,13 +904,13 @@ process:
 					if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				else{
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				
 				// Adjust the particle energies to take energy loss into account
