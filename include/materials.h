@@ -171,54 +171,6 @@ class Material{
 };
 
 /////////////////////////////////////////////////////////////////////
-// Target
-/////////////////////////////////////////////////////////////////////
-
-class Target{
-  private:
-	double thickness; // Thickness of the target (mg/cm^2)
-	double Zthickness; // Thickness of the target in the z-direction (mg/cm^2)
-	double density; // Density of the target (g/cm^3)
-	double rad_length; // The radiation length of the material (mg/cm^2)
-	double angle; // Angle of target wrt the beam axis (rad)
-  	double Z, A; // Z and A of the material isotope of interest
-	
-	Planar *physical; // The physical target geometry
-	
-  public:
-	Target();
-	Target(unsigned int);
-
-	void SetZ(double Z_){ Z = Z_; }
-	void SetA(double A_){ A = A_; }		
-	void SetThickness(double thickness_);
-	void SetAngle(double angle_);
-	void SetDensity(double density_);
-	void SetRadLength(double rad_length_){ rad_length = rad_length_; }
-	
-	double GetZ(){ return Z; } // Return the Z of the material element of interest
-	double GetA(){ return A; } // Return the A of the material element of interest
-	double GetThickness(){ return thickness; } // Return the thickness of the target (mg/cm^2)
-	double GetZthickness(){ return Zthickness; } // Return the thickness the beam sees (mg/cm^2)
-	double GetRealThickness(){ return thickness/(density*1E5); } // Return the physical thickness of the target (m)
-	double GetRealZthickness(){ return Zthickness/(density*1E5); } // Return the physical thickness the beam sees (m)
-	double GetAngle(){ return angle; } // Return the angle of the target wrt the beam axis
-	double GetDensity(){ return density; }
-	double GetRadLength(){ return rad_length; }
-	Planar *GetPlanar(){ return physical; } // Return a pointer to the 3d geometry object
-	
-	// Get the depth into the target at which the reaction occurs
-	// offset_ is the global position where the beam particle originates
-	// direction_ is the direction of the beam particle entering the target
-	// intersect is the global position where the beam particle intersects the front face of the target
-	// interact is the global position where the beam particle reacts inside the target
-	double GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact);
-
-	// Determine the new direction of a particle inside the target due to angular straggling
-	bool AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, Vector3 &new_direction);
-};
-
-/////////////////////////////////////////////////////////////////////
 // RangeTable
 /////////////////////////////////////////////////////////////////////
 
@@ -256,7 +208,7 @@ class RangeTable{
 /////////////////////////////////////////////////////////////////////
 
 class Particle{
-  private:
+  protected:
 	double A, Z; /// Mass and charge number of the particle
 	double maxE; /// Maximum energy in the range table
 	double mass; /// Rest mass energy of the particle (MeV/c^2)
@@ -357,6 +309,49 @@ class Particle{
 	  * distance dist_ through the material.
 	  */
 	double GetTableNewE(const double &energy_, const double &dist_);
+};
+
+/////////////////////////////////////////////////////////////////////
+// Target
+/////////////////////////////////////////////////////////////////////
+
+class Target : public Particle {
+  private:
+	double thickness; // Thickness of the target (mg/cm^2)
+	double Zthickness; // Thickness of the target in the z-direction (mg/cm^2)
+	double density; // Density of the target (g/cm^3)
+	double rad_length; // The radiation length of the material (mg/cm^2)
+	double angle; // Angle of target wrt the beam axis (rad)
+	
+	Planar *physical; // The physical target geometry
+	
+  public:
+	Target();
+	Target(unsigned int);
+
+	void SetThickness(double thickness_);
+	void SetAngle(double angle_);
+	void SetDensity(double density_);
+	void SetRadLength(double rad_length_){ rad_length = rad_length_; }
+	
+	double GetThickness(){ return thickness; } // Return the thickness of the target (mg/cm^2)
+	double GetZthickness(){ return Zthickness; } // Return the thickness the beam sees (mg/cm^2)
+	double GetRealThickness(){ return thickness/(density*1E5); } // Return the physical thickness of the target (m)
+	double GetRealZthickness(){ return Zthickness/(density*1E5); } // Return the physical thickness the beam sees (m)
+	double GetAngle(){ return angle; } // Return the angle of the target wrt the beam axis
+	double GetDensity(){ return density; }
+	double GetRadLength(){ return rad_length; }
+	Planar *GetPlanar(){ return physical; } // Return a pointer to the 3d geometry object
+	
+	// Get the depth into the target at which the reaction occurs
+	// offset_ is the global position where the beam particle originates
+	// direction_ is the direction of the beam particle entering the target
+	// intersect is the global position where the beam particle intersects the front face of the target
+	// interact is the global position where the beam particle reacts inside the target
+	double GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact);
+
+	// Determine the new direction of a particle inside the target due to angular straggling
+	bool AngleStraggling(const Vector3 &direction_, double A_, double Z, double E_, Vector3 &new_direction);
 };
 
 #endif

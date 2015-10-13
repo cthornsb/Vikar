@@ -594,10 +594,58 @@ void Material::Print(std::ofstream *file_){
 }
 
 /////////////////////////////////////////////////////////////////////
+// Particle
+/////////////////////////////////////////////////////////////////////
+
+bool Particle::SetMaterial(Material *mat_, const double &Ebeam_, const double &Espread_){
+	if(Z <= 0.0 || init){ return false; }
+	mat = mat_;
+	maxE = Ebeam_ + 2*Espread_;
+	
+	if(table.Init(100, 0.1, maxE, Z, mass, mat)){
+		init = true;
+		return true;
+	}
+	return false;
+}
+
+/// Get the relativistic kinetic energy of the particle (MeV).
+double Particle::GetKEfromV(const double &velocity_){
+	double gamma = GetGamma(velocity_);
+	return (gamma - 1)*mass;
+}
+
+/// Get the relativistic total energy of the particle (MeV).
+double Particle::GetTEfromV(const double &velocity_){
+	double gamma = GetGamma(velocity_);
+	return (std::sqrt(gamma*gamma*velocity_*velocity_/(c*c) + 1.0)*mass);
+}
+
+/// Get the energy of a particle stopped in distance range_.
+double Particle::GetTableEnergy(const double &range_){ 
+	if(!init){ return -1.0; }
+	return table.GetEnergy(range_);
+}
+
+/// Get the range of the particle given an initial energy_.
+double Particle::GetTableRange(const double &energy_){ 
+	if(!init){ return -1.0; }
+	return table.GetRange(energy_);
+}
+
+/** Get the final energy of a particle with energy_ moving a
+  * distance dist_ through the material.
+  */
+double Particle::GetTableNewE(const double &energy_, const double &dist_){
+	if(!init){ return -1.0; }
+	return table.GetNewE(energy_, dist_);
+}
+
+/////////////////////////////////////////////////////////////////////
 // Target
 /////////////////////////////////////////////////////////////////////
 
-Target::Target(){
+Target::Target() : Particle() {
 	thickness = 0.0;
 	Zthickness = 0.0;
 	density = 1.0;
@@ -606,7 +654,7 @@ Target::Target(){
 	physical = new Planar();
 }
 
-Target::Target(unsigned int num_elements_){
+Target::Target(unsigned int num_elements_) : Particle() {
 	thickness = 0.0;
 	Zthickness = 0.0;
 	density = 1.0;
@@ -687,52 +735,4 @@ bool Target::AngleStraggling(const Vector3 &direction_, double A_, double Z_, do
 	new_direction = direction_;
 	matrix.Transform(new_direction);
 	return true;
-}
-
-/////////////////////////////////////////////////////////////////////
-// Particle
-/////////////////////////////////////////////////////////////////////
-
-bool Particle::SetMaterial(Material *mat_, const double &Ebeam_, const double &Espread_){
-	if(Z <= 0.0 || init){ return false; }
-	mat = mat_;
-	maxE = Ebeam_ + 2*Espread_;
-	
-	if(table.Init(100, 0.1, maxE, Z, mass, mat)){
-		init = true;
-		return true;
-	}
-	return false;
-}
-
-/// Get the relativistic kinetic energy of the particle (MeV).
-double Particle::GetKEfromV(const double &velocity_){
-	double gamma = GetGamma(velocity_);
-	return (gamma - 1)*mass;
-}
-
-/// Get the relativistic total energy of the particle (MeV).
-double Particle::GetTEfromV(const double &velocity_){
-	double gamma = GetGamma(velocity_);
-	return (std::sqrt(gamma*gamma*velocity_*velocity_/(c*c) + 1.0)*mass);
-}
-
-/// Get the energy of a particle stopped in distance range_.
-double Particle::GetTableEnergy(const double &range_){ 
-	if(!init){ return -1.0; }
-	return table.GetEnergy(range_);
-}
-
-/// Get the range of the particle given an initial energy_.
-double Particle::GetTableRange(const double &energy_){ 
-	if(!init){ return -1.0; }
-	return table.GetRange(energy_);
-}
-
-/** Get the final energy of a particle with energy_ moving a
-  * distance dist_ through the material.
-  */
-double Particle::GetTableNewE(const double &energy_, const double &dist_){
-	if(!init){ return -1.0; }
-	return table.GetNewE(energy_, dist_);
 }

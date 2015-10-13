@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.22c"
+#define VERSION "1.22d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -172,6 +172,7 @@ int main(int argc, char* argv[]){
 	clock_t timer; // Clock object for calculating time taken and remaining
 
 	// Default options
+	bool InverseKinematics = true;
 	bool InCoincidence = true;
 	bool WriteReaction = false;
 	bool WriteDebug = false;
@@ -241,31 +242,66 @@ int main(int argc, char* argv[]){
 				beam_part.SetA(atof(input.c_str()));
 				std::cout << "  Beam-A: " << beam_part.GetA() << std::endl;
 			}
-			else if(count == 3){ 
+			else if(count == 3){
+				beam_part.SetMass(atof(input.c_str()));
+				std::cout << "  Beam Mass: " << beam_part.GetMassAMU() << " amu\n";
+			}
+			else if(count == 4){ 
 				targ.SetZ((double)atof(input.c_str()));
 				std::cout << "  Target-Z: " << targ.GetZ() << std::endl;
 			}
-			else if(count == 4){ 
+			else if(count == 5){ 
 				targ.SetA((double)atof(input.c_str()));
 				std::cout << "  Target-A: " << targ.GetA() << std::endl;
 			}
-			else if(count == 5){ 
+			else if(count == 6){
+				targ.SetMass(atof(input.c_str()));
+				std::cout << "  Target Mass: " << targ.GetMassAMU() << " amu\n";
+			}
+			else if(count == 7){ 
+				recoil_part.SetZ((double)atof(input.c_str()));
+				std::cout << "  Recoil-Z: " << recoil_part.GetZ() << std::endl;
+			}
+			else if(count == 8){ 
+				recoil_part.SetA((double)atof(input.c_str()));
+				std::cout << "  Recoil-A: " << recoil_part.GetA() << std::endl;
+			}
+			else if(count == 9){
+				recoil_part.SetMass(atof(input.c_str()));
+				std::cout << "  Recoil Mass: " << recoil_part.GetMassAMU() << " amu\n";
+			}
+			else if(count == 10){ 
 				eject_part.SetZ(atof(input.c_str()));
 				recoil_part.SetZ(beam_part.GetZ() + targ.GetZ() - eject_part.GetZ());
 				std::cout << "  Ejectile-Z: " << eject_part.GetZ() << std::endl;
 			}
-			else if(count == 6){ 
+			else if(count == 11){ 
 				eject_part.SetA(atof(input.c_str())); 
-				recoil_part.SetA(beam_part.GetA() + targ.GetA() - eject_part.GetA()); 
 				std::cout << "  Ejectile-A: " << eject_part.GetA() << std::endl;
-				std::cout << "  Recoil-Z: " << recoil_part.GetZ() << std::endl;
-				std::cout << "  Recoil-A: " << recoil_part.GetA() << std::endl;
 			}
-			else if(count == 7){ 
+			else if(count == 12){
+				eject_part.SetMass(atof(input.c_str()));
+				std::cout << "  Ejectile Mass: " << eject_part.GetMassAMU() << " amu\n";
+				
+				// Set the reaction Q-value.
+				gsQvalue = (beam_part.GetMass()+targ.GetMass())-(recoil_part.GetMass()+eject_part.GetMass()); 
+				std::cout << "  G.S. Q-Value: " << gsQvalue << " MeV\n";
+				
+				// Set inverse or normal kinematics.
+				if(beam_part.GetA() > targ.GetA()){ 
+					InverseKinematics = true; 
+					std::cout << "  Inverse Kinematics: Yes\n";
+				}
+				else{ 
+					InverseKinematics = false; 
+					std::cout << "  Inverse Kinematics: No\n";
+				}
+			}
+			else if(count == 13){ 
 				Ebeam0 = atof(input.c_str());  
 				std::cout << "  Beam Energy: " << Ebeam0 << " MeV\n";
 			}
-			else if(count == 8){ 
+			else if(count == 14){ 
 				SetBool(input, "  Cylindrical Beam", CylindricalBeam);
 				getline(input_file, input); input = Parse(input);
 				beamspot = atof(input.c_str());
@@ -273,20 +309,16 @@ int main(int argc, char* argv[]){
 				else{ std::cout << "  Beam Spot FWHM: " << beamspot << " mm\n"; }
 				beamspot = beamspot/1000.0; // in meters
 			}
-			else if(count == 9){ 
+			else if(count == 15){ 
 				beamAngdiv = atof(input.c_str());  
 				std::cout << "  Beam Angular Divergence: " << beamAngdiv << " degrees\n";
 				beamAngdiv *= deg2rad; // in radians
 			}
-			else if(count == 10){ 
+			else if(count == 16){ 
 				beamEspread = atof(input.c_str());  
 				std::cout << "  Beam Energy Spread: " << beamEspread << " MeV\n";
 			}
-			else if(count == 11){ 
-				gsQvalue = atof(input.c_str());  
-				std::cout << "  G.S. Q-Value: " << gsQvalue << " MeV\n";
-			}
-			else if(count == 12){ 
+			else if(count == 17){ 
 				// Recoil excited state information
 				NRecoilStates = atoi(input.c_str()) + 1;
 				std::cout << "  No. Excited States: " << NRecoilStates-1 << std::endl;
@@ -300,7 +332,7 @@ int main(int argc, char* argv[]){
 					totXsect[i] = 0.0;
 				}
 			}
-			else if(count == 13){ 
+			else if(count == 18){ 
 				// Angular distribution information
 				if(SetBool(input, "  Supply Angular Distributions", ADists)){
 					for(unsigned int i = 0; i < NRecoilStates; i++){
@@ -327,21 +359,21 @@ int main(int argc, char* argv[]){
 				}
 				else{ SupplyRates = false; }
 			}
-			else if(count == 14){
+			else if(count == 19){
 				// Target material
 				targ_mat_name = input;
 			}
-			else if(count == 15){ 
+			else if(count == 20){ 
 				// Target thickness
 				targ.SetThickness((double)atof(input.c_str()));
 				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";			
 			}
-			else if(count == 16){ 
+			else if(count == 21){ 
 				// Target angle wrt beam axis
 				targ.SetAngle((double)atof(input.c_str())*deg2rad);
 				std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
 			}
-			else if(count == 17){ 
+			else if(count == 22){ 
 				// Load the small, medium, and large bar efficiencies
 				// Efficiency index 0 is the underflow efficiency (for energies below E[0])
 				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
@@ -359,17 +391,17 @@ int main(int argc, char* argv[]){
 					std::cout << "   Found " << bar_eff.ReadLarge(input.c_str()) << " large bar data points in file " << input << "\n";
 				}
 			}
-			else if(count == 18){ 
+			else if(count == 23){ 
 				// Load detector setup from a file
 				det_fname = "./detectors/" + input;
 				std::cout << "  Detector Setup Filename: " << det_fname << std::endl;
 			}
-			else if(count == 19){ 
+			else if(count == 24){ 
 				// Desired number of detections
 				Nwanted = atol(input.c_str());
 				std::cout << "  Desired Detections: " << Nwanted << std::endl; 
 			}
-			else if(count == 20){
+			else if(count == 25){
 				// Background rate (per detection event)
 				backgroundRate = atol(input.c_str());
 				if(backgroundRate > 0){ // Get the detection ToF window
@@ -384,15 +416,15 @@ int main(int argc, char* argv[]){
 				}
 				else{ std::cout << "  Background Rate: NONE\n"; }
 			}
-			else if(count == 21){
+			else if(count == 26){
 				// Require ejectile and recoil particle coincidence?
 				SetBool(input, "  Require Particle Coincidence", InCoincidence);
 			}
-			else if(count == 22){
+			else if(count == 27){
 				// Write Reaction data to file?
 				SetBool(input, "  Write Reaction Info", WriteReaction);
 			}
-			else if(count == 23){
+			else if(count == 28){
 				// Write Debug data to file?
 				SetBool(input, "  Write Debug Info", WriteDebug);
 			}
@@ -401,10 +433,15 @@ int main(int argc, char* argv[]){
 		}
 		
 		input_file.close();
-		if(count <= 23){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		if(count <= 28){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
-		std::cout << " Error! Missing required variable\n";
+		std::cout << " FATAL ERROR! Missing required variable! Aborting...\n";
+		return 1;
+	}
+		
+	if(beam_part.GetA()+targ.GetA() != recoil_part.GetA()+eject_part.GetA()){
+		std::cout << "\n FATAL ERROR! Mass number is NOT conserved! Aborting...\n";
 		return 1;
 	}
 		
@@ -648,13 +685,19 @@ int main(int argc, char* argv[]){
 	std::vector<TNamed*> named;
 	SetName(named, "Version", VERSION);
 	SetName(named, "Beam-Z", beam_part.GetZ());
-	SetName(named, "Beam-A", beam_part.GetA(), "amu");
+	SetName(named, "Beam-A", beam_part.GetA());
+	SetName(named, "Beam Mass", beam_part.GetMassAMU(), "amu");
 	SetName(named, "Target-Z", targ.GetZ());
-	SetName(named, "Target-A", targ.GetA(), "amu");
-	SetName(named, "Ejectile-Z", eject_part.GetZ());
-	SetName(named, "Ejectile-A", eject_part.GetA(), "amu");
+	SetName(named, "Target-A", targ.GetA());
+	SetName(named, "Target Mass", beam_part.GetMassAMU(), "amu");
 	SetName(named, "Recoil-Z", recoil_part.GetZ());
-	SetName(named, "Recoil-A", recoil_part.GetA(), "amu");
+	SetName(named, "Recoil-A", recoil_part.GetA());
+	SetName(named, "Recoil Mass", beam_part.GetMassAMU(), "amu");
+	SetName(named, "Ejectile-Z", eject_part.GetZ());
+	SetName(named, "Ejectile-A", eject_part.GetA());
+	SetName(named, "Ejectile Mass", beam_part.GetMassAMU(), "amu");
+	if(InverseKinematics){ SetName(named, "Inverse Kinematics?", "Yes"); }
+	else{ SetName(named, "Inverse Kinematics?", "No"); }
 	SetName(named, "Beam Energy", Ebeam0, "MeV");	
 	if(CylindricalBeam){
 		SetName(named, "Gaussian Beam", "No");	
