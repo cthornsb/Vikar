@@ -8,6 +8,7 @@
 
 #include "TFile.h"
 #include "TTree.h"
+#include "TNamed.h"
 
 #include "vikar_core.h"
 #include "kindeux.h"
@@ -15,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.22b"
+#define VERSION "1.22c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -24,6 +25,15 @@ struct debugData{
 		var1 = v1; var2 = v2; var3 = v3;
 	}
 };
+
+template <typename T>
+void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
+	std::stringstream stream;
+	stream << value_;
+	stream << " " << units_;
+	
+	named.push_back(new TNamed(name_.c_str(), stream.str().c_str()));
+}
 
 double MeV2MeVee(const double &Tp_){
 	// Coefficients for NE102 (BC408)
@@ -633,6 +643,63 @@ int main(int argc, char* argv[]){
 		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
 		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
 	}
+
+	// Write reaction info to the file.
+	std::vector<TNamed*> named;
+	SetName(named, "Version", VERSION);
+	SetName(named, "Beam-Z", beam_part.GetZ());
+	SetName(named, "Beam-A", beam_part.GetA(), "amu");
+	SetName(named, "Target-Z", targ.GetZ());
+	SetName(named, "Target-A", targ.GetA(), "amu");
+	SetName(named, "Ejectile-Z", eject_part.GetZ());
+	SetName(named, "Ejectile-A", eject_part.GetA(), "amu");
+	SetName(named, "Recoil-Z", recoil_part.GetZ());
+	SetName(named, "Recoil-A", recoil_part.GetA(), "amu");
+	SetName(named, "Beam Energy", Ebeam0, "MeV");	
+	if(CylindricalBeam){
+		SetName(named, "Gaussian Beam", "No");	
+		SetName(named, "Beamspot Dia.", beamspot, "m");	
+	}
+	else{
+		SetName(named, "Gaussian Beam", "Yes");	
+		SetName(named, "Beamspot FWHM", beamspot, "m");	
+	}
+	SetName(named, "Beam Divergence", beamAngdiv*rad2deg, "deg");
+	SetName(named, "Beam dE", beamEspread, "MeV");
+	SetName(named, "G.S. Q-Value", gsQvalue, "MeV");
+	SetName(named, "No. Excited", NRecoilStates-1, "MeV");
+	SetName(named, "Recoil G.S.", "0.0", "MeV");
+	for(unsigned int i = 1; i < NRecoilStates; i++){
+		std::stringstream stream; stream << i;
+		SetName(named, "Recoil Ex. State "+stream.str(), ExRecoilStates[i], "MeV");
+	}
+	if(ADists){ SetName(named, "Supply Distributions?", "Yes"); }
+	else{ SetName(named, "Supply Distributions?", "No"); }
+	SetName(named, "Target Material", targ_mat_name);
+	SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2");		
+	SetName(named, "Target Angle", targ.GetAngle()*rad2deg, "deg");
+	if(PerfectDet){ SetName(named, "Perfect Detectors?", "Yes"); }
+	else{ SetName(named, "Perfect Detectors?", "No"); }
+	SetName(named, "Detector Filename", det_fname);
+	SetName(named, "Number Detections", Nwanted);
+	if(backgroundRate > 0){ 
+		if(bgPerDetection){ SetName(named, "Background Rate", backgroundRate, "per detection"); }
+		else{ SetName(named, "Background Rate", backgroundRate, "per recoil"); }
+		SetName(named, "Background Window", detWindow, "ns");
+	}
+	else{ SetName(named, "Background Rate", "NONE"); }
+	if(InCoincidence){ SetName(named, "Recoil Coincidence?", "Yes"); }
+	else{ SetName(named, "Recoil Coincidence?", "No"); }
+	if(WriteReaction){ SetName(named, "Write Reaction?", "Yes"); }
+	else{ SetName(named, "Write Reaction?", "No"); }
+	if(WriteDebug){ SetName(named, "Write Debug?", "Yes"); }
+	else{ SetName(named, "Write Debug?", "No"); }
+
+	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
+		(*iter)->Write();
+		delete (*iter);
+	}
+	named.clear();
 
 	// Begin the simulation
 	std::cout << " ---------- Simulation Setup Complete -----------\n"; 
