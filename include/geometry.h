@@ -73,15 +73,8 @@ class RegularPolygon{
 /////////////////////////////////////////////////////////////////////
 
 class Primitive{  
-  private:
-	bool need_set; /// True if the global face coordinates need set.
-
-	/** Set the global face coordinates (wrt global origin)
-	  * Each vertex is the center coordinate of one of the faces.
-	  */
-	void _set_face_coords();
-	 	
   protected:
+	bool need_set; /// True if the global face coordinates need set.
     bool use_material; /// True if a material is to be used for energy loss.
     unsigned int material_id; /// The ID of the material to use for energy loss.
 	unsigned int front_face; /// The ID of the front face.
@@ -93,11 +86,15 @@ class Primitive{
 	Matrix3 rotationMatrix; /// The rotation matrix of the detector.
 	double length, width, depth; /// Physical size of the detector (in m).
 	double theta, phi, psi; /// Rotation of the detector (in radians).
-	bool small, med, large; /// The size of the detector if it has type 'vandle'.
 	bool use_recoil; /// True if this detector is to be used to detect recoil particles.
 	bool use_eject; /// True if this detector is to be used to detect ejectile particles.
 	std::string type, subtype; /// The type and subtype of the detector.
 	std::string material_name; /// The name of the material to use for energy loss calculations.
+
+	/** Set the global face coordinates (wrt global origin)
+	  * Each vertex is the center coordinate of one of the faces.
+	  */
+	void _set_face_coords();
     
   public:
     /// Default constructor.
@@ -158,12 +155,6 @@ class Primitive{
 	
 	/// Get a vector pointing to a 3d point inside of this geometry
 	void GetRandomPointInside(Vector3& output);
-	
-	bool IsSmall(){ return small; }
-
-	bool IsMedium(){ return med; }
-
-	bool IsLarge(){ return large; }
 
 	bool IsRecoilDet(){ return use_recoil; }
 
@@ -188,16 +179,7 @@ class Primitive{
 
 	void SetSubtype(std::string subtype_){ subtype = subtype_; }
 
-	void SetSmall(){ length = 0.60; width = 0.03; depth = 0.03; small = true; med = false; large = false; need_set = true; }
-
-	void SetMedium(){ length = 1.20; width = 0.05; depth = 0.03; small = false; med = true; large = false; need_set = true; }
-
-	void SetLarge(){ length = 2.00; width = 0.05; depth = 0.05; small = false; med = false; large = true; need_set = true; }
-
-	/** Set the physical size of the detector.
-	  * For setting VANDLE bars, it is better to use SetSmall/SetMedium/SetLarge methods.
-	  * Unknown detector types will not include efficiency data.
-	  */
+	/// Set the physical size of the detector.
 	void SetSize(double length_, double width_, double depth_);
 	
 	/// Set the position of the center of the detector using a 3d vector (in meters).
@@ -245,14 +227,14 @@ class Primitive{
 	  * which bounds this 3d object. The radius of the cylinder is taken
 	  * as the "width" of the detector. That is, the size along the x-axis.
 	  */
-	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
+	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2);
 
 	/** Find if a ray (from the origin) intersects the sphere
 	  * which bounds this 3d object. The radius of the bounding
 	  * sphere is taken as the "length" of the detector. That is,
 	  * the size along the y-axis.
 	  */
-	bool SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
+	bool SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2);
 	
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
@@ -282,6 +264,87 @@ class Primitive{
 	  * X(m) Y(m) Z(m) Theta(rad) Phi(rad) Psi(rad) Type Subtype Length(m) Width(m) Depth(m) Material.
 	  */
 	std::string DumpDet();
+};
+
+/////////////////////////////////////////////////////////////////////
+// Planar
+/////////////////////////////////////////////////////////////////////
+
+class Planar : public Primitive {
+  private:
+  
+  public:
+  	/// Default constructor.
+	Planar() : Primitive() {}
+	
+	/// Constructor using a NewVIKARDet object.
+	Planar(NewVIKARdet *det_) : Primitive(det_) {}
+	
+	void SetSmall(){ SetSize(0.6, 0.03, 0.03); }
+
+	void SetMedium(){ SetSize(1.2, 0.05, 0.03); }
+
+	void SetLarge(){ SetSize(2.0, 0.05, 0.05); }
+	
+	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
+	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
+	  * direction_ is the direction of the ray wrt the global origin.
+	  * P1 is the first intersection point in global coordinates.
+	  * P2 is the second intersection point in global coordinates.
+	  * norm is the normal vector to the surface at point P1.
+	  * Return true if the primitive is intersected, and false otherwise.
+	  */
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+};
+
+/////////////////////////////////////////////////////////////////////
+// Cylindrical
+/////////////////////////////////////////////////////////////////////
+
+class Cylindrical : public Primitive { 
+  private:
+  
+  public:
+  	/// Default constructor.
+	Cylindrical() : Primitive() {}
+	
+	/// Constructor using a NewVIKARDet object.
+	Cylindrical(NewVIKARdet *det_) : Primitive(det_) {}
+	
+	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
+	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
+	  * direction_ is the direction of the ray wrt the global origin.
+	  * P1 is the first intersection point in global coordinates.
+	  * P2 is the second intersection point in global coordinates.
+	  * norm is the normal vector to the surface at point P1.
+	  * Return true if the primitive is intersected, and false otherwise.
+	  */
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+};
+
+/////////////////////////////////////////////////////////////////////
+// Spherical
+/////////////////////////////////////////////////////////////////////
+
+class Spherical : public Primitive {  
+  private:
+  
+  public:
+  	/// Default constructor.
+	Spherical() : Primitive() {}
+	
+	/// Constructor using a NewVIKARDet object.
+	Spherical(NewVIKARdet *det_) : Primitive(det_) {}
+	
+	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
+	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
+	  * direction_ is the direction of the ray wrt the global origin.
+	  * P1 is the first intersection point in global coordinates.
+	  * P2 is the second intersection point in global coordinates.
+	  * norm is the normal vector to the surface at point P1.
+	  * Return true if the primitive is intersected, and false otherwise.
+	  */
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
 };
 
 #endif

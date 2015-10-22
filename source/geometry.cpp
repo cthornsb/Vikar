@@ -97,9 +97,6 @@ Primitive::Primitive(){
 	length = 1.0;
 	width = 1.0;
 	depth = 1.0;
-	small = false;
-	med = false;
-	large = false;
 	need_set = true;
 	use_recoil = false;
 	use_eject = false;
@@ -120,20 +117,8 @@ Primitive::Primitive(NewVIKARdet *det_){
 	detZ = Vector3(0.0, 0.0, 1.0);
 	SetPosition(det_->data[0], det_->data[1], det_->data[2]);
 	SetRotation(det_->data[3], det_->data[4], det_->data[5]);
-	small = false;
-	med = false;
-	large = false;
 	need_set = true;
-	if(det_->type=="vandle"){
-		if(det_->subtype=="small"){ SetSmall(); }
-		else if(det_->subtype=="medium"){ SetMedium(); }
-		else if(det_->subtype=="large"){ SetLarge(); }
-		else{
-			std::cout << " Primitive: Unrecognized VANDLE subtype (" << det_->subtype << ")!\n";
-			SetSize(det_->data[6], det_->data[7], det_->data[8]);
-		}
-	}
-	else{ SetSize(det_->data[6], det_->data[7], det_->data[8]); }
+	SetSize(det_->data[6], det_->data[7], det_->data[8]);
 	use_recoil = (det_->type=="dual" || det_->type=="recoil");
 	use_eject = (det_->type=="vandle" || det_->type=="dual" || det_->type=="eject");
 	use_material = false;
@@ -201,18 +186,12 @@ void Primitive::SetFrontFace(unsigned int front_face_){
 	front_face = front_face_;
 }
 
-/** Set the physical size of the detector.
-  * For setting VANDLE bars, it is better to use SetSmall/SetMedium/SetLarge methods.
-  * Unknown detector types will not include efficiency data.
-  */
+/// Set the physical size of the detector.
 void Primitive::SetSize(double length_, double width_, double depth_){
-	if(length_ == 0.6 && width_ == 0.03 && depth_ == 0.03){ SetSmall(); }
-	else if(length_ == 1.2 && width_ == 0.05 && depth_ == 0.03){ SetMedium(); }
-	else if(length_ == 2.0 && width_ == 0.05 && depth_ == 0.05){ SetLarge(); }
-	else{
-		width = width_; length = length_; depth = depth_; 
-		small = false; med = false; large = false; need_set = true;
-	}
+	width = width_; 
+	length = length_; 
+	depth = depth_;
+	need_set = true;
 }
 
 /// Set the position of the center of the detector using a 3d vector (in meters).
@@ -326,12 +305,12 @@ bool Primitive::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_
   * which bounds this 3d object. The radius of the cylinder is taken
   * as the "width" of the detector. That is, the size along the x-axis.
   */
-bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
+bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2){
 	if(need_set){ _set_face_coords(); }
 	
-	// GlobalFace[5] is the central position of the "bottom" endcap of the cylinder.
+	// position is the position of the center of the detector.
 	// The direction of the cylinder is given by the local unit vector detY.
-	Vector3 dP = offset_ - GlobalFace[5];
+	Vector3 dP = offset_ - position;
 	Vector3 A1 = direction_ - detY*detY.Dot(direction_);
 	Vector3 C1 = dP - detY*detY.Dot(dP);
 	
@@ -345,8 +324,14 @@ bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &directi
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
 		// Find the intersection point closest to the ray origin.
-		if(t1 < t2){ P = offset_ + direction_*t1; }
-		else{ P = offset_ + direction_*t2; }
+		if(t1 < t2){ 
+			P1 = offset_ + direction_*t1;
+			P2 = offset_ + direction_*t2; 
+		}
+		else{ 
+			P2 = offset_ + direction_*t1; 
+			P1 = offset_ + direction_*t2; 
+		}
 		return true;
 	}
 	
@@ -358,7 +343,7 @@ bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &directi
   * sphere is taken as the "length" of the detector. That is,
   * the size along the y-axis.
   */
-bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
+bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2){
 	if(need_set){ _set_face_coords(); }
 	
 	Vector3 R = offset_ - position; // Vector pointing from the center of the detector to the start position of the ray.
@@ -372,8 +357,14 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
 		// Find the intersection point closest to the ray origin.
-		if(t1 < t2){ P = offset_ + direction_*t1; }
-		else{ P = offset_ + direction_*t2; }
+		if(t1 < t2){ 
+			P1 = offset_ + direction_*t1;
+			P2 = offset_ + direction_*t2; 
+		}
+		else{ 
+			P2 = offset_ + direction_*t1; 
+			P1 = offset_ + direction_*t2; 
+		}
 		return true;
 	}
 	
@@ -388,37 +379,8 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
   * norm is the normal vector to the surface at point P1.
   * Return true if the primitive is intersected, and false otherwise.
   */
-bool Primitive::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm,
-								int &face1, int &face2, double &px, double &py, double &pz){
-	if(need_set){ _set_face_coords(); }
-	
-	double px2, py2, pz2;
-	int face_count = 0;
-	Vector3 ray, unit;
-	for(unsigned int i = 0; i < 6; i++){
-		GetUnitVector(i, unit);
-		if(PlaneIntersect(offset_, direction_, i, ray)){ // The ray intersects the plane containing this face
-			// Transform the intersection point into local coordinates and check if they're within the bounds
-			GetLocalCoords(ray, px2, py2, pz2);
-			if(CheckBounds(i, px2, py2, pz2)){ // The face was struck
-				if(face_count == 0){ 
-					px = px2; py = py2; pz = pz2;
-					P1 = ray; 
-					face1 = i; 
-				}
-				else if(face_count == 1){ 
-					P2 = ray; 
-					face2 = i; 
-					
-					if(P2.Length() < P1.Length()){ px = px2; py = py2; pz = pz2; } // Ensure we get the hit on the plane facing the target
-					//break;
-				}
-				face_count++;
-			}
-		} // if(PlaneIntersect(offset_, direction_, i, ray))
-	} // for(unsigned int i = 0; i < 6; i++)
-	
-	return (face_count > 0); 
+bool Primitive::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
+	return false;
 }
 
 /// Alternate form of IntersectPrimitive which does not return the surface normal.
@@ -479,4 +441,102 @@ std::string Primitive::DumpDet(){
 	return stream.str();
 }
 
+/////////////////////////////////////////////////////////////////////
+// Planar
+/////////////////////////////////////////////////////////////////////
 
+/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this prism. 
+  * offset_ is the point where the ray originates wrt the global origin.
+  * direction_ is the direction of the ray wrt the global origin.
+  * P1 is the first intersection point in global coordinates.
+  * P2 is the second intersection point in global coordinates.
+  * norm is the normal vector to the surface at point P1.
+  * Return true if the prism is intersected, and false otherwise.
+  */
+bool Planar::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
+	if(need_set){ _set_face_coords(); }
+	
+	double px2, py2, pz2;
+	int face_count = 0;
+	Vector3 ray, unit;
+	for(unsigned int i = 0; i < 6; i++){
+		GetUnitVector(i, unit);
+		if(PlaneIntersect(offset_, direction_, i, ray)){ // The ray intersects the plane containing this face
+			// Transform the intersection point into local coordinates and check if they're within the bounds
+			GetLocalCoords(ray, px2, py2, pz2);
+			if(CheckBounds(i, px2, py2, pz2)){ // The face was struck
+				if(face_count == 0){ 
+					px = px2; py = py2; pz = pz2;
+					P1 = ray; 
+					face1 = i; 
+				}
+				else if(face_count == 1){ 
+					P2 = ray; 
+					face2 = i; 
+					
+					if(P2.Length() < P1.Length()){ px = px2; py = py2; pz = pz2; } // Ensure we get the hit on the plane facing the target
+					//break;
+				}
+				face_count++;
+			}
+		} // if(PlaneIntersect(offset_, direction_, i, ray))
+	} // for(unsigned int i = 0; i < 6; i++)
+	
+	return (face_count > 0); 
+}
+
+/////////////////////////////////////////////////////////////////////
+// Cylindrical
+/////////////////////////////////////////////////////////////////////
+
+/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this cylinder.
+  * offset_ is the point where the ray originates wrt the global origin.
+  * direction_ is the direction of the ray wrt the global origin.
+  * P1 is the first intersection point in global coordinates.
+  * P2 is the second intersection point in global coordinates.
+  * norm is the normal vector to the surface at point P1.
+  * Return true if the cylinder is intersected, and false otherwise.
+  */
+bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
+	if(need_set){ _set_face_coords(); }
+	
+	// Check if the ray intersects the infinite cylinder with r = width/2.0.
+	if(!CylinderIntersect(offset_, direction_, P1, P2)){ return false; }
+	
+	// Check if the intersection points are within the cylinder endcaps.
+	double z1 = std::sqrt((P1 - position).Square() - width*width/4.0);
+	double z2 = std::sqrt((P2 - position).Square() - width*width/4.0);
+	
+	if(z1 > length/2.0 && z2 > length/2.0){ return false; }
+	
+	// Calculate the normal to the surface at point P1.
+	norm = P1 - position - detY*z1;
+	norm.Normalize();
+	
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Spherical
+/////////////////////////////////////////////////////////////////////
+
+/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this sphere.
+  * offset_ is the point where the ray originates wrt the global origin.
+  * direction_ is the direction of the ray wrt the global origin.
+  * P1 is the first intersection point in global coordinates.
+  * P2 is the second intersection point in global coordinates.
+  * norm is the normal vector to the surface at point P1.
+  * Return true if the sphere is intersected, and false otherwise.
+  */
+bool Spherical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
+	if(need_set){ _set_face_coords(); }
+	
+	// Check if the ray intersects the sphere with r = length/2.0.
+	if(!SphereIntersect(offset_, direction_, P1, P2)){ return false; }
+	
+	// Calculate the normal to the surface at point P1.
+	norm = P1 - position;
+	norm.Normalize();
+	
+	return true;
+}

@@ -214,7 +214,9 @@ int ReadDetFile(const char* fname_, std::vector<Primitive*> &detectors){
 
 	// Fill the detector
 	for(std::vector<NewVIKARdet*>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
-		if((*iter)->type == "vandle" || (*iter)->subtype == "Primitive"){ detectors.push_back(new Primitive((*iter))); }
+		if((*iter)->type == "vandle" || (*iter)->subtype == "planar"){ detectors.push_back(new Planar((*iter))); }
+		else if((*iter)->subtype == "cylinder"){ detectors.push_back(new Cylindrical((*iter))); }
+		else if((*iter)->subtype == "sphere"){ detectors.push_back(new Spherical((*iter))); }
 		else if((*iter)->subtype == "ellipse"){ detectors.push_back(new Elliptical((*iter))); }
 		else if((*iter)->subtype == "polygon"){ detectors.push_back(new Polygonal((*iter))); }
 		else if((*iter)->subtype == "annular"){ detectors.push_back(new Annular((*iter))); }
