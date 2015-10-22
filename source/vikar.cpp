@@ -92,7 +92,7 @@ int main(int argc, char* argv[]){
 	Kindeux kind; // Main kinematics object
 	Target targ; // The physical target
 	Efficiency bar_eff; // VANDLE bar efficiencies
-	std::vector<Planar*> vandle_bars; // Vector of Planar detectors
+	std::vector<Primitive*> vandle_bars; // Vector of Primitive detectors
 
 	RangeTable beam_targ; // Range table for beam in target
 	//RangeTable *eject_targ = NULL; // Pointer to the range table for ejectile in target
@@ -468,7 +468,7 @@ int main(int argc, char* argv[]){
 	else if(Ndet == 0){ std::cout << " Error: Found no detectors in the detector setup file!\n"; } // Check there's at least 1 detector!
 	
 	std::vector<std::string> needed_materials;
-	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+	for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 		if(!IsInVector((*iter)->GetMaterialName(), needed_materials)){
 			needed_materials.push_back((*iter)->GetMaterialName());
 		}
@@ -602,7 +602,7 @@ int main(int argc, char* argv[]){
 	if(!BeamFocus){ lab_beam_trajectory = Vector3(0.0, 0.0, 1.0); }
 
 	std::cout << "\n Setting detector material types...\n";
-	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){ // Set the detector material for energy loss calculations
+	for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){ // Set the detector material for energy loss calculations
 		for(unsigned int j = 0; j < num_materials; j++){
 			if((*iter)->GetMaterialName() == materials[j].GetName()){
 				if(((*iter)->IsRecoilDet() && recoil_part.GetZ() > 0) || ((*iter)->IsEjectileDet() && eject_part.GetZ() > 0)){ 
@@ -800,7 +800,7 @@ int main(int argc, char* argv[]){
 			backgroundWait--;
 
 			// Process the background event for each detector
-			for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+			for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 				if(!((*iter)->IsEjectileDet() || (*iter)->IsRecoilDet())){ continue; } // This detector cannot detect particles
 
 				// Select the "tof" of the background event
@@ -885,7 +885,7 @@ int main(int argc, char* argv[]){
 						Vector3 dum1, dum2;
 						int temp1, temp2;
 						double tempx, tempy, tempz;
-						targ.GetPlanar()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
+						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
 						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
 						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
 						std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
@@ -941,7 +941,7 @@ int main(int argc, char* argv[]){
 		}
 
 		// Process the reaction products
-		for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+		for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 			if((*iter)->IsEjectileDet()){ // This detector can detect ejectiles
 				if(EejectMod <= 0.0){ continue; } // There still may be recoil detectors left
 				proc_eject = true; 
@@ -1032,7 +1032,7 @@ process:
 				proc_eject = false; 
 				if((*iter)->IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
 			}
-		} // for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
+		} // for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
 				if(!flag){ flag = true; }
@@ -1094,7 +1094,7 @@ process:
 	delete[] ExRecoilStates;
 	delete[] totXsect;
 
-	for(std::vector<Planar*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
+	for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 		delete *iter;
 	}
 	vandle_bars.clear();

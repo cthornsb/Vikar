@@ -26,7 +26,7 @@ extern const double ionpot[13];
 // Class declarations
 /////////////////////////////////////////////////////////////////////
 
-class Planar;
+class Primitive;
 class Efficiency;
 class Material;
 class Particle;
@@ -323,7 +323,7 @@ class Target : public Particle {
 	double rad_length; // The radiation length of the material (mg/cm^2)
 	double angle; // Angle of target wrt the beam axis (rad)
 	
-	Planar *physical; // The physical target geometry
+	Primitive *physical; // The physical target geometry
 	
   public:
 	Target();
@@ -341,7 +341,7 @@ class Target : public Particle {
 	double GetAngle(){ return angle; } // Return the angle of the target wrt the beam axis
 	double GetDensity(){ return density; }
 	double GetRadLength(){ return rad_length; }
-	Planar *GetPlanar(){ return physical; } // Return a pointer to the 3d geometry object
+	Primitive *GetPrimitive(){ return physical; } // Return a pointer to the 3d geometry object
 	
 	// Get the depth into the target at which the reaction occurs
 	// offset_ is the global position where the beam particle originates

@@ -651,7 +651,7 @@ Target::Target() : Particle() {
 	density = 1.0;
 	rad_length = 0.0;
 	angle = 0.0;
-	physical = new Planar();
+	physical = new Primitive();
 }
 
 Target::Target(unsigned int num_elements_) : Particle() {
@@ -660,7 +660,7 @@ Target::Target(unsigned int num_elements_) : Particle() {
 	density = 1.0;
 	rad_length = 0.0;
 	angle = 0.0;
-	physical = new Planar();
+	physical = new Primitive();
 }
 
 void Target::SetThickness(double thickness_){ 

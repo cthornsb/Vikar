@@ -13,7 +13,7 @@ LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
-SOURCES = vikar_core.cpp kindeux.cpp detectors.cpp materials.cpp
+SOURCES = vikar_core.cpp kindeux.cpp geometry.cpp detectors.cpp materials.cpp
 OBJECTS = $(addprefix $(OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
