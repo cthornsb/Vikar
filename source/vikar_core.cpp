@@ -262,6 +262,11 @@ double Vector3::Length() const {
 	return std::sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
 }
 
+// Return the square of the vector
+double Vector3::Square() const {
+	return axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2];
+}
+
 double Vector3::Distance(const Vector3 &other) const {
 	double x = axis[0]-other.axis[0];
 	double y = axis[1]-other.axis[1];

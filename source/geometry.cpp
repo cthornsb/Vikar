@@ -322,6 +322,64 @@ bool Primitive::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_
 	return false; // The plane is behind the ray, the ray will never intersect it
 }
 
+/** Find if a ray (from the origin) intersects the infinite cylinder
+  * which bounds this 3d object. The radius of the cylinder is taken
+  * as the "width" of the detector. That is, the size along the x-axis.
+  */
+bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
+	if(need_set){ _set_face_coords(); }
+	
+	// GlobalFace[5] is the central position of the "bottom" endcap of the cylinder.
+	// The direction of the cylinder is given by the local unit vector detY.
+	Vector3 dP = offset_ - GlobalFace[5];
+	Vector3 A1 = direction_ - detY*detY.Dot(direction_);
+	Vector3 C1 = dP - detY*detY.Dot(dP);
+	
+	double A2 = A1.Square();
+	double B2 = 2.0 * C1.Dot(A1);
+	double C2 = C1.Square() - width*width/2.0;
+	
+	B2 *= B2;
+	double t1 = (-B2 + std::sqrt(B2-4.0*A2*C2))/(2.0*A2);
+	double t2 = (-B2 + std::sqrt(B2-4.0*A2*C2))/(2.0*A2);
+	
+	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
+		// Find the intersection point closest to the ray origin.
+		if(t1 < t2){ P = offset_ + direction_*t1; }
+		else{ P = offset_ + direction_*t2; }
+		return true;
+	}
+	
+	return false;
+}
+
+/** Find if a ray (from the origin) intersects the sphere
+  * which bounds this 3d object. The radius of the bounding
+  * sphere is taken as the "length" of the detector. That is,
+  * the size along the y-axis.
+  */
+bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
+	if(need_set){ _set_face_coords(); }
+	
+	Vector3 R = offset_ - position; // Vector pointing from the center of the detector to the start position of the ray.
+	double A = direction_.Square();
+	double B = 2.0 * R.Dot(direction_); 
+	double C = R.Square() - length*length/4.0;
+	
+	B *= B;
+	double t1 = (-B + std::sqrt(B-4.0*A*C))/(2.0*A);
+	double t2 = (-B + std::sqrt(B-4.0*A*C))/(2.0*A);
+	
+	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
+		// Find the intersection point closest to the ray origin.
+		if(t1 < t2){ P = offset_ + direction_*t1; }
+		else{ P = offset_ + direction_*t2; }
+		return true;
+	}
+	
+	return false;
+}
+
 /** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
   * primitive shape offset_ is the point where the ray originates wrt the global origin.
   * direction_ is the direction of the ray wrt the global origin.

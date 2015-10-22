@@ -45,6 +45,7 @@ class Vector3{
 	double Dot(const Vector3 &) const ;
 	Vector3 Cross(const Vector3 &) const ;
 	double Length() const ;
+	double Square() const ; 
 	double Distance(const Vector3 &) const ;
 	double Normalize();
 	std::string Dump() const ;

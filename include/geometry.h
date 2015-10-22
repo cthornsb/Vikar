@@ -240,6 +240,19 @@ class Primitive{
 	  * face 5 is along the -y local axis.
 	  */
 	bool PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
+
+	/** Find if a ray (from the origin) intersects the infinite cylinder
+	  * which bounds this 3d object. The radius of the cylinder is taken
+	  * as the "width" of the detector. That is, the size along the x-axis.
+	  */
+	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
+
+	/** Find if a ray (from the origin) intersects the sphere
+	  * which bounds this 3d object. The radius of the bounding
+	  * sphere is taken as the "length" of the detector. That is,
+	  * the size along the y-axis.
+	  */
+	bool SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
 	
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
@@ -249,7 +262,7 @@ class Primitive{
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+	virtual bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
 
 	/// Alternate form of IntersectPrimitive which does not return the surface normal.
 	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, int &face1, int &face2, double &px, double &py, double &pz);
