@@ -221,7 +221,7 @@ class Primitive{
 	  * face 4 is along the +y local axis
 	  * face 5 is along the -y local axis.
 	  */
-	bool PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P);
+	bool PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, double &t);
 
 	/** Find if a ray (from the origin) intersects the infinite cylinder
 	  * which bounds this 3d object. The radius of the cylinder is taken

@@ -283,19 +283,13 @@ bool Primitive::CheckBounds(const unsigned int &face_, const double &x_, const d
   * face 4 is along the +y local axis
   * face 5 is along the -y local axis.
   */
-bool Primitive::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, Vector3 &P){
+bool Primitive::PlaneIntersect(const Vector3 &offset_, const Vector3 &direction_, unsigned int face_, double &t){
 	if(need_set){ _set_face_coords(); }
 	
 	Vector3 unit;
 	GetUnitVector(face_, unit);
 	
-	// The ray vector has the parametric form ray = offset_ + t*direction_
-	// First find the intersection points between the ray and a plane containing the face polygon
-	//double denom = direction_.Dot(unit);
-	//if(denom < 1E-8){ return false; }
-	
-	double t = (GlobalFace[face_].Dot(unit)-offset_.Dot(unit))/(direction_.Dot(unit));
-	P = offset_ + direction_*t; // The intersection point on the plane
+	t = (GlobalFace[face_].Dot(unit)-offset_.Dot(unit))/(direction_.Dot(unit));
 	
 	if(t >= 0){ return true; } // The ray intersects the plane
 	return false; // The plane is behind the ray, the ray will never intersect it
@@ -396,16 +390,19 @@ double Primitive::GetApparentThickness(const Vector3 &offset_, const Vector3 &di
 	if(f1_ > 5 || f2_ > 5){ return -1; } // Invalid face number
 	if(need_set){ _set_face_coords(); }
 	double px, py, pz;
+	double temp_t;
 	
 	// Check face 1
-	if(PlaneIntersect(offset_, direction_, f1_, intersect1)){ 
+	if(PlaneIntersect(offset_, direction_, f1_, temp_t)){ 
+		intersect1 = offset_ + direction_*temp_t;
 		GetLocalCoords(intersect1, px, py, pz);
 		if(!CheckBounds(f1_, px, py, pz)){ return -1; }
 	}
 	else{ return -1; }
 	
 	// Check face 2
-	if(PlaneIntersect(offset_, direction_, f2_, intersect2)){
+	if(PlaneIntersect(offset_, direction_, f2_, temp_t)){ 
+		intersect2 = offset_ + direction_*temp_t;
 		GetLocalCoords(intersect2, px, py, pz);
 		if(!CheckBounds(f2_, px, py, pz)){ return -1; }
 	}
@@ -456,31 +453,48 @@ std::string Primitive::DumpDet(){
 bool Planar::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
 	if(need_set){ _set_face_coords(); }
 	
-	double px2, py2, pz2;
 	int face_count = 0;
-	Vector3 ray, unit;
+	int f1 = -1;
+	int f2 = -1;
+	double t1, t2;
+	double temp_t;
 	for(unsigned int i = 0; i < 6; i++){
-		GetUnitVector(i, unit);
-		if(PlaneIntersect(offset_, direction_, i, ray)){ // The ray intersects the plane containing this face
+		if(PlaneIntersect(offset_, direction_, i, temp_t)){ // The ray intersects the plane containing this face
 			// Transform the intersection point into local coordinates and check if they're within the bounds
-			GetLocalCoords(ray, px2, py2, pz2);
-			if(CheckBounds(i, px2, py2, pz2)){ // The face was struck
-				if(face_count == 0){ 
-					px = px2; py = py2; pz = pz2;
-					P1 = ray; 
-					face1 = i; 
+			GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
+			if(CheckBounds(i, px, py, pz)){ // The face was struck
+				if(++face_count == 1){ 
+					t1 = temp_t; 
+					f1 = i;
 				}
-				else if(face_count == 1){ 
-					P2 = ray; 
-					face2 = i; 
-					
-					if(P2.Length() < P1.Length()){ px = px2; py = py2; pz = pz2; } // Ensure we get the hit on the plane facing the target
-					//break;
-				}
-				face_count++;
+				else if(++face_count == 2){ // Should not have more than 2 face intersects. Do this just to save a little time.
+					t2 = temp_t;
+					f2 = i;
+					break; 
+				} 
 			}
 		} // if(PlaneIntersect(offset_, direction_, i, ray))
 	} // for(unsigned int i = 0; i < 6; i++)
+
+	// Find which face is closer to the ray origin.
+	if(t1 < t2){
+		P1 = offset_ + direction_*t1;
+		P2 = offset_ + direction_*t2;
+		face1 = f1;
+		face2 = f2;
+	}
+	else{
+		P2 = offset_ + direction_*t1;
+		P1 = offset_ + direction_*t2;
+		face2 = f1;
+		face1 = f2;
+	}
+	
+	// Get the surface normal at point P1.
+	GetUnitVector(face1, norm);
+
+	// Find the coordinates of the point P1 in local coordinates.
+	GetLocalCoords(P1, px, py, pz);
 	
 	return (face_count > 0); 
 }
@@ -507,11 +521,44 @@ bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& dire
 	double z1 = std::sqrt((P1 - position).Square() - width*width/4.0);
 	double z2 = std::sqrt((P2 - position).Square() - width*width/4.0);
 	
-	if(z1 > length/2.0 && z2 > length/2.0){ return false; }
+	bool check1 = z1 <= length/2.0;
+	bool check2 = z2 <= length/2.0;
+
+	face1 = 0; // The body of the cylinder.
+	face2 = 0; // The body of the cylinder.
+	
+	if(!check1 && !check2){ return false; }
+	else if(!check1 || !check2){ // Check for intersections with the endcaps. Faces 4 and 5 represent the endcaps of the cylinder.
+		double temp_t;
+		if(PlaneIntersect(offset_, direction_, 4, temp_t)){ // The "top" endcap.
+			if(!check1){ 
+				P1 = offset_ + direction_*temp_t; 
+				face1 = 4;
+			}
+			else{ 
+				P2 = offset_ + direction_*temp_t;
+				face2 = 4;
+			}
+		}
+		else if(PlaneIntersect(offset_, direction_, 5, temp_t)){ // The "bottom" endcap.
+			if(!check1){ 
+				P1 = offset_ + direction_*temp_t;
+				face1 = 5;
+			}
+			else{ 
+				P2 = offset_ + direction_*temp_t;
+				face2 = 5;
+			}
+		}
+		else{ std::cout << " Warning! No intersection with endcaps?!?!?!\n"; }
+	}
 	
 	// Calculate the normal to the surface at point P1.
 	norm = P1 - position - detY*z1;
 	norm.Normalize();
+	
+	// Find the coordinates of the point P1 in local coordinates.
+	GetLocalCoords(P1, px, py, pz);
 	
 	return true;
 }
@@ -534,9 +581,15 @@ bool Spherical::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 	// Check if the ray intersects the sphere with r = length/2.0.
 	if(!SphereIntersect(offset_, direction_, P1, P2)){ return false; }
 	
+	face1 = 0; // Only one face.
+	face2 = 0; // Only one face.
+	
 	// Calculate the normal to the surface at point P1.
 	norm = P1 - position;
 	norm.Normalize();
+
+	// Find the coordinates of the point P1 in local coordinates.
+	GetLocalCoords(P1, px, py, pz);
 	
 	return true;
 }
