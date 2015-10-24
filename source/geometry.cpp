@@ -310,11 +310,10 @@ bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &directi
 	
 	double A2 = A1.Square();
 	double B2 = 2.0 * C1.Dot(A1);
-	double C2 = C1.Square() - width*width/2.0;
+	double C2 = C1.Square() - width*width/4.0;
 	
-	B2 *= B2;
-	double t1 = (-B2 + std::sqrt(B2-4.0*A2*C2))/(2.0*A2);
-	double t2 = (-B2 + std::sqrt(B2-4.0*A2*C2))/(2.0*A2);
+	double t1 = (-B2 + std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
+	double t2 = (-B2 - std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
 		// Find the intersection point closest to the ray origin.
@@ -345,9 +344,8 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
 	double B = 2.0 * R.Dot(direction_); 
 	double C = R.Square() - length*length/4.0;
 	
-	B *= B;
-	double t1 = (-B + std::sqrt(B-4.0*A*C))/(2.0*A);
-	double t2 = (-B + std::sqrt(B-4.0*A*C))/(2.0*A);
+	double t1 = (-B + std::sqrt(B*B-4.0*A*C))/(2.0*A);
+	double t2 = (-B - std::sqrt(B*B-4.0*A*C))/(2.0*A);
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
 		// Find the intersection point closest to the ray origin.
@@ -386,11 +384,12 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 			// Transform the intersection point into local coordinates and check if they're within the bounds
 			GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
 			if(CheckBounds(i, px, py, pz)){ // The face was struck
-				if(++face_count == 1){ 
+				face_count++;
+				if(face_count == 1){ 
 					t1 = temp_t; 
 					f1 = i;
 				}
-				else if(++face_count == 2){ // Should not have more than 2 face intersects. Do this just to save a little time.
+				else if(face_count == 2){ // Should not have more than 2 face intersects. Do this just to save a little time.
 					t2 = temp_t;
 					f2 = i;
 					break; 
@@ -398,6 +397,8 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 			}
 		} // if(PlaneIntersect(offset_, direction_, i, ray))
 	} // for(unsigned int i = 0; i < 6; i++)
+
+	if(face_count == 0){ return false; }
 
 	// Find which face is closer to the ray origin.
 	if(t1 < t2){
@@ -419,7 +420,7 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 	// Find the coordinates of the point P1 in local coordinates.
 	GetLocalCoords(P1, px, py, pz);
 	
-	return (face_count > 0); 
+	return true; 
 }
 
 /// Alternate form of IntersectPrimitive which does not return the surface normal.
@@ -501,45 +502,51 @@ bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& dire
 	// Check if the ray intersects the infinite cylinder with r = width/2.0.
 	if(!CylinderIntersect(offset_, direction_, P1, P2)){ return false; }
 	
-	// Check if the intersection points are within the cylinder endcaps.
-	double z1 = std::sqrt((P1 - position).Square() - width*width/4.0);
-	double z2 = std::sqrt((P2 - position).Square() - width*width/4.0);
+	Vector3 r1 = P1 - position;
+	Vector3 r2 = P2 - position;
 	
-	bool check1 = z1 <= length/2.0;
-	bool check2 = z2 <= length/2.0;
+	// Check if the intersection points are within the cylinder endcaps.
+	double z1 = std::sqrt(r1.Square() - width*width/4.0);
+	double z2 = std::sqrt(r2.Square() - width*width/4.0);
+	
+	if(r1.CosAngle(detY) < 0.0){ z1 *= -1; }
+	if(r2.CosAngle(detY) < 0.0){ z2 *= -1; }
+	
+	bool check1 = (fabs(z1) <= length/2.0);
+	bool check2 = (fabs(z2) <= length/2.0);
 
 	face1 = 0; // The body of the cylinder.
 	face2 = 0; // The body of the cylinder.
 	
 	if(!check1 && !check2){ return false; }
-	else if(!check1 || !check2){ // Check for intersections with the endcaps. Faces 4 and 5 represent the endcaps of the cylinder.
+	else if(!check1){ // Point P1 is outside of the bounds of the cylinder.
 		double temp_t;
-		if(PlaneIntersect(offset_, direction_, 4, temp_t)){ // The "top" endcap.
-			if(!check1){ 
+		for(int i = 4; i < 6; i++){ // Check for intersections with the endcaps. Faces 4 and 5 represent the endcaps of the cylinder.
+			if(PlaneIntersect(offset_, direction_, i, temp_t)){
 				P1 = offset_ + direction_*temp_t; 
-				face1 = 4;
-			}
-			else{ 
-				P2 = offset_ + direction_*temp_t;
-				face2 = 4;
+				face1 = i;
+				break;
 			}
 		}
-		else if(PlaneIntersect(offset_, direction_, 5, temp_t)){ // The "bottom" endcap.
-			if(!check1){ 
-				P1 = offset_ + direction_*temp_t;
-				face1 = 5;
-			}
-			else{ 
-				P2 = offset_ + direction_*temp_t;
-				face2 = 5;
+	}
+	else if(!check2){ // Point P2 is outside of the bounds of the cylinder.
+		double temp_t;
+		for(int i = 4; i < 6; i++){ // Check for intersections with the endcaps. Faces 4 and 5 represent the endcaps of the cylinder.
+			if(PlaneIntersect(offset_, direction_, i, temp_t)){
+				P2 = offset_ + direction_*temp_t; 
+				face2 = i;
+				break;
 			}
 		}
-		else{ std::cout << " Warning! No intersection with endcaps?!?!?!\n"; }
 	}
 	
-	// Calculate the normal to the surface at point P1.
-	norm = P1 - position - detY*z1;
-	norm.Normalize();
+	if(face1 == 0){ // Calculate the normal to the curved surface at point P1.
+		norm = P1 - position - detY*z1;
+		norm.Normalize();
+	}
+	else{ // Get the normal of one of the endcaps.
+		GetUnitVector(face1, norm); 
+	}
 	
 	// Find the coordinates of the point P1 in local coordinates.
 	GetLocalCoords(P1, px, py, pz);
