@@ -285,16 +285,6 @@ class Planar : public Primitive {
 	void SetMedium(){ SetSize(1.2, 0.05, 0.03); }
 
 	void SetLarge(){ SetSize(2.0, 0.05, 0.05); }
-	
-	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
-	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
-	  * direction_ is the direction of the ray wrt the global origin.
-	  * P1 is the first intersection point in global coordinates.
-	  * P2 is the second intersection point in global coordinates.
-	  * norm is the normal vector to the surface at point P1.
-	  * Return true if the primitive is intersected, and false otherwise.
-	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
 };
 
 /////////////////////////////////////////////////////////////////////

@@ -43,6 +43,7 @@ class Vector3{
 	Vector3 operator - (const Vector3&) const ;
 	Vector3 operator * (const double&) const ;
 	double Dot(const Vector3 &) const ;
+	double CosAngle(const Vector3 &) const ;
 	Vector3 Cross(const Vector3 &) const ;
 	double Length() const ;
 	double Square() const ; 
@@ -73,7 +74,7 @@ class Matrix3{
 	void SetRow1(double p1, double p2, double p3){ components[0][0] = p1; components[0][1] = p2; components[0][2] = p3; }
 	void SetRow2(double p1, double p2, double p3){ components[1][0] = p1; components[1][1] = p2; components[1][2] = p3; }
 	void SetRow3(double p1, double p2, double p3){ components[2][0] = p1; components[2][1] = p2; components[2][2] = p3; }
-	void SetRotationMatrixSphere(double theta_, double phi_);
+	void SetRotationMatrixSphere(double theta_, double phi_, double psi_=0.0);
 	void SetRotationMatrixSphere(const Vector3 &vector_);
 	void SetRotationMatrixCart(double x_, double y_, double z_);
 	void SetRotationMatrixCart(const Vector3 &vector_);

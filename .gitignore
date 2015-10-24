@@ -37,4 +37,5 @@ eloss
 testSetup
 testViewer
 relativistic
+renderer
 elastic.sh

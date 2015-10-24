@@ -9,6 +9,8 @@
 #include "TTree.h"
 #include "TH1D.h"
 
+Vector3 zero_vector(0.0, 0.0, 0.0);
+
 struct DataPack{
 	TFile *file;
 	TTree *tree;
@@ -97,7 +99,7 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // Generates one output root file named 'mcarlo.root'
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<Planar*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true){	
+unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true){	
 	if(!pack){ return 0; }
 	double tempx, tempy, tempz;
 	double dummyR, hitTheta, hitPhi;
@@ -138,7 +140,7 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Planar*> &bar_array,
 			pack->REACTIONdata.Zero();
 			pack->REACTIONdata.Append(0.0, 0.0, 0.0, 0.0, 0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
 		}
-		for(std::vector<Planar*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
+		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
 			if((*iter)->IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
 				if((*iter)->IsEjectileDet()){
 					if((*iter)->IsRecoilDet()){ type = 2; } // Both ejectile & recoil
@@ -180,7 +182,7 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Planar*> &bar_array,
 // bin contents of a histogram of event center of mass angles.
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<Planar*> &bar_array, Kindeux *kind_, unsigned int num_trials, double beamE_,
+unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, Kindeux *kind_, unsigned int num_trials, double beamE_,
 						  unsigned int num_bins_, double start_, double stop_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){
 	if(!pack || !kind_ || !kind_->IsInit()){ return 0; }
 	double tempx, tempy, tempz;
@@ -229,7 +231,7 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Planar*> &bar_array,
 		Sphere2Cart(RecoilSphere, Recoil);
 		
 		eject_hit = false; recoil_hit = false;
-		for(std::vector<Planar*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
+		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
 			if(!eject_hit && (*iter)->IsEjectileDet()){
 				if((*iter)->IntersectPrimitive(offset, Ejectile, temp_vector1, dummyVector, face1, face2, tempx, tempy, tempz)){ eject_hit = true; }
 			}
@@ -272,7 +274,7 @@ int main(int argc, char *argv[]){
 
 	bool do_hist_run = false;
 
-	std::vector<Planar*> detectors;
+	std::vector<Primitive*> detectors;
 
 	std::cout << " Reading in NewVIKAR detector setup file...\n";
 	int Ndet = ReadDetFile(argv[1], detectors);
@@ -284,7 +286,7 @@ int main(int argc, char *argv[]){
 
 	unsigned int Nrecoil = 0;
 	unsigned int Nejectile = 0;
-	for(std::vector<Planar*>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
+	for(std::vector<Primitive*>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
 		if((*iter)->IsRecoilDet()){ Nrecoil++; }
 		if((*iter)->IsEjectileDet()){ Nejectile++; }
 	}
@@ -358,7 +360,7 @@ int main(int argc, char *argv[]){
 
 	std::cout << " Finished geometric efficiency test on detector setup...\n";
 	
-	for(std::vector<Planar*>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
+	for(std::vector<Primitive*>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
 		delete *iter;
 	}
 	detectors.clear();

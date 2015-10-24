@@ -365,16 +365,61 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
 	return false;
 }
 
-/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
-  * primitive shape offset_ is the point where the ray originates wrt the global origin.
+/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this prism. 
+  * offset_ is the point where the ray originates wrt the global origin.
   * direction_ is the direction of the ray wrt the global origin.
   * P1 is the first intersection point in global coordinates.
   * P2 is the second intersection point in global coordinates.
   * norm is the normal vector to the surface at point P1.
-  * Return true if the primitive is intersected, and false otherwise.
+  * Return true if the prism is intersected, and false otherwise.
   */
-bool Primitive::IntersectPrimitive(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
-	return false;
+bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
+	if(need_set){ _set_face_coords(); }
+	
+	int face_count = 0;
+	int f1 = -1;
+	int f2 = -1;
+	double t1, t2;
+	double temp_t;
+	for(unsigned int i = 0; i < 6; i++){
+		if(PlaneIntersect(offset_, direction_, i, temp_t)){ // The ray intersects the plane containing this face
+			// Transform the intersection point into local coordinates and check if they're within the bounds
+			GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
+			if(CheckBounds(i, px, py, pz)){ // The face was struck
+				if(++face_count == 1){ 
+					t1 = temp_t; 
+					f1 = i;
+				}
+				else if(++face_count == 2){ // Should not have more than 2 face intersects. Do this just to save a little time.
+					t2 = temp_t;
+					f2 = i;
+					break; 
+				} 
+			}
+		} // if(PlaneIntersect(offset_, direction_, i, ray))
+	} // for(unsigned int i = 0; i < 6; i++)
+
+	// Find which face is closer to the ray origin.
+	if(t1 < t2){
+		P1 = offset_ + direction_*t1;
+		P2 = offset_ + direction_*t2;
+		face1 = f1;
+		face2 = f2;
+	}
+	else{
+		P2 = offset_ + direction_*t1;
+		P1 = offset_ + direction_*t2;
+		face2 = f1;
+		face1 = f2;
+	}
+	
+	// Get the surface normal at point P1.
+	GetUnitVector(face1, norm);
+
+	// Find the coordinates of the point P1 in local coordinates.
+	GetLocalCoords(P1, px, py, pz);
+	
+	return (face_count > 0); 
 }
 
 /// Alternate form of IntersectPrimitive which does not return the surface normal.
@@ -436,67 +481,6 @@ std::string Primitive::DumpDet(){
 	stream << "\t" << length << "\t" << width << "\t" << depth;
 	stream << "\t" << material_name;
 	return stream.str();
-}
-
-/////////////////////////////////////////////////////////////////////
-// Planar
-/////////////////////////////////////////////////////////////////////
-
-/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this prism. 
-  * offset_ is the point where the ray originates wrt the global origin.
-  * direction_ is the direction of the ray wrt the global origin.
-  * P1 is the first intersection point in global coordinates.
-  * P2 is the second intersection point in global coordinates.
-  * norm is the normal vector to the surface at point P1.
-  * Return true if the prism is intersected, and false otherwise.
-  */
-bool Planar::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz){
-	if(need_set){ _set_face_coords(); }
-	
-	int face_count = 0;
-	int f1 = -1;
-	int f2 = -1;
-	double t1, t2;
-	double temp_t;
-	for(unsigned int i = 0; i < 6; i++){
-		if(PlaneIntersect(offset_, direction_, i, temp_t)){ // The ray intersects the plane containing this face
-			// Transform the intersection point into local coordinates and check if they're within the bounds
-			GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
-			if(CheckBounds(i, px, py, pz)){ // The face was struck
-				if(++face_count == 1){ 
-					t1 = temp_t; 
-					f1 = i;
-				}
-				else if(++face_count == 2){ // Should not have more than 2 face intersects. Do this just to save a little time.
-					t2 = temp_t;
-					f2 = i;
-					break; 
-				} 
-			}
-		} // if(PlaneIntersect(offset_, direction_, i, ray))
-	} // for(unsigned int i = 0; i < 6; i++)
-
-	// Find which face is closer to the ray origin.
-	if(t1 < t2){
-		P1 = offset_ + direction_*t1;
-		P2 = offset_ + direction_*t2;
-		face1 = f1;
-		face2 = f2;
-	}
-	else{
-		P2 = offset_ + direction_*t1;
-		P1 = offset_ + direction_*t2;
-		face2 = f1;
-		face1 = f2;
-	}
-	
-	// Get the surface normal at point P1.
-	GetUnitVector(face1, norm);
-
-	// Find the coordinates of the point P1 in local coordinates.
-	GetLocalCoords(P1, px, py, pz);
-	
-	return (face_count > 0); 
 }
 
 /////////////////////////////////////////////////////////////////////

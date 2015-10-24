@@ -250,6 +250,11 @@ double Vector3::Dot(const Vector3 &other) const {
 	return (axis[0]*other.axis[0] + axis[1]*other.axis[1] + axis[2]*other.axis[2]);
 }
 
+// Return the cosine of the angle between two vectors.
+double Vector3::CosAngle(const Vector3 &other) const {
+	return (this->Dot(other)/(this->Length()*other.Length()));
+}
+
 // Cross product
 Vector3 Vector3::Cross(const Vector3 &other) const {
 	return Vector3((axis[1]*other.axis[2]-other.axis[1]*axis[2]),
@@ -313,14 +318,18 @@ Matrix3::Matrix3(const Vector3 &vector_){
 	SetRotationMatrixSphere(vector_);
 }
 
-void Matrix3::SetRotationMatrixSphere(double theta_, double phi_){
+void Matrix3::SetRotationMatrixSphere(double theta_, double phi_, double psi_/*=0.0*/){
 	double sin_theta = std::sin(theta_), cos_theta = std::cos(theta_);
 	double sin_phi = std::sin(phi_), cos_phi = std::cos(phi_);
+	double sin_psi = std::sin(psi_), cos_psi = std::cos(psi_);
 	
-	// Rz(phi)Ry(theta) rotation matrix
-	SetRow1(cos_phi*cos_theta, -sin_phi, cos_phi*sin_theta);
-	SetRow2(sin_phi*cos_theta, cos_phi, sin_phi*sin_theta);
-	SetRow3(-sin_theta, 0.0, cos_theta);
+	// Pitch-Roll-Yaw convention
+	// Rotate by angle theta about the y-axis
+	//  angle phi about the z-axis
+	//  angle psi about the x-axis
+	SetRow1(cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta); // Width axis
+	SetRow2(sin_psi*sin_theta*cos_phi-cos_psi*sin_phi, sin_psi*sin_theta*sin_phi+cos_psi*cos_phi, cos_theta*sin_psi); // Length axis
+	SetRow3(cos_psi*sin_theta*cos_phi+sin_psi*sin_phi, cos_psi*sin_theta*sin_phi-sin_psi*cos_phi, cos_theta*cos_psi); // Depth axis
 }
 
 void Matrix3::SetRotationMatrixSphere(const Vector3 &vector_){

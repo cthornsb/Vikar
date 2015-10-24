@@ -67,6 +67,9 @@ RELATIVISTIC_SRC = $(TOOL_SRC_DIR)/relativistic.cpp
 TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) \
         $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE) $(TEST_VIEWER_EXE) $(RELATIVISTIC_EXE)
 
+RENDERER_DIR = $(TOOL_DIR)/qtfiles
+RENDERER_EXE = renderer
+
 # Main executable
 MAIN_SRC = $(SOURCE_DIR)/vikar.cpp
 MAIN_OBJ = $(OBJ_DIR)/vikar.o
@@ -152,6 +155,9 @@ $(TEST_VIEWER_EXE): $(TEST_VIEWER_SRC)
 
 $(RELATIVISTIC_EXE): $(OBJECTS) $(RELATIVISTIC_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
+	
+$(RENDERER_EXE): $(OBJECTS)
+	@cd $(RENDERER_DIR) && $(MAKE)
 
 ########################################################################
 
@@ -164,20 +170,28 @@ install: tools
 
 #####################################################################
 
-tidy: clean_obj clean_tools clean_dict
+tidy: clean_obj clean_tools clean_dict clean_renderer
+	@rm -f $(EXECUTABLE)
 
 clean: clean_obj
 
 clean_obj:
-	@echo "Cleaning up..."
+	@echo "Cleaning up object files..."
 	@rm -f $(OBJ_DIR)/*.o
-	@rm -f $(EXECUTABLE)
+	@rm -f $(TOOL_DIR)/obj/*
+	@rm -f $(RENDERER_DIR)/obj/*
+	@rm -f $(ROOTOBJ)
 	
 clean_dict:
 	@echo "Removing ROOT dictionaries..."
 	@rm -f $(DICT_DIR)/$(DICT_SOURCE).cpp $(DICT_DIR)/$(DICT_SOURCE).h $(DICT_OBJ_DIR)/*.so
-	@rm -f $(ROOTOBJ) $(SOURCE_DIR)/Structures.cpp $(INCLUDE_DIR)/Structures.h $(DICT_DIR)/LinkDef.h
+	@rm -f $(SOURCE_DIR)/Structures.cpp $(INCLUDE_DIR)/Structures.h $(DICT_DIR)/LinkDef.h
 
 clean_tools:
 	@echo "Removing tools..."
 	@rm -f $(TOOLS)
+
+clean_renderer:
+	@rm -f $(RENDERER_DIR)/moc/*
+	@rm -f $(RENDERER_DIR)/ui/*
+	#@cd $(RENDERER_DIR) && $(MAKE) clean
