@@ -124,6 +124,7 @@ void Camera::Render() {
 
     pixmap->fill(Qt::black);
     QPainter pen(pixmap);
+    QColor pen_color;
 
     Vector3 ray;
     Vector3 normal;
@@ -131,7 +132,7 @@ void Camera::Render() {
     Vector3 face_hit1;
     Vector3 face_hit2;
 
-    double intensity;
+    int rgb;
     double currentX;
     double currentY;
     for(int i = 0; i < sizeY; i++){
@@ -142,8 +143,10 @@ void Camera::Render() {
             ray = origin + screenX*currentX + screenY*currentY - pos;
             for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
                 if((*iter)->IntersectPrimitive(pos, ray, p1, p2, normal, f1, f2, fx, fy, fz)){
-                    intensity = fabs(ray.CosAngle(normal));
-                    pen.setPen(QColor(intensity*255, intensity*255, intensity*255));
+                    rgb = (int)(fabs(ray.CosAngle(normal))*255);
+                    if(rgb < 0 || rgb > 255){ continue; }
+                    pen_color.setRgb(rgb, rgb, rgb);
+                    pen.setPen(pen_color);
                     pen.drawPoint(j, i);
                     break;
                 }
@@ -206,6 +209,16 @@ void Camera::on_actionScreenshot_triggered(){
 void Camera::on_pushButton_2_clicked(){
     pixmap->save(ui->lineEdit->text());
     std::cout << "Screenshot saved to " << ui->lineEdit->text().toStdString() << std::endl;
+}
+
+void Camera::on_pushButton_3_clicked(){
+	for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
+        delete (*iter);
+    }
+    primitives.clear();
+    ReadDetFile(ui->lineEdit_2->text().toStdString().c_str(), primitives);
+    std::cout << "Loaded detector file " << ui->lineEdit_2->text().toStdString() << std::endl;
+    std::cout << " Found " << primitives.size() << " objects.\n";
 }
 
 void Camera::on_actionExit_triggered(){

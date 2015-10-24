@@ -58,6 +58,9 @@ public:
     QPushButton *pushButton_2;
     QLabel *label_9;
     QProgressBar *progressBar;
+    QLineEdit *lineEdit_2;
+    QLabel *label_10;
+    QPushButton *pushButton_3;
     QMenuBar *menuBar;
     QMenu *menuFile;
     QToolBar *mainToolBar;
@@ -67,7 +70,7 @@ public:
     {
         if (Camera->objectName().isEmpty())
             Camera->setObjectName(QStringLiteral("Camera"));
-        Camera->resize(537, 363);
+        Camera->resize(505, 444);
         actionScreenshot = new QAction(Camera);
         actionScreenshot->setObjectName(QStringLiteral("actionScreenshot"));
         actionExit = new QAction(Camera);
@@ -79,7 +82,7 @@ public:
         graphicsView->setGeometry(QRect(10, 10, 246, 246));
         pushButton = new QPushButton(centralWidget);
         pushButton->setObjectName(QStringLiteral("pushButton"));
-        pushButton->setGeometry(QRect(80, 260, 87, 27));
+        pushButton->setGeometry(QRect(90, 260, 87, 27));
         doubleSpinBox = new QDoubleSpinBox(centralWidget);
         doubleSpinBox->setObjectName(QStringLiteral("doubleSpinBox"));
         doubleSpinBox->setGeometry(QRect(270, 30, 62, 25));
@@ -166,12 +169,22 @@ public:
         label_9->setGeometry(QRect(320, 180, 131, 16));
         progressBar = new QProgressBar(centralWidget);
         progressBar->setObjectName(QStringLiteral("progressBar"));
-        progressBar->setGeometry(QRect(317, 270, 131, 23));
+        progressBar->setGeometry(QRect(270, 360, 221, 23));
         progressBar->setValue(0);
+        lineEdit_2 = new QLineEdit(centralWidget);
+        lineEdit_2->setObjectName(QStringLiteral("lineEdit_2"));
+        lineEdit_2->setGeometry(QRect(270, 290, 221, 25));
+        lineEdit_2->setDragEnabled(true);
+        label_10 = new QLabel(centralWidget);
+        label_10->setObjectName(QStringLiteral("label_10"));
+        label_10->setGeometry(QRect(320, 270, 111, 16));
+        pushButton_3 = new QPushButton(centralWidget);
+        pushButton_3->setObjectName(QStringLiteral("pushButton_3"));
+        pushButton_3->setGeometry(QRect(340, 320, 87, 27));
         Camera->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(Camera);
         menuBar->setObjectName(QStringLiteral("menuBar"));
-        menuBar->setGeometry(QRect(0, 0, 537, 25));
+        menuBar->setGeometry(QRect(0, 0, 505, 25));
         menuFile = new QMenu(menuBar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         Camera->setMenuBar(menuBar);
@@ -209,6 +222,9 @@ public:
         lineEdit->setText(QApplication::translate("Camera", "./renderer.png", 0));
         pushButton_2->setText(QApplication::translate("Camera", "Snapshot", 0));
         label_9->setText(QApplication::translate("Camera", "Snapshot FIlename", 0));
+        lineEdit_2->setText(QString());
+        label_10->setText(QApplication::translate("Camera", "Detector Filename", 0));
+        pushButton_3->setText(QApplication::translate("Camera", "Load", 0));
         menuFile->setTitle(QApplication::translate("Camera", "File", 0));
     } // retranslateUi
 

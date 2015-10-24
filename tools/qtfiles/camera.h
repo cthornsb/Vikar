@@ -38,6 +38,8 @@ public:
     int GetSizeY(){ return sizeY; }
 
     std::vector<Primitive*> *GetPrimitives(){ return &primitives; }
+    
+    Ui::Camera *GetUI(){ return ui; }
 
     void SetPosition(double x_, double y_, double z_);
 
@@ -54,12 +56,14 @@ public:
     void SetSizeY(int sizeY_);
 
     void SetApp(QApplication *the_app_){ the_app = the_app_; }
-
+    
     void AddPrimitive(Primitive *prim_);
+    
+    void LoadDetectors(){ on_pushButton_3_clicked(); }
 
-    virtual void Render();
+    void Render();
 
-    virtual void paintEvent(QPaintEvent*);
+    void paintEvent(QPaintEvent*);
 
 private slots:
 
@@ -84,6 +88,8 @@ private slots:
     void on_actionScreenshot_triggered();
 
     void on_pushButton_2_clicked();
+    
+    void on_pushButton_3_clicked();
 
     void on_actionExit_triggered();
 
@@ -118,7 +124,7 @@ private:
     bool rotated;
 
     std::vector<Primitive*> primitives;
-
+    
     void set_pixel_size();
 
     void set_rotation();

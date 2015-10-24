@@ -18,6 +18,11 @@ Structures.cpp
 Structures.h
 LinkDef.h
 
+# qt files #
+############
+moc_*
+ui_*
+
 # C++ object files #
 ####################
 *.o
