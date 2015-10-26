@@ -118,9 +118,7 @@ void Camera::Render() {
     if(rotated){ set_rotation(); }
     set_pixel_size();
 
-    Vector3 p1, p2;
-    int f1, f2;
-    double fx, fy, fz;
+    Vector3 p1;
 
     pixmap->fill(Qt::black);
     QPainter pen(pixmap);
@@ -135,6 +133,7 @@ void Camera::Render() {
     int rgb;
     double currentX;
     double currentY;
+    double t2;
     for(int i = 0; i < sizeY; i++){
     	ui->progressBar->setValue((float(i)*100/sizeY));
         currentY = (pixelY/2.0) + i*pixelY;
@@ -142,7 +141,7 @@ void Camera::Render() {
             currentX = (pixelX/2.0) + j*pixelX;
             ray = origin + screenX*currentX + screenY*currentY - pos;
             for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
-                if((*iter)->IntersectPrimitive(pos, ray, p1, p2, normal, f1, f2, fx, fy, fz)){
+                if((*iter)->IntersectPrimitive(pos, ray, p1, normal, t2)){
                     rgb = (int)(fabs(ray.CosAngle(normal))*255);
                     if(rgb < 0 || rgb > 255){ continue; }
                     pen_color.setRgb(rgb, rgb, rgb);

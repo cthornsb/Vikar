@@ -227,32 +227,32 @@ class Primitive{
 	  * which bounds this 3d object. The radius of the cylinder is taken
 	  * as the "width" of the detector. That is, the size along the x-axis.
 	  */
-	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2);
+	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, double &t1, double &t2);
 
 	/** Find if a ray (from the origin) intersects the sphere
 	  * which bounds this 3d object. The radius of the bounding
 	  * sphere is taken as the "length" of the detector. That is,
 	  * the size along the y-axis.
 	  */
-	bool SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, Vector3 &P1, Vector3 &P2);
+	bool SphereIntersect(const Vector3 &offset_, const Vector3 &direction_, double &t1, double &t2);
 	
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
 	  * direction_ is the direction of the ray wrt the global origin.
-	  * P1 is the first intersection point in global coordinates.
-	  * P2 is the second intersection point in global coordinates.
+	  * t1 is the parameter of the front intersection point given by P1 = offset_ + direction_*t1.
+	  * t2 is the parameter of the back intersection point given by P2 = offset_ + direction_*t2.
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	virtual bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+	virtual bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
 
-	/// Alternate form of IntersectPrimitive which does not return the surface normal.
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, int &face1, int &face2, double &px, double &py, double &pz);
-	
+	/// Alternate version of IntersectPrimitive which does not return the normal vector.
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, double &t2);
+
 	/** Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
 	  * Return -1 if the ray does not travel through both faces.
 	  */
-	double GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, unsigned int f1_, unsigned int f2_, Vector3 &intersect1, Vector3 &intersect2);
+	double GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, Vector3 &intersect2);
 	
 	/** Dump raw cartesian face vertex data.
 	  * This returns a string containing the vertex coordinates of the
@@ -304,12 +304,12 @@ class Cylindrical : public Primitive {
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
 	  * direction_ is the direction of the ray wrt the global origin.
-	  * P1 is the first intersection point in global coordinates.
-	  * P2 is the second intersection point in global coordinates.
+	  * t1 is the parameter of the front intersection point given by P1 = offset_ + direction_*t1.
+	  * t2 is the parameter of the back intersection point given by P2 = offset_ + direction_*t2.
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -329,12 +329,12 @@ class Spherical : public Primitive {
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
 	  * direction_ is the direction of the ray wrt the global origin.
-	  * P1 is the first intersection point in global coordinates.
-	  * P2 is the second intersection point in global coordinates.
+	  * t1 is the parameter of the front intersection point given by P1 = offset_ + direction_*t1.
+	  * t2 is the parameter of the back intersection point given by P2 = offset_ + direction_*t2.
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &P2, Vector3 &norm, int &face1, int &face2, double &px, double &py, double &pz);
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
 };
 
 #endif

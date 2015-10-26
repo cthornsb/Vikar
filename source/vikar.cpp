@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.22d"
+#define VERSION "1.23"
 
 struct debugData{
 	double var1, var2, var3;
@@ -160,7 +160,6 @@ int main(int argc, char* argv[]){
 	std::string output_fname_prefix = "VIKAR";
 	
 	// Input/output variables
-	int face1, face2; // Detect which detector faces are hit
 	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
 	unsigned int Nwanted = 0; // Number of desired detections
 	unsigned int Nsimulated = 0; // Total number of simulated particles
@@ -883,9 +882,9 @@ int main(int argc, char* argv[]){
 				
 						std::cout << " Tracing ray through target... \n";
 						Vector3 dum1, dum2;
-						int temp1, temp2;
-						double tempx, tempy, tempz;
-						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dum2, temp1, temp2, tempx, tempy, tempz);
+						double dumt;
+						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt);
+						dum2 = Vector3(0.0, 0.0, -1 + dumt);
 						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
 						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
 						std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
@@ -953,8 +952,14 @@ int main(int argc, char* argv[]){
 			else{ continue; } // This detector cannot detect particles, so skip it
 
 process:			
-			if(proc_eject){ hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
-			else{ hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, HitDetect2, face1, face2, hit_x, hit_y, hit_z); }
+			if(proc_eject){ 
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath2); 
+				temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
+			}
+			else{ 
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath2); 
+				temp_vector = ((lab_beam_interaction + Recoil*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
+			}
 			
 			// If a geometric hit was detected, process the particle
 			if(hit){
@@ -963,8 +968,6 @@ process:
 				// The time of flight is the time it takes the particle to traverse the distance
 				// from the target to the intersection point inside the detector
 				fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
-				fpath2 = HitDetect2.Length(); // Distance from reaction to second intersection point
-				temp_vector = (HitDetect2-HitDetect1); // The vector pointing from the first intersection point to the second
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
 				dist_traveled = 0.0;
 
@@ -989,15 +992,8 @@ process:
 				}
 
 				// Calculate the total distance traveled and the interaction point inside the detector
-				// Ensure that we use the intersection point on the side facing the target
-				if(fpath1 <= fpath2){ 
-					dist_traveled += fpath1; 
-					temp_vector = lab_beam_interaction + HitDetect1 + temp_vector*penetration;
-				}
-				else{ 
-					dist_traveled += fpath2; 
-					temp_vector = lab_beam_interaction + HitDetect2 - temp_vector*penetration;
-				}
+				dist_traveled += fpath1; 
+				temp_vector = lab_beam_interaction + HitDetect1 + temp_vector*penetration;
 			
 				// Calculate the particle ToF (ns)
 				tof = 0.0;
@@ -1012,12 +1008,20 @@ process:
 				if(proc_eject){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
+					
+					// Get the local coordinates of the intersection point.
+					(*iter)->GetLocalCoords(temp_vector, hit_x, hit_y, hit_z);
+					
 					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				else{
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
+
+					// Get the local coordinates of the intersection point.
+					(*iter)->GetLocalCoords(temp_vector, hit_x, hit_y, hit_z);
+
 					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
 									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
