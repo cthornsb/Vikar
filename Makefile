@@ -157,6 +157,13 @@ $(RELATIVISTIC_EXE): $(OBJECTS) $(RELATIVISTIC_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 	
 $(RENDERER_EXE): $(OBJECTS)
+#	Use qmake to generate the renderer Makefile, if it doesn't exist.
+	@if [ ! -e $(RENDERER_DIR)/Makefile ]; then \
+		echo " Calling qmake to generate renderer Makefile"; \
+		cd $(RENDERER_DIR) && qmake; \
+	fi
+	
+#	Call the renderer Makefile.
 	@cd $(RENDERER_DIR) && $(MAKE)
 
 ########################################################################

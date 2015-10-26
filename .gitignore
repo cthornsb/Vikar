@@ -20,8 +20,9 @@ LinkDef.h
 
 # qt files #
 ############
-moc_*
-ui_*
+tools/qtfiles/Makefile
+tools/qtfiles/moc/*
+tools/qtfiles/ui/*
 
 # C++ object files #
 ####################
