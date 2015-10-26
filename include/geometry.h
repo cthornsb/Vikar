@@ -278,7 +278,7 @@ class Planar : public Primitive {
 	Planar() : Primitive() {}
 	
 	/// Constructor using a NewVIKARDet object.
-	Planar(NewVIKARdet *det_) : Primitive(det_) {}
+	Planar(NewVIKARdet *det_);
 	
 	void SetSmall(){ SetSize(0.6, 0.03, 0.03); }
 

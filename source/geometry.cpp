@@ -455,6 +455,20 @@ std::string Primitive::DumpDet(){
 // Cylindrical
 /////////////////////////////////////////////////////////////////////
 
+/// Constructor using a NewVIKARDet object.
+Planar::Planar(NewVIKARdet *det_) : Primitive(det_) {
+	if(det_->type == "vandle"){
+		if(det_->subtype == "small"){ SetSmall(); }
+		else if(det_->subtype == "medium"){ SetMedium(); }
+		else if(det_->subtype == "large"){ SetLarge(); }
+		else{ 
+			std::cout << " Warning! Unknown VANDLE subtype = " << det_->subtype << "!\n";
+			SetSize(det_->data[6], det_->data[7], det_->data[8]);			
+		}
+	}
+	else{ SetSize(det_->data[6], det_->data[7], det_->data[8]); }
+}
+
 /** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this cylinder.
   * offset_ is the point where the ray originates wrt the global origin.
   * direction_ is the direction of the ray wrt the global origin.
