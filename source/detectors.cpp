@@ -217,6 +217,7 @@ int ReadDetFile(const char* fname_, std::vector<Primitive*> &detectors){
 		if((*iter)->type == "vandle" || (*iter)->subtype == "planar"){ detectors.push_back(new Planar((*iter))); }
 		else if((*iter)->subtype == "cylinder"){ detectors.push_back(new Cylindrical((*iter))); }
 		else if((*iter)->subtype == "sphere"){ detectors.push_back(new Spherical((*iter))); }
+		else if((*iter)->subtype == "cone"){ detectors.push_back(new Conical((*iter))); }
 		else if((*iter)->subtype == "ellipse"){ detectors.push_back(new Elliptical((*iter))); }
 		else if((*iter)->subtype == "polygon"){ detectors.push_back(new Polygonal((*iter))); }
 		else if((*iter)->subtype == "annular"){ detectors.push_back(new Annular((*iter))); }

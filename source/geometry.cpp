@@ -327,6 +327,42 @@ bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &directi
 	return false;
 }
 
+/** Find if a ray (from the origin) intersects the infinite cone
+  * which bounds this 3d object. The opening angle of the cone is taken
+  * as atan(width/length).
+  */
+bool Primitive::ConeIntersect(const Vector3 &offset_, const Vector3 &direction_, double &t1, double &t2){
+	if(need_set){ _set_face_coords(); }
+	
+	Vector3 dP = offset_ - position;
+	Vector3 A1 = direction_ - detY*detY.Dot(direction_);
+	double B1 = direction_.Dot(detY);
+	Vector3 C1 = dP - detY*detY.Dot(dP);
+	double D1 = dP.Dot(detY);
+	
+	// The squared cosine and sine of the opening angle of the cone.
+	double cos2_alpha = length*length / (length*length + width*width/4.0);
+	double sin2_alpha = width*width / (4.0*length*length + width*width);
+	
+	double A2 = cos2_alpha*A1.Square() - sin2_alpha*B1*B1;
+	double B2 = 2*cos2_alpha*A1.Dot(C1) - 2*sin2_alpha*B1*D1;
+	double C2 = cos2_alpha*C1.Square() - sin2_alpha*D1*D1;
+	
+	t1 = (-B2 + std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
+	t2 = (-B2 - std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
+	
+	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
+		if(t1 > t2){ // Swap the two points since t2 is closer to the ray origin.
+			double temp = t1;
+			t1 = t2;
+			t2 = temp;
+		}
+		return (t1 >= 0.0 || t2 >= 0.0);
+	}
+	
+	return false;
+}
+
 /** Find if a ray (from the origin) intersects the sphere
   * which bounds this 3d object. The radius of the bounding
   * sphere is taken as the "length" of the detector. That is,
@@ -452,7 +488,7 @@ std::string Primitive::DumpDet(){
 }
 
 /////////////////////////////////////////////////////////////////////
-// Cylindrical
+// Planar
 /////////////////////////////////////////////////////////////////////
 
 /// Constructor using a NewVIKARDet object.
@@ -468,6 +504,10 @@ Planar::Planar(NewVIKARdet *det_) : Primitive(det_) {
 	}
 	else{ SetSize(det_->data[6], det_->data[7], det_->data[8]); }
 }
+
+/////////////////////////////////////////////////////////////////////
+// Cylindrical
+/////////////////////////////////////////////////////////////////////
 
 /** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this cylinder.
   * offset_ is the point where the ray originates wrt the global origin.
@@ -520,6 +560,68 @@ bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& dire
 		GetUnitVector(face1, norm); 
 	}
 	
+	return true;
+}
+
+/////////////////////////////////////////////////////////////////////
+// Conical
+/////////////////////////////////////////////////////////////////////
+
+/// Constructor using a NewVIKARDet object.
+Conical::Conical(NewVIKARdet *det_) : Primitive(det_) {
+	alpha = std::atan2(width/2.0, length); 
+	sin_alpha = std::sin(alpha);
+	cos_alpha = std::cos(alpha);
+}
+
+/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this cone.
+  * offset_ is the point where the ray originates wrt the global origin.
+  * direction_ is the direction of the ray wrt the global origin.
+  * P1 is the first intersection point in global coordinates.
+  * P2 is the second intersection point in global coordinates.
+  * norm is the normal vector to the surface at point P1.
+  * Return true if the cylinder is intersected, and false otherwise.
+  */
+bool Conical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2){
+	if(need_set){ _set_face_coords(); }
+	
+	// Check if the ray intersects the infinite cylinder with r = width/2.0.
+	if(!ConeIntersect(offset_, direction_, t1, t2)){ return false; }
+	
+	P1 = offset_ + direction_*t1;
+	
+	Vector3 r1 = P1 - position;
+	if(r1.CosAngle(detY) > 0.0){ return false; }
+	int face1 = 0;
+
+	// Check if the intersection points are within the cone.
+	double z1 = r1.Length()*cos_alpha;
+	
+	bool check1 = fabs(z1) <= length;
+	
+	if(!check1){ // Point P1 is outside of the bounds of the cylinder.
+		double temp_t;
+		double px, py, pz;
+		if(PlaneIntersect(offset_, direction_, 5, temp_t)){
+			// Transform the intersection point into local coordinates and check if they're within the bounds
+			GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
+			if((px*px + pz*pz) <= width*width/4.0){ // The face was struck
+				t1 = temp_t;
+				face1 = 5;
+			}
+		}
+	}
+
+	if(face1 == 0){ // Calculate the normal to the curved surface at point P1.
+		if(!check1){ return false; } // Found no intersection with the endcaps.
+		Vector3 rprime = P1 - position + detY*z1;
+		rprime.Normalize();
+		norm = rprime*cos_alpha + detY*sin_alpha;
+	}
+	else{ // Get the normal of one of the endcaps.
+		GetUnitVector(face1, norm); 
+	}
+		
 	return true;
 }
 

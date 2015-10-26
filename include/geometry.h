@@ -229,6 +229,12 @@ class Primitive{
 	  */
 	bool CylinderIntersect(const Vector3 &offset_, const Vector3 &direction_, double &t1, double &t2);
 
+	/** Find if a ray (from the origin) intersects the infinite cone
+	  * which bounds this 3d object. The opening angle of the cone is taken
+	  * as atan(width/length).
+	  */
+	bool ConeIntersect(const Vector3 &offset_, const Vector3 &direction_, double &t1, double &t2);
+
 	/** Find if a ray (from the origin) intersects the sphere
 	  * which bounds this 3d object. The radius of the bounding
 	  * sphere is taken as the "length" of the detector. That is,
@@ -300,6 +306,34 @@ class Cylindrical : public Primitive {
 	
 	/// Constructor using a NewVIKARDet object.
 	Cylindrical(NewVIKARdet *det_) : Primitive(det_) {}
+	
+	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
+	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
+	  * direction_ is the direction of the ray wrt the global origin.
+	  * t1 is the parameter of the front intersection point given by P1 = offset_ + direction_*t1.
+	  * t2 is the parameter of the back intersection point given by P2 = offset_ + direction_*t2.
+	  * norm is the normal vector to the surface at point P1.
+	  * Return true if the primitive is intersected, and false otherwise.
+	  */
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2);
+};
+
+/////////////////////////////////////////////////////////////////////
+// Conical
+/////////////////////////////////////////////////////////////////////
+
+class Conical : public Primitive { 
+  private:
+	double alpha; /// The opening angle of the cone.
+	double sin_alpha; /// The sine of the opening angle.
+	double cos_alpha; /// The cosine of the opening angle.
+  
+  public:
+  	/// Default constructor.
+	Conical() : Primitive() {}
+	
+	/// Constructor using a NewVIKARDet object.
+	Conical(NewVIKARdet *det_);
 	
 	/** Calculate the intersection of a ray of the form (offset_ + t * direction_) with this 
 	  * primitive shape offset_ is the point where the ray originates wrt the global origin.
