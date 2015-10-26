@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.23"
+#define VERSION "1.23b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -882,9 +882,9 @@ int main(int argc, char* argv[]){
 				
 						std::cout << " Tracing ray through target... \n";
 						Vector3 dum1, dum2;
-						double dumt;
-						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt);
-						dum2 = Vector3(0.0, 0.0, -1 + dumt);
+						double dumt1, dumt2;
+						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt1, dumt2);
+						dum2 = Vector3(0.0, 0.0, -1 + dumt2);
 						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
 						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
 						std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
@@ -953,11 +953,11 @@ int main(int argc, char* argv[]){
 
 process:			
 			if(proc_eject){ 
-				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath2); 
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath1, fpath2); 
 				temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
 			}
 			else{ 
-				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath2); 
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath1, fpath2); 
 				temp_vector = ((lab_beam_interaction + Recoil*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
 			}
 			
@@ -967,7 +967,6 @@ process:
 				
 				// The time of flight is the time it takes the particle to traverse the distance
 				// from the target to the intersection point inside the detector
-				fpath1 = HitDetect1.Length(); // Distance from reaction to first intersection point
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
 				dist_traveled = 0.0;
 

@@ -363,12 +363,12 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
   * norm is the normal vector to the surface at point P1.
   * Return true if the prism is intersected, and false otherwise.
   */
-bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2){
+bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2){
 	if(need_set){ _set_face_coords(); }
 	
 	int face_count = 0;
 	int face1 = -1;
-	double temp_t, t1;
+	double temp_t;
 	double px, py, pz;
 	for(unsigned int i = 0; i < 6; i++){
 		if(PlaneIntersect(offset_, direction_, i, temp_t)){ // The ray intersects the plane containing this face
@@ -403,20 +403,20 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 }
 
 /// Alternate version of IntersectPrimitive which does not return the normal vector.
-bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, double &t2){
+bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, double &t1, double &t2){
 	Vector3 dummy;
-	return IntersectPrimitive(offset_, direction_, P1, dummy, t2);
+	return IntersectPrimitive(offset_, direction_, P1, dummy, t1, t2);
 }
 	
 /** Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
   * Return -1 if the ray does not travel through both faces.
   */
 double Primitive::GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, Vector3 &intersect2){
-	double t2;
+	double t1, t2;
 	Vector3 dummy;
 
 	// Check that the ray travels through the object.
-	if(!IntersectPrimitive(offset_, direction_, intersect1, dummy, t2)){ return -1; }
+	if(!IntersectPrimitive(offset_, direction_, intersect1, dummy, t1, t2)){ return -1; }
 	
 	intersect2 = offset_ + direction_*t2;
 	
@@ -463,11 +463,10 @@ std::string Primitive::DumpDet(){
   * norm is the normal vector to the surface at point P1.
   * Return true if the cylinder is intersected, and false otherwise.
   */
-bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2){
+bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2){
 	if(need_set){ _set_face_coords(); }
 	
 	// Check if the ray intersects the infinite cylinder with r = width/2.0.
-	double t1;
 	if(!CylinderIntersect(offset_, direction_, t1, t2)){ return false; }
 	
 	P1 = offset_ + direction_*t1;
@@ -522,11 +521,10 @@ bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& dire
   * norm is the normal vector to the surface at point P1.
   * Return true if the sphere is intersected, and false otherwise.
   */
-bool Spherical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2){
+bool Spherical::IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2){
 	if(need_set){ _set_face_coords(); }
 	
 	// Check if the ray intersects the sphere with r = length/2.0.
-	double t1;
 	if(!SphereIntersect(offset_, direction_, t1, t2)){ return false; }
 	
 	// Calculate the close intersection point.

@@ -244,10 +244,10 @@ class Primitive{
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	virtual bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
+	virtual bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2);
 
 	/// Alternate version of IntersectPrimitive which does not return the normal vector.
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, double &t2);
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, double &t1, double &t2);
 
 	/** Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
 	  * Return -1 if the ray does not travel through both faces.
@@ -309,7 +309,7 @@ class Cylindrical : public Primitive {
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2);
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -334,7 +334,7 @@ class Spherical : public Primitive {
 	  * norm is the normal vector to the surface at point P1.
 	  * Return true if the primitive is intersected, and false otherwise.
 	  */
-	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t2);
+	bool IntersectPrimitive(const Vector3& offset_, const Vector3& direction_, Vector3 &P1, Vector3 &norm, double &t1, double &t2);
 };
 
 #endif

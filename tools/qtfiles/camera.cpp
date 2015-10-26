@@ -130,25 +130,38 @@ void Camera::Render() {
     Vector3 face_hit1;
     Vector3 face_hit2;
 
-    int rgb;
-    double currentX;
-    double currentY;
-    double t2;
+    int rgb; // Color of the drawing pen.
+    double currentX; // Current pixel along the x-axis.
+    double currentY; // Current pixel along the y-axis.
+    double depth; // Distance of the "pixel" from the viewer.
+    double t1; // "Distance" parameter such that P1 = position + ray*t1.
+    double t2; // Not used.
     for(int i = 0; i < sizeY; i++){
     	ui->progressBar->setValue((float(i)*100/sizeY));
         currentY = (pixelY/2.0) + i*pixelY;
-        for(int j = 0; j < sizeX; j++){
+        for(int j = 0; j < sizeX; j++){ // Loop over all rows of pixels.
             currentX = (pixelX/2.0) + j*pixelX;
             ray = origin + screenX*currentX + screenY*currentY - pos;
+            ray.Normalize(); // Normalize the direction vector.
+            
+            // Set the initial conditions.
+            depth = 9999;
+            rgb = 0;
+            
+            // Loop over all pixels in this row.
             for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
-                if((*iter)->IntersectPrimitive(pos, ray, p1, normal, t2)){
-                    rgb = (int)(fabs(ray.CosAngle(normal))*255);
-                    if(rgb < 0 || rgb > 255){ continue; }
-                    pen_color.setRgb(rgb, rgb, rgb);
-                    pen.setPen(pen_color);
-                    pen.drawPoint(j, i);
-                    break;
+                if((*iter)->IntersectPrimitive(pos, ray, p1, normal, t1, t2) && t1 < depth){
+			        rgb = (int)(fabs(ray.CosAngle(normal))*255);
+			        if(rgb < 0 || rgb > 255){ continue; }
+                	depth = t1;
                 }
+            }
+            
+            // Only draw the pixel if we found a valid intersection.
+            if(depth != 9999){ 
+                pen_color.setRgb(rgb, rgb, rgb);
+                pen.setPen(pen_color);
+                pen.drawPoint(j, i);
             }
         }
     }
