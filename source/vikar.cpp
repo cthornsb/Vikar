@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.24"
+#define VERSION "1.24b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -364,8 +364,14 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 20){ 
 				// Target thickness
-				targ.SetThickness((double)atof(input.c_str()));
-				std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";			
+				if(targ_mat_name != "NONE"){ // Normal material.
+					targ.SetThickness((double)atof(input.c_str()));
+					std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";	
+				}
+				else{ // Target material energy loss disabled.
+					targ.SetRealThickness((double)atof(input.c_str()));
+					std::cout << "  Target Thickness: " << targ.GetRealThickness() << " cm\n";	
+				}		
 			}
 			else if(count == 21){ 
 				// Target angle wrt beam axis

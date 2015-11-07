@@ -668,6 +668,11 @@ void Target::SetThickness(double thickness_){
 	physical->SetSize(1.0, 1.0, thickness/(density*1E5)); // Only the thickness matters
 }
 
+void Target::SetRealThickness(double thickness_){ 
+	thickness = thickness_*density*1E5;	
+	physical->SetSize(1.0, 1.0, thickness_); // Only the thickness matters
+}
+
 void Target::SetAngle(double angle_){
 	angle = angle_;	
 	Zthickness = dabs(thickness / std::cos(angle));
@@ -682,11 +687,12 @@ void Target::SetDensity(double density_){
 	physical->SetSize(1.0, 1.0, thickness/(density*1E5));
 }
 
-// Get the depth into the target at which the reaction occurs
-// offset_ is the global position where the beam particle originates
-// direction_ is the direction of the beam particle entering the target
-// intersect is the global position where the beam particle intersects the front face of the target
-// interact is the global position where the beam particle reacts inside the target
+/** Get the depth into the target at which the reaction occurs
+  * \param[in] offset_ is the global position where the beam particle originates
+  * \param[in] direction_ is the direction of the beam particle entering the target
+  * \param[out] intersect is the global position where the beam particle intersects the front face of the target
+  * \param[out] interact is the global position where the beam particle reacts inside the target
+  */
 double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){
 	double t1, t2;
 	double zdist = physical->GetApparentThickness(offset_, direction_, intersect, t1, t2); // The target thickness the ray sees
