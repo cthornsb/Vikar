@@ -316,12 +316,12 @@ bool Primitive::CylinderIntersect(const Vector3 &offset_, const Vector3 &directi
 	t2 = (-B2 - std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
-		if(t1 > t2){ // Swap the two points since t2 is closer to the ray origin.
+		if(((t1 > 0 && t2 > 0) && t1 > t2) || t2 > 0){ // Swap the two points since t2 is closer to the ray origin.
 			double temp = t1;
 			t1 = t2;
 			t2 = temp;
 		}
-		return (t1 >= 0.0 || t2 >= 0.0);
+		return (t1 >= 0 || t2 >= 0);
 	}
 	
 	return false;
@@ -352,12 +352,12 @@ bool Primitive::ConeIntersect(const Vector3 &offset_, const Vector3 &direction_,
 	t2 = (-B2 - std::sqrt(B2*B2-4.0*A2*C2))/(2.0*A2);
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
-		if(t1 > t2){ // Swap the two points since t2 is closer to the ray origin.
+		if(((t1 > 0 && t2 > 0) && t1 > t2) || t2 > 0){ // Swap the two points since t2 is closer to the ray origin.
 			double temp = t1;
 			t1 = t2;
 			t2 = temp;
 		}
-		return (t1 >= 0.0 || t2 >= 0.0);
+		return (t1 >= 0 || t2 >= 0);
 	}
 	
 	return false;
@@ -380,12 +380,12 @@ bool Primitive::SphereIntersect(const Vector3 &offset_, const Vector3 &direction
 	t2 = (-B - std::sqrt(B*B-4.0*A*C))/(2.0*A);
 	
 	if(!std::isnan(t1) && !std::isnan(t2)){ // Check that a solution exists.
-		if(t1 > t2){ // Swap the two points since t2 is closer to the ray origin.
+		if(((t1 > 0 && t2 > 0) && t1 > t2) || t2 > 0){ // Swap the two points since t2 is closer to the ray origin.
 			double temp = t1;
 			t1 = t2;
 			t2 = temp;
 		}
-		return (t1 >= 0.0 || t2 >= 0.0);
+		return (t1 >= 0 || t2 >= 0);
 	}
 	
 	return false;
@@ -422,6 +422,7 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 						t1 = temp_t;
 						face1 = i;
 					}
+					else{ t2 = temp_t; }
 					break; 
 				} 
 			}
@@ -444,19 +445,16 @@ bool Primitive::IntersectPrimitive(const Vector3& offset_, const Vector3& direct
 	return IntersectPrimitive(offset_, direction_, P1, dummy, t1, t2);
 }
 	
-/** Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
+/** Trace a ray through the object and calculate the thickness it sees.
   * Return -1 if the ray does not travel through both faces.
   */
-double Primitive::GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, Vector3 &intersect2){
-	double t1, t2;
+double Primitive::GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, double &t1, double &t2){
 	Vector3 dummy;
 
 	// Check that the ray travels through the object.
 	if(!IntersectPrimitive(offset_, direction_, intersect1, dummy, t1, t2)){ return -1; }
 	
-	intersect2 = offset_ + direction_*t2;
-	
-	return Dist3d(intersect1, intersect2);
+	return (t2-t1)*direction_.Length();
 }
 
 /** Dump raw cartesian face vertex data.

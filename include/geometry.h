@@ -258,7 +258,7 @@ class Primitive{
 	/** Trace a ray through the detector and calculate the thickness it sees between two faces (f1 and f2)
 	  * Return -1 if the ray does not travel through both faces.
 	  */
-	double GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, Vector3 &intersect2);
+	double GetApparentThickness(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect1, double &t1, double &t2);
 	
 	/** Dump raw cartesian face vertex data.
 	  * This returns a string containing the vertex coordinates of the

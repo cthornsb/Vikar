@@ -688,8 +688,8 @@ void Target::SetDensity(double density_){
 // intersect is the global position where the beam particle intersects the front face of the target
 // interact is the global position where the beam particle reacts inside the target
 double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){
-	Vector3 temp;
-	double zdist = physical->GetApparentThickness(offset_, direction_, intersect, temp); // The target thickness the ray sees
+	double t1, t2;
+	double zdist = physical->GetApparentThickness(offset_, direction_, intersect, t1, t2); // The target thickness the ray sees
 	if(thickness == -1){ 
 		std::cout << " Beam does not travel through target!\n"; 
 		return -1;
