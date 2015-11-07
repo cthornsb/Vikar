@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.24c"
+#define VERSION "1.24d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -370,7 +370,7 @@ int main(int argc, char* argv[]){
 				}
 				else{ // Target material energy loss disabled.
 					targ.SetRealThickness((double)atof(input.c_str()));
-					std::cout << "  Target Thickness: " << targ.GetRealThickness() << " cm\n";	
+					std::cout << "  Target Thickness: " << targ.GetRealThickness() << " m\n";	
 				}		
 			}
 			else if(count == 21){ 
@@ -829,7 +829,6 @@ int main(int argc, char* argv[]){
 				// Calculate the apparent energy of the particle using the tof
 				if((*iter)->IsEjectileDet()){
 					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					//if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
 									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill(); 
@@ -913,7 +912,7 @@ int main(int argc, char* argv[]){
 				targ.AngleStraggling(lab_beam_trajectory, beam_part.GetA(), beam_part.GetZ(), Ebeam, lab_beam_stragtraject);
 			}
 			else{ 
-				rdata.Ereact = Ebeam; 
+				rdata.Ereact = Ebeam;
 				lab_beam_stragtraject = lab_beam_trajectory;
 			}
 

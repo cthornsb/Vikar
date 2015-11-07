@@ -692,8 +692,8 @@ void Target::SetThickness(double thickness_){
 }
 
 void Target::SetRealThickness(double thickness_){ 
-	thickness = thickness_*density*1E5;	
-	physical->SetSize(1.0, 1.0, thickness_); // Only the thickness matters
+	thickness = thickness_*density*1E3;	
+	physical->SetSize(1.0, 1.0, thickness_/100.0); // Only the thickness matters
 }
 
 void Target::SetAngle(double angle_){
