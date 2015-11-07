@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.24b"
+#define VERSION "1.24c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -95,8 +95,8 @@ int main(int argc, char* argv[]){
 	std::vector<Primitive*> vandle_bars; // Vector of Primitive detectors
 
 	RangeTable beam_targ; // Range table for beam in target
-	//RangeTable *eject_targ = NULL; // Pointer to the range table for ejectile in target
-	//RangeTable *recoil_targ = NULL; // Pointer to the range table for recoil in target
+	RangeTable eject_targ; // Pointer to the range table for ejectile in target
+	RangeTable recoil_targ; // Pointer to the range table for recoil in target
 	RangeTable *eject_tables = NULL; // Array of range tables for ejectile in various materials
 	RangeTable *recoil_tables = NULL; // Array of range tables for recoil in various materials
 
@@ -558,12 +558,22 @@ int main(int argc, char* argv[]){
 	
 		targ.SetDensity(materials[targ_mat_id].GetDensity());
 		targ.SetRadLength(materials[targ_mat_id].GetRadLength());
-		std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n";
+		std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n\n";
 	
-		// Calculate the stopping power table for the beam particles in the target
+		// Calculate the stopping power table for the reactino particles in the target
 		if(beam_part.GetZ() > 0){ // The beam is a charged particle (not a neutron)
-			std::cout << "\n Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
+			std::cout << " Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
 			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()*amu2mev, &materials[targ_mat_id]);
+			std::cout << " Done!\n";
+		}
+		if(eject_part.GetZ() > 0){
+			std::cout << " Calculating range table for ejectile in " << materials[targ_mat_id].GetName() << "...";
+			eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()*amu2mev, &materials[targ_mat_id]);
+			std::cout << " Done!\n";
+		}
+		if(recoil_part.GetZ() > 0){
+			std::cout << " Calculating range table for recoil in " << materials[targ_mat_id].GetName() << "...";
+			recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()*amu2mev, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -576,7 +586,6 @@ int main(int argc, char* argv[]){
 			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
-		//eject_targ = &eject_tables[targ_mat_id]; // Table for ejectile in target
 	}
 
 
@@ -588,7 +597,6 @@ int main(int argc, char* argv[]){
 			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()*amu2mev, &materials[i]);
 			std::cout << " Done!\n";
 		}
-		//recoil_targ = &recoil_tables[targ_mat_id]; // Table for recoil in target
 	}
 	
 	// Calculate the beam focal point (if it exists)
@@ -724,7 +732,8 @@ int main(int argc, char* argv[]){
 	if(ADists){ SetName(named, "Supply Distributions?", "Yes"); }
 	else{ SetName(named, "Supply Distributions?", "No"); }
 	SetName(named, "Target Material", targ_mat_name);
-	SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2");		
+	if(targ_mat_name != "NONE"){ SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2"); }	
+	else{ SetName(named, "Target Thickness", targ.GetRealThickness(), "cm"); }	
 	SetName(named, "Target Angle", targ.GetAngle()*rad2deg, "deg");
 	if(PerfectDet){ SetName(named, "Perfect Detectors?", "Yes"); }
 	else{ SetName(named, "Perfect Detectors?", "No"); }
@@ -761,6 +770,8 @@ int main(int argc, char* argv[]){
 
 	Vector3 temp_vector;
 	Vector3 temp_vector_sphere;
+	Vector3 dummy_vector;
+	double dummy_t1, dummy_t2;
 	double dist_traveled = 0.0, QDC = 0.0;
 	double penetration = 0.0, fpath1 = 0.0, fpath2 = 0.0;
 	float totTime = 0.0;
@@ -885,14 +896,11 @@ int main(int argc, char* argv[]){
 				
 						std::cout << " Target thickness: " << targ.GetRealThickness() << " m\n";
 						std::cout << " Effective thickness: " << targ.GetRealZthickness() << " m\n\n";
-				
+						
 						std::cout << " Tracing ray through target... \n";
-						Vector3 dum1, dum2;
-						double dumt1, dumt2;
-						std::cout << "  Target thickness: " << targ.GetPrimitive()->GetApparentThickness(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt1, dumt2) << " m\n";
-						dum2 = Vector3(0.0, 0.0, -1 + dumt2);
-						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
-						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
+						std::cout << "  Target thickness: " << targ.GetPrimitive()->GetApparentThickness(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dummy_vector, dummy_t1, dummy_t2) << " m\n";
+						std::cout << "  Front face intersect = (" << dummy_vector.Dump() << ")\n";
+						std::cout << "  Back face intersect = (" << Vector3(0.0, 0.0, -1 + dummy_t2).Dump() << ")\n";
 					}
 					beam_stopped++;
 			
@@ -913,9 +921,6 @@ int main(int argc, char* argv[]){
 			if(kind.FillVars(rdata, EjectSphere, RecoilSphere)){ Nreactions++; }
 			else{ continue; } // A reaction did not occur
 
-			EejectMod = rdata.Eeject;
-			ErecoilMod = rdata.Erecoil;
-
 			// Convert the reaction vectors to cartesian coordinates
 			// EjectSphere and RecoilSphere are unit vectors (no need to normalize)
 			Sphere2Cart(EjectSphere, Ejectile); 
@@ -928,16 +933,26 @@ int main(int argc, char* argv[]){
 			rotation_matrix.Transform(Ejectile);
 			rotation_matrix.Transform(Recoil);
 
-			// Calculate the energy loss for the ejectile and recoils in the target
-			/*if(use_target_eloss){
-				if(eject_part.GetZ() > 0){
-					range_eject = eject_targ->GetRange(Eeject);
+			// Set the outgoing energy of the ejectile and recoil.
+			EejectMod = rdata.Eeject;
+			ErecoilMod = rdata.Erecoil;
+
+			// Calculate the energy loss for the ejectile and recoil in the target.
+			if(use_target_eloss){
+				// Calculate the new energy of the ejectile.
+				if(eject_part.GetZ() > 0){ 
+					targ.GetPrimitive()->IntersectPrimitive(lab_beam_interaction, Ejectile, dummy_vector, Zdepth, dummy_t2);
+					EejectMod = eject_targ.GetNewE(rdata.Eeject, Zdepth); 
 				}
-				if(recoil_part.GetZ() > 0){
-					range_recoil = recoil_targ->GetRange(Erecoil);
+				
+				// Calculate the new energy of the recoil.
+				if(recoil_part.GetZ() > 0){ 
+					targ.GetPrimitive()->IntersectPrimitive(lab_beam_interaction, Recoil, dummy_vector, Zdepth, dummy_t2);
+					ErecoilMod = recoil_targ.GetNewE(rdata.Erecoil, Zdepth); 
 				}
-			}*/
+			}
 		
+			// Write debug information to the output file.
 			if(WriteDebug){ 
 				DEBUGdata.Set(Ejectile.axis[0], Ejectile.axis[1], Ejectile.axis[2]);
 				DEBUGtree->Fill();

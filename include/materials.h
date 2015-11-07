@@ -176,31 +176,56 @@ class Material{
 
 class RangeTable{
   private:
-	double *energy, *range;
-	unsigned int num_entries;
-	bool use_table;
+	double *energy; /// Array for storing energy values.
+	double *range; /// Array for storing range values.
+	unsigned int num_entries; /// Number of table array entries.
+	bool use_table; /// True if the table is to be used for energy loss calculations.
 	
-	bool _initialize(unsigned int);
+	/// Initialize range table arrays.
+	bool _initialize(const unsigned int &num_entries_);
 	
   public:
+  	/// Default constructor.
 	RangeTable(){ use_table = false; }
-	RangeTable(unsigned int);
+	
+	/// Constructor to set the number of table entries.
+	RangeTable(const unsigned int &num_entries_);
+	
+	/// Destructor.
 	~RangeTable();
 	
-	bool Init(unsigned int); // Initialize arrays but do not fill them
-	bool Init(unsigned int num_entries_, double startE_, double stopE_, double Z_, double mass_, Material *mat_); // Initialize arrays and fill them using Material
+	/// Initialize arrays but do not fill them.
+	bool Init(const unsigned int &num_entries_); 
+
+	/// Initialize arrays and fill them using Material.
+	bool Init(const unsigned int &num_entries_, const double &startE_, const double &stopE_, const double &Z_, const double &mass_, Material *mat_); 
+
+	/// Return true if the range table is to be used for energy loss and false otherwise.
 	bool UseTable(){ return use_table; }
-	bool Set(unsigned int, double, double); // Manually set a data point with an energy and a range
-	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array
-	double GetRange(double energy_); // Get the particle range at a given energy using linear interpolation
-	double GetEnergy(double range_); // Get the particle energy at a given range usign linear interpolation
-	double GetNewE(double energy_, double dist_, double &dist_traveled); // Get the energy loss of a particle traversing a distance through a material
-	bool GetEntry(unsigned int entry_, double &E, double &R){
-		if(!use_table || entry_ >= num_entries){ return false; }
-		E = energy[entry_]; R = range[entry_];
-		return true;
-	}
-	void Print(); // Print values to the screen
+
+	/// Manually set a data point with an energy and a range.
+	bool Set(const unsigned int &pt_, const double &energy_, const double &range_); 
+
+	/// Return the number of entries in the array.
+	unsigned int GetEntries(){ return num_entries; } 
+
+	/// Get the particle range at a given energy using linear interpolation.
+	double GetRange(const double &energy_); 
+
+	/// Get the particle energy at a given range using linear interpolation.
+	double GetEnergy(const double &range_); 
+
+	/// Get the new energy of a particle traversing a distance through a material.
+	double GetNewE(const double &energy_, const double &dist_); 
+
+	/// Get the new energy of a particle traversing a distance through a material.
+	double GetNewE(const double &energy_, const double &dist_, double &dist_traveled);
+	
+	/// Return the range and energy for an entry in the table.
+	bool GetEntry(const unsigned int &entry_, double &E, double &R);
+	
+	/// Print range table entries to the screen.
+	void Print();
 };
 
 /////////////////////////////////////////////////////////////////////

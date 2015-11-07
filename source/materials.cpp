@@ -33,7 +33,8 @@ const double ionpot[13] = {18.7, 42.0, 39.0, 60.0, 68.0, 78.0, 99.5, 98.5, 117.0
 // RangeTable
 /////////////////////////////////////////////////////////////////////
 
-bool RangeTable::_initialize(unsigned int num_entries_){
+/// Initialize range table arrays.
+bool RangeTable::_initialize(const unsigned int &num_entries_){
 	if(use_table){ return false; }
 	num_entries = num_entries_;
 	energy = new double[num_entries];
@@ -42,10 +43,12 @@ bool RangeTable::_initialize(unsigned int num_entries_){
 	return true;
 }
 
-RangeTable::RangeTable(unsigned int num_entries_){
+/// Constructor to set the number of table entries.
+RangeTable::RangeTable(const unsigned int &num_entries_){
 	_initialize(num_entries_);
 }
 
+/// Destructor.
 RangeTable::~RangeTable(){
 	if(use_table){
 		delete[] energy;
@@ -53,11 +56,13 @@ RangeTable::~RangeTable(){
 	}
 }
 	
-bool RangeTable::Init(unsigned int num_entries_){
+/// Initialize arrays but do not fill them.
+bool RangeTable::Init(const unsigned int &num_entries_){
 	return _initialize(num_entries_);
 }
 
-bool RangeTable::Init(unsigned int num_entries_, double startE_, double stopE_, double Z_, double mass_, Material *mat_){
+/// Initialize arrays and fill them using Material.
+bool RangeTable::Init(const unsigned int &num_entries_, const double &startE_, const double &stopE_, const double &Z_, const double &mass_, Material *mat_){
 	if(!_initialize(num_entries_)){ return false; }
 	
 	// Use Material to fill the arrays
@@ -70,15 +75,17 @@ bool RangeTable::Init(unsigned int num_entries_, double startE_, double stopE_, 
 	return true;
 }
 
-bool RangeTable::Set(unsigned int pt, double energy_, double range_){
+/// Manually set a data point with an energy and a range.
+bool RangeTable::Set(const unsigned int &pt_, const double &energy_, const double &range_){
 	if(!use_table){ return false; }
-	if(pt > num_entries){ return false; }
-	energy[pt] = energy_;
-	range[pt] = range_;
+	if(pt_ > num_entries){ return false; }
+	energy[pt_] = energy_;
+	range[pt_] = range_;
 	return true;
 }
 
-double RangeTable::GetRange(double energy_){
+/// Get the particle range at a given energy using linear interpolation.
+double RangeTable::GetRange(const double &energy_){
 	if(!use_table){ return -1; }
 	for(unsigned int i = 0; i < num_entries-1; i++){
 		if(energy_ == energy[i]){ return range[i]; }
@@ -91,7 +98,8 @@ double RangeTable::GetRange(double energy_){
 	return -1;
 }
 
-double RangeTable::GetEnergy(double range_){
+/// Get the particle energy at a given range using linear interpolation.
+double RangeTable::GetEnergy(const double &range_){
 	if(!use_table){ return -1; }
 	for(unsigned int i = 0; i < num_entries-1; i++){
 		if(range_ == range[i]){ return energy[i]; }
@@ -104,7 +112,14 @@ double RangeTable::GetEnergy(double range_){
 	return -1;
 }
 
-double RangeTable::GetNewE(double energy_, double dist_, double &dist_traveled){
+/// Get the new energy of a particle traversing a distance through a material.
+double RangeTable::GetNewE(const double &energy_, const double &dist_){
+	double dummy;
+	return GetNewE(energy_, dist_, dummy);
+}
+
+/// Get the new energy of a particle traversing a distance through a material.
+double RangeTable::GetNewE(const double &energy_, const double &dist_, double &dist_traveled){
 	if(!use_table){ return -1; }
 	dist_traveled = GetRange(energy_);
 	if(dist_traveled - dist_ > 0.0){ return GetEnergy(dist_traveled - dist_); } // The particle loses some energy in the material
@@ -112,6 +127,14 @@ double RangeTable::GetNewE(double energy_, double dist_, double &dist_traveled){
 	return -1;
 }
 
+/// Return the range and energy for an entry in the table.
+bool RangeTable::GetEntry(const unsigned int &entry_, double &E, double &R){
+	if(!use_table || entry_ >= num_entries){ return false; }
+	E = energy[entry_]; R = range[entry_];
+	return true;
+}
+
+/// Print range table entries to the screen.
 void RangeTable::Print(){
 	if(!use_table){ return; }
 	for(unsigned int i = 0; i < num_entries; i++){
