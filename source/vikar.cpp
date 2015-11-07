@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.23b"
+#define VERSION "1.24"
 
 struct debugData{
 	double var1, var2, var3;
@@ -883,11 +883,10 @@ int main(int argc, char* argv[]){
 						std::cout << " Tracing ray through target... \n";
 						Vector3 dum1, dum2;
 						double dumt1, dumt2;
-						targ.GetPrimitive()->IntersectPrimitive(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt1, dumt2);
+						std::cout << "  Target thickness: " << targ.GetPrimitive()->GetApparentThickness(Vector3(0.0, 0.0, -1.0), Vector3(0.0, 0.0, 1.0), dum1, dumt1, dumt2) << " m\n";
 						dum2 = Vector3(0.0, 0.0, -1 + dumt2);
 						std::cout << "  Front face intersect = (" << dum1.Dump() << ")\n";
 						std::cout << "  Back face intersect = (" << dum2.Dump() << ")\n";
-						std::cout << "  Target thickness: " << (dum2-dum1).Length() << " m\n";
 					}
 					beam_stopped++;
 			
@@ -968,31 +967,29 @@ process:
 				// The time of flight is the time it takes the particle to traverse the distance
 				// from the target to the intersection point inside the detector
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
-				dist_traveled = 0.0;
 
 				if((*iter)->UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
 						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
-							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration);
+							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration, dist_traveled);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else{ 
 						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
-							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, penetration);
+							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, penetration, dist_traveled);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
 				}
-				else{ // Do not do energy loss calculations
+				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
 					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
-					if(proc_eject){ QDC = EejectMod*frand(); } // The ejectile may leave any portion of its energy inside the detector
-					else{ QDC = ErecoilMod*frand(); } // The recoil may leave any portion of its energy inside the detector
+					if(proc_eject){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
+					else{ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
 				}
 
-				// Calculate the total distance traveled and the interaction point inside the detector
-				dist_traveled += fpath1; 
-				temp_vector = lab_beam_interaction + HitDetect1 + temp_vector*penetration;
+				// Calculate the total distance traveled to the interaction point inside the detector
+				dist_traveled += fpath1;
 			
 				// Calculate the particle ToF (ns)
 				tof = 0.0;
@@ -1009,20 +1006,20 @@ process:
 					if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
 					
 					// Get the local coordinates of the intersection point.
-					(*iter)->GetLocalCoords(temp_vector, hit_x, hit_y, hit_z);
+					(*iter)->GetLocalCoords(HitDetect1, hit_x, hit_y, hit_z);
 					
-					Cart2Sphere(temp_vector, EjectSphere); // Ignore normalization, we're going to throw away R anyway
-					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], EjectSphere.axis[1]*rad2deg,
+					Cart2Sphere(HitDetect1, EjectSphere); // Ignore normalization, we're going to throw away R anyway
+					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				else{
 					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 
 					// Get the local coordinates of the intersection point.
-					(*iter)->GetLocalCoords(temp_vector, hit_x, hit_y, hit_z);
+					(*iter)->GetLocalCoords(HitDetect1, hit_x, hit_y, hit_z);
 
-					Cart2Sphere(temp_vector, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
-					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
+					Cart2Sphere(HitDetect1, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
+					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], RecoilSphere.axis[1]*rad2deg,
 									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				}
 				

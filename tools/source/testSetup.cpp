@@ -101,14 +101,14 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // angle_ (rad) allows the rotation of the particle source about the y-axis
 unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true){	
 	if(!pack){ return 0; }
-	double tempx, tempy, tempz;
 	double dummyR, hitTheta, hitPhi;
+	double t1, t2;
 	unsigned int count, total;
 	Vector3 flight_path;
-	Vector3 temp_vector1;
-	Vector3 temp_vector2;
+	Vector3 temp_vector;
+	Vector3 temp_normal;
 	Vector3 temp_ray, offset, dummyVector;
-	int face1, face2, type;
+	int type;
 	bool found_hit;
 	
 	Matrix3 matrix;
@@ -141,24 +141,29 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 			pack->REACTIONdata.Append(0.0, 0.0, 0.0, 0.0, 0, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
 		}
 		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
-			if((*iter)->IntersectPrimitive(offset, temp_ray, temp_vector1, temp_vector2, face1, face2, tempx, tempy, tempz)){
-				if((*iter)->IsEjectileDet()){
-					if((*iter)->IsRecoilDet()){ type = 2; } // Both ejectile & recoil
-					else{ type = 0; } // Ejectile
-				}
-				else if((*iter)->IsRecoilDet()){ type = 1; } // Recoil
-				else{ continue; }
+			if((*iter)->IsEjectileDet()){
+				if((*iter)->IsRecoilDet()){ type = 2; } // Both ejectile & recoil
+				else{ type = 0; } // Ejectile
+			}
+			else if((*iter)->IsRecoilDet()){ type = 1; } // Recoil
+			else{ continue; }
+		
+			// Is this detector valid for this type of event?
+			if(ejectile_ && type == 1){ continue; }
+			else if(!ejectile_ && type == 0){ continue; }
+			
+			// Check for intersections with detectors.
+			if((*iter)->IntersectPrimitive(offset, temp_ray, temp_vector, temp_normal, t1, t2)){
+				if(t2 > 0){ dummyVector = (offset + temp_ray * t2); }
+				else{ dummyVector = Vector3(0,0,0); }
 				
-				dummyVector = (offset + temp_ray);
-				Cart2Sphere(dummyVector.axis[0], dummyVector.axis[1], dummyVector.axis[2], dummyR, hitTheta, hitPhi);
+				Cart2Sphere(temp_vector, dummyR, hitTheta, hitPhi);
 				
-				// Is this a valid event?
-				if(type == 2 || (ejectile_ && type == 0) || (!ejectile_ && type == 1)){
-					pack->MCARLOdata.Append(temp_vector1.axis[0], temp_vector1.axis[1], temp_vector1.axis[2],
-										   temp_vector2.axis[0], temp_vector2.axis[1], temp_vector2.axis[2],
-										   hitTheta*rad2deg, hitPhi*rad2deg, face1, face2, (*iter)->GetLoc(), type);
-					found_hit = true;
-				}
+				pack->MCARLOdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2],
+									   dummyVector.axis[0], dummyVector.axis[1], dummyVector.axis[2],
+									   hitTheta*rad2deg, hitPhi*rad2deg, 0, 0, (*iter)->GetLoc(), type);
+									   
+				found_hit = true;
 			}
 		}
 		
@@ -185,15 +190,14 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, Kindeux *kind_, unsigned int num_trials, double beamE_,
 						  unsigned int num_bins_, double start_, double stop_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){
 	if(!pack || !kind_ || !kind_->IsInit()){ return 0; }
-	double tempx, tempy, tempz;
+	double t1, t2;
 	unsigned int count, total;
 	Vector3 flight_path;
-	Vector3 temp_vector1;
-	Vector3 temp_vector2;
+	Vector3 temp_vector;
+	Vector3 temp_normal;
 	Vector3 Ejectile, EjectSphere;
 	Vector3 Recoil, RecoilSphere;
 	Vector3 offset, dummyVector;
-	int face1, face2;
 	
 	bool eject_hit, recoil_hit;
 	
@@ -233,10 +237,10 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 		eject_hit = false; recoil_hit = false;
 		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
 			if(!eject_hit && (*iter)->IsEjectileDet()){
-				if((*iter)->IntersectPrimitive(offset, Ejectile, temp_vector1, dummyVector, face1, face2, tempx, tempy, tempz)){ eject_hit = true; }
+				if((*iter)->IntersectPrimitive(offset, Ejectile, temp_vector, temp_normal, t1, t2)){ eject_hit = true; }
 			}
 			else if(!recoil_hit && (*iter)->IsRecoilDet()){
-				if((*iter)->IntersectPrimitive(offset, Recoil, temp_vector2, dummyVector, face1, face2, tempx, tempy, tempz)){ recoil_hit = true; }
+				if((*iter)->IntersectPrimitive(offset, Recoil, temp_vector, temp_normal, t1, t2)){ recoil_hit = true; }
 			}
 			
 			if(eject_hit && recoil_hit){

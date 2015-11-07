@@ -194,7 +194,7 @@ class RangeTable{
 	unsigned int GetEntries(){ return num_entries; } // Return the number of entries in the array
 	double GetRange(double energy_); // Get the particle range at a given energy using linear interpolation
 	double GetEnergy(double range_); // Get the particle energy at a given range usign linear interpolation
-	double GetNewE(double energy_, double dist_); // Get the energy loss of a particle traversing a distance through a material
+	double GetNewE(double energy_, double dist_, double &dist_traveled); // Get the energy loss of a particle traversing a distance through a material
 	bool GetEntry(unsigned int entry_, double &E, double &R){
 		if(!use_table || entry_ >= num_entries){ return false; }
 		E = energy[entry_]; R = range[entry_];
@@ -308,7 +308,7 @@ class Particle{
 	/** Get the final energy of a particle with energy_ moving a
 	  * distance dist_ through the material.
 	  */
-	double GetTableNewE(const double &energy_, const double &dist_);
+	double GetTableNewE(const double &energy_, const double &dist_, double &dist_traveled);
 };
 
 /////////////////////////////////////////////////////////////////////

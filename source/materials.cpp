@@ -104,10 +104,10 @@ double RangeTable::GetEnergy(double range_){
 	return -1;
 }
 
-double RangeTable::GetNewE(double energy_, double dist_){
+double RangeTable::GetNewE(double energy_, double dist_, double &dist_traveled){
 	if(!use_table){ return -1; }
-	double r1 = GetRange(energy_);
-	if(r1 - dist_ > 0.0){ return GetEnergy(r1 - dist_); } // The particle loses some energy in the material
+	dist_traveled = GetRange(energy_);
+	if(dist_traveled - dist_ > 0.0){ return GetEnergy(dist_traveled - dist_); } // The particle loses some energy in the material
 	else{ return 0.0; } // The particle stops in the material
 	return -1;
 }
@@ -636,9 +636,9 @@ double Particle::GetTableRange(const double &energy_){
 /** Get the final energy of a particle with energy_ moving a
   * distance dist_ through the material.
   */
-double Particle::GetTableNewE(const double &energy_, const double &dist_){
+double Particle::GetTableNewE(const double &energy_, const double &dist_, double &dist_traveled){
 	if(!init){ return -1.0; }
-	return table.GetNewE(energy_, dist_);
+	return table.GetNewE(energy_, dist_, dist_traveled);
 }
 
 /////////////////////////////////////////////////////////////////////
