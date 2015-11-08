@@ -370,80 +370,103 @@ void Matrix3::Dump(){
 	std::cout << " [" << components[2][0] << "\t" << components[2][1] << "\t" << components[2][2] << "]\n";
 }
 
-// Load the differential cross section from a file.
-// Return true if the file is correctly loaded and contains a non-zero number
-// of data points. Does nothing if AngularDist has already been initialized
-// Expects CoM angle in degrees and differential cross section in mb/sr
-//
-// Thickness (tgt_thickness) must be in units of mg/cm^2
-// Current (beam_current) must be in units of particles/second (pps)
-// Target molar mass (mtarg) must be given in g/mol
-bool AngularDist::Initialize(const char* fname, double mtarg, double tgt_thickness, double beam_current){
-	if(!init){
-		std::ifstream inFile(fname);
-		if(!inFile.good()){ return false; }
-		
-		double x, y;
-		std::vector<double> xvec, yvec;
-		while(true){
-			inFile >> x >> y;
-			if(inFile.eof()){ break; }
-			xvec.push_back(x);
-			yvec.push_back(y);
-			num_points++;
-		}
-		
-		// Need at least two points to calculate total reaction X-section
-		if(num_points > 1){		
-			init = true;
+/////////////////////////////////////////////////////////////////////
+// AngularDist
+/////////////////////////////////////////////////////////////////////
 
-			com_theta = new double[num_points];
-			dsigma_domega = new double[num_points];
-			integral = new double[num_points];
+/// Default constructor.
+AngularDist::AngularDist(){
+	reaction_xsection = 0.0;
+	num_points = 0;
+	init = false;
+	
+	com_theta = NULL;
+	dsigma_domega = NULL;
+	integral = NULL;
+}
 
-			unsigned int index = 0;
-			std::vector<double>::iterator iter1, iter2;
-			for(iter1 = xvec.begin(), iter2 = yvec.begin(); iter1 != xvec.end() && iter2 != yvec.end(); iter1++, iter2++){
-				com_theta[index] = *iter1*deg2rad;
-				dsigma_domega[index] = *iter2;
-				index++;
-			}
+/// Destructor.
+AngularDist::~AngularDist(){
+	if(com_theta){ delete[] com_theta; }
+	if(dsigma_domega){ delete[] dsigma_domega; }
+	if(integral){ delete[] integral; }
+}
 
-			reaction_xsection = 0.0;
-			integral[0] = 0.0;
-			
-			// Calculate the reaction cross-section from the differential cross section
-			double x1, x2, y1, y2;
-			for(unsigned int i = 0; i < num_points-1; i++){
-				x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
-				x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
-				reaction_xsection += 0.5*(x2-x1)*(y2+y1);
-				integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
-			}
-			
-			reaction_xsection *= 2*pi;
-			//rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
-			rate = 0.0;
-			rate *= beam_current; // Reaction rate (pps)
-			return true;
-		}
-		else{ 
-			inFile.close();
-			return false; 
-		}
+/** Setup the angular distribution by reading it from a file.
+  * Return true if the file is correctly loaded and contains a non-zero number
+  * of data points and return false otherwise.
+  * param[in] fname Filename of the angular distribution file. File should contain
+  *  two columns. First is the center of mass angle (in degrees) and second is the
+  *  differential cross section (in mb/Sr) at that CoM angle.
+  * param[in] mtarg The molar mass of the target (g/mol).
+  * param[in] tgt_thickness The thickness of the target (mg/cm^2).
+  * param[in] beam_current The intensity of the beam (pps).
+  */
+bool AngularDist::Initialize(const char* fname, const double &mtarg, const double &tgt_thickness, const double &beam_current){
+	if(init){ return false; }
+	
+	std::ifstream inFile(fname);
+	if(!inFile.good()){ return false; }
+	
+	double x, y;
+	std::vector<double> xvec, yvec;
+	while(true){
+		inFile >> x >> y;
+		if(inFile.eof()){ break; }
+		xvec.push_back(x);
+		yvec.push_back(y);
+		num_points++;
 	}
+	
+	inFile.close();
+	
+	// Need at least two points to calculate total reaction X-section
+	if(num_points > 1){		
+		com_theta = new double[num_points];
+		dsigma_domega = new double[num_points];
+		integral = new double[num_points];
+
+		unsigned int index = 0;
+		std::vector<double>::iterator iter1, iter2;
+		for(iter1 = xvec.begin(), iter2 = yvec.begin(); iter1 != xvec.end() && iter2 != yvec.end(); iter1++, iter2++){
+			com_theta[index] = *iter1*deg2rad;
+			dsigma_domega[index] = *iter2;
+			index++;
+		}
+
+		reaction_xsection = 0.0;
+		integral[0] = 0.0;
+		
+		// Calculate the reaction cross-section from the differential cross section
+		double x1, x2, y1, y2;
+		for(unsigned int i = 0; i < num_points-1; i++){
+			x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
+			x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
+			reaction_xsection += 0.5*(x2-x1)*(y2+y1);
+			integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
+		}
+		
+		reaction_xsection *= 2*pi;
+		//rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
+		rate = 0.0;
+		rate *= beam_current; // Reaction rate (pps)
+		return (init = true);
+	}
+	
 	return false;
 }
 
-// Load the differential cross section from a file.
-// Return true if the file is correctly loaded and contains a non-zero number
-// of data points. Does nothing if AngularDist has already been initialized
-// Expects CoM angle in degrees and differential cross section in mb/sr
-bool AngularDist::Initialize(unsigned int num_points_, double *angle_, double *xsection_){
+/** Setup the angular distribution using arrays.
+  * Return true if the file is correctly loaded and contains a non-zero number
+  * of data points and return false otherwise.
+  * param[in] num_points_ The number of points in the input arrays.
+  * param[in] angle_ Pointer to the array of center of mass angles (rad).
+  * param[in] xsection_ Pointer to the array of differential cross sections (mb/Sr).
+  */
+bool AngularDist::Initialize(const unsigned int &num_points_, double *angle_, double *xsection_){
 	if(init || num_points_ <= 1){ return false; }
 	
 	num_points = num_points_;
-	init = true;
 
 	com_theta = new double[num_points];
 	dsigma_domega = new double[num_points];
@@ -469,20 +492,38 @@ bool AngularDist::Initialize(unsigned int num_points_, double *angle_, double *x
 	
 	reaction_xsection *= 2*pi;
 	
-	return true;
+	return (init = true);
 }
 
-// Get a random angle from the distribution
-// Returns false if a match is not found for whatever reason
-bool AngularDist::Sample(double &com_angle){
-	if(!init){ return false; }
-	double rand_xsect = frand()*reaction_xsection;
-	for(unsigned int i = 0; i < num_points-1; i++){
-		if(integral[i] <= rand_xsect && rand_xsect <= integral[i+1]){ 
-			com_angle = com_theta[i] + (rand_xsect-integral[i])*(com_theta[i+1]-com_theta[i])/(integral[i+1]-integral[i]);
+/// Setup the angular distribution using an isotropic distribution.
+bool AngularDist::Initialize(const double &xsection_){
+	if(init || xsection_ <= 0.0){ return false; }
+	
+	reaction_xsection = xsection_;
+	
+	return (init = true);	
+}
+
+/** Return a random angle sampled from the distribution (rad).
+  * return the center of mass angle (rad) sampled from the distributionj
+  * and return -1 if the sampling fails for any reason.
+  */
+double AngularDist::Sample(){
+	if(!init){ return -1; }
+	
+	if(num_points > 0){ // Standard (non-isotropic) cross section.
+		double rand_xsect = frand()*reaction_xsection;
+		for(unsigned int i = 0; i < num_points-1; i++){
+			if(integral[i] <= rand_xsect && rand_xsect <= integral[i+1]){ 
+				return (com_theta[i] + (rand_xsect-integral[i])*(com_theta[i+1]-com_theta[i])/(integral[i+1]-integral[i]));
+			}
 		}
 	}
-	return true;
+	else{ // Isotropic cross section.
+		return (frand()*pi);
+	}
+	
+	return -1;
 }
 
 /////////////////////////////////////////////////////////////////////

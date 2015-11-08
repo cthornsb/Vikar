@@ -8,10 +8,15 @@
 // Kindeux
 /////////////////////////////////////////////////////////////////////
     	
-// Mass values are input as AMU
-// The ground state Q-value is given in MeV
-// NrecoilStates_ is the number of excited states of the recoil 
-// RecoilExStates_ is a pointer to an array of excitations for the recoil (in MeV)
+/** Initialize Kindeux object with reaction parameters.
+  * param[in] Mbeam_ Mass of the beam (amu).
+  * param[in] Mtarg_ Mass of the target (amu).
+  * param[in] Mrecoil_ Mass of the recoil particle (amu).
+  * param[in] Meject_ Mass of the ejectile (amu).
+  * param[in] Qvalue_ The ground state Q-value for the reaciton (MeV).
+  * param[in] NrecoilStates_ The number of recoil particle excitations.
+  * param[in] RecoilExStates_ The array containing all recoil excitations (MeV).
+  */
 void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_){
 	if(!init){
 		Mbeam = Mbeam_; 
@@ -25,11 +30,16 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 	}
 }
 
-// Set Kindeux to use angular distributions for calculating ejectile angles
-// Returns false if attempt to load the distributions fails for any reason
-// tgt_thickness_ is given in units of mg/cm^2
+/** Set Kindeux to use angular distributions from files for calculating recoil excitations.
+  * Returns false if attempt to load distribution fails for any reason.
+  * param[in] fnames_ Vector containing filenames for each recoil state distribution (including g.s.).
+  * param[in] total_targ_mass_ Molar mass of the target (g/mol).
+  * param[in] tgt_thickness_ The thickness of the target (mg/cm^2).
+  * param[in] incident_beam_current The incident rate of the beam (pps).
+  */
 bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current){
 	if(!init || ang_dist){ return false; }
+	
 	if(fnames.size() < NrecoilStates){
 		std::cout << " Kindeux: Warning! Must have distributions for " << NrecoilStates << " excited states and the ground state\n";
 		std::cout << " Kindeux: Received distributions for only " << fnames.size() << " states but expected " << NrecoilStates << std::endl;
@@ -37,6 +47,7 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 	}
 	
 	ang_dist = true;
+	
 	distributions = new AngularDist[NrecoilStates];
 	Xsections = new double[NrecoilStates];
 
@@ -58,11 +69,54 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 		delete[] Xsections;
 		return false;
 	}
+	
 	return true;
 }
 
-// Set Kindeux to use Rutherford scattering for calculating ejectile angles
-// coeff_ in m^2
+/** Set Kindeux to use relative state intensities for calculating recoil excitations.
+  * Returns false if attempt to set distribution fails for any reason.
+  * param[in] intensities_ Vector containing relative intensities for each recoil state (including g.s.).
+  */
+bool Kindeux::SetDist(const std::vector<std::string> &intensities_){
+	if(!init || ang_dist){ return false; }
+	
+	if(intensities_.size() < NrecoilStates){
+		std::cout << " Kindeux: Warning! Must have state intensities for " << NrecoilStates << " excited states and the ground state\n";
+		std::cout << " Kindeux: Received intensities for only " << intensities_.size() << " states but expected " << NrecoilStates << std::endl;
+		return false;
+	}
+	
+	ang_dist = true;
+	
+	distributions = new AngularDist[NrecoilStates];
+	Xsections = new double[NrecoilStates];
+
+	// Load all distributions from file
+	total_xsection = 0.0;
+	for(unsigned int i = 0; i < NrecoilStates; i++){
+		if(!distributions[i].Initialize((double)atof(intensities_[i].c_str()))){
+			std::cout << "  Failed to set relative intensity for state " << i << std::endl;
+			ang_dist = false;
+			break;
+		}
+		Xsections[i] = total_xsection;
+		total_xsection += distributions[i].GetReactionXsection();
+	}
+
+	// Encountered some problem with one or more of the distributions
+	if(!ang_dist){ 
+		delete[] distributions; 
+		delete[] Xsections;
+		return false;
+	}
+	
+	return true;
+}
+
+/** Set Kindeux to use Rutherford scattering for calculating reaction product angles.
+  * Returns false if the object has already been initialized.
+  * param[in] coeff_ The Rutherford coefficient to use for the distribution (m^2).
+  */
 bool Kindeux::SetRutherford(double coeff_){
 	if(!init || ang_dist){ return false; }
 	
@@ -84,8 +138,12 @@ bool Kindeux::SetRutherford(double coeff_){
 	return true;
 }
 
-// Calculate recoil excitation energies
-// Returns true if there was a reaction and false otherwise
+/** Get the excitation of the recoil particle based on angular distributions
+  *  if they are available or isotropic distributions if they are not.
+  * Returns true if a reaction occured and false otherwise.
+  * param[out] recoilE The excitation energy of the recoil particle.
+  * param[out] state The excitation state of the recoil particle.
+  */
 bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 	if(NrecoilStates == 0){
 		state = 0;
@@ -103,8 +161,6 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 				return true;
 			}
 		}
-		// rand_xsection falls in the range (Xsections[NrecoilStates-1], total_xsection]
-		// State NrecoilStates-1 has been selected
 		state = NrecoilStates-1;
 		recoilE = RecoilExStates[state];
 		return true;
@@ -117,14 +173,24 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 	return true;
 }
 
-// See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
-// to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251
+/** Calculate reaction product energy and angle for the ejectile particle only.
+  */
 bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
 	Vector3 dummy_Recoil;
 	return FillVars(react, Ejectile, dummy_Recoil, recoil_state, solution, theta);
 }
 
-// Overloaded version which also calculates data for the recoil particle
+/** Calculate reaction product energies and angles for the recoil and ejectile particles.
+  * Returns false if no reaction event occured due to the angular distribution and beam rate.
+  * See J. B. Ball, "Kinematics II: A Non-Relativistic Kinematics Fortran Program
+  *  to Aid Analysis of Nuclear Reaction Angular Distribution Data", ORNL-3251.
+  * param[out] react Reaction data object for storing reaction event information.
+  * param[out] Ejectile The spherical coordinates vector of the ejectile particle in the lab frame.
+  * param[out] Recoil The spherical coordinates vector of the recoil particle in the lab frame.
+  * param[in] recoil_state Allows the user to specify the recoil excited state which to use for the reaction.
+  * param[in] solution Allows the user to select either the + or - solution of the ejectile velocity.
+  * param[in] theta Allows the user to select the reaction center of mass angle (in rad).
+  */
 bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
 	double Recoil_Ex;
 	if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
@@ -153,7 +219,8 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 	}
 	else if(ang_dist){
 		// Sample the angular distributions for the CoM angle of the ejectile
-		if(distributions[react.state].Sample(react.comAngle)){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
+		react.comAngle = distributions[react.state].Sample();
+		if(react.comAngle > 0.0){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
 		else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Failed to sample the distribution
 	}
 	else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
@@ -187,7 +254,12 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 	return true;
 }
 
-// Convert ejectile CoM angle to Lab angle
+/** Convert an input center of mass angle to the lab frame.
+  * Return the lab frame angle (in rad).
+  * param[in] Beam_E the energy of the beam particle (MeV).
+  * param[in] Recoil_Ex the excitation of the outgoing recoil particle (MeV).
+  * param[in] Eject_CoM_angle the reaction center of mass angle (rad).
+  */
 double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_CoM_angle){
 	// In the center of mass frame
 	double Vcm = std::sqrt(2.0*Mbeam*Beam_E)/(Mbeam+Mtarg); // Velocity of the center of mass	
@@ -197,8 +269,7 @@ double Kindeux::ConvertAngle2Lab(double Beam_E, double Recoil_Ex, double Eject_C
 	return(std::atan2(std::sin(Eject_CoM_angle),(std::cos(Eject_CoM_angle)+(Vcm/VejectCoM)))); // Ejectile angle in the lab
 }
 
-// Print debug information
-// Does nothing if angular distributions are not set
+/// Print information about the kindeux reaction object.
 void Kindeux::Print(){
 	if(ang_dist){
 		for(unsigned int i = 0; i < NrecoilStates; i++){

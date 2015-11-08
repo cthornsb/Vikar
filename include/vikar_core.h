@@ -169,33 +169,41 @@ class Line{
 
 class AngularDist{
   private:
-	double *com_theta, *dsigma_domega, *integral;
-	double reaction_xsection, rate;
-	unsigned int num_points;
-	bool init;
+	double *com_theta; /// Array for storing the center of mass angle of the distribution (rad).
+	double *dsigma_domega; /// Array for storing the differential cross section of the distribution (mb/Sr).
+	double *integral; /// Array for storing the integral of the distribution.
+	double reaction_xsection; /// The total reaction cross section (mb).
+	double rate; /// The expected reaction rate.
+	unsigned int num_points; /// The number of entries in the distribution arrays.
+	bool init; /// Set to true if the distribution arrays have been initialized.
 	
   public:
-	AngularDist(){
-		reaction_xsection = 0.0;
-		num_points = 0;
-		init = false;
-	}
-	~AngularDist(){
-		if(init){
-			delete[] com_theta;
-			delete[] dsigma_domega;
-			delete[] integral;
-		}
-	}
+  	/// Default constructor.
+	AngularDist();
 	
-	bool Initialize(const char* fname, double mtarg, double tgt_thickness, double beam_current);
-	bool Initialize(unsigned int num_points_, double *angle_, double *xsection_);
+	/// Destructor;
+	~AngularDist();
 	
+	/// Setup the angular distribution by reading it from a file.
+	bool Initialize(const char* fname, const double &mtarg, const double &tgt_thickness, const double &beam_current);
+	
+	/// Setup the angular distribution using arrays.
+	bool Initialize(const unsigned int &num_points_, double *angle_, double *xsection_);
+	
+	/// Setup the angular distribution using an isotropic distribution.
+	bool Initialize(const double &xsection_);
+	
+	/// Return the reaction rate (pps).
 	double GetRate(){ return rate; }
+	
+	/// Return the number of entries in the distribution.
 	unsigned int GetNumPoints(){ return num_points; }
+	
+	/// Return the total reaction cross section (mb).
 	double GetReactionXsection(){ return reaction_xsection; }
 	
-	bool Sample(double &com_angle);
+	/// Return a random angle sampled from the distribution (rad).
+	double Sample();
 };
 
 /////////////////////////////////////////////////////////////////////

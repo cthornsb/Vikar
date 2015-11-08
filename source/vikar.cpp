@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.24d"
+#define VERSION "1.24e"
 
 struct debugData{
 	double var1, var2, var3;
@@ -176,11 +176,11 @@ int main(int argc, char* argv[]){
 	bool WriteReaction = false;
 	bool WriteDebug = false;
 	bool PerfectDet = true;
-	bool ADists = false;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
 	bool DoRutherford = false;
 	bool CylindricalBeam = true;
+	int ADists = 0;
 
 	//------------------------------------------------------------------------
 	//
@@ -333,7 +333,11 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 18){ 
 				// Angular distribution information
-				if(SetBool(input, "  Supply Angular Distributions", ADists)){
+				ADists = atoi(input.c_str());
+				if(ADists == 1){ // Read in filename for each state's angular distribution.
+					std::cout << "  Supply Angular Distributions: Yes\n";
+					
+					// Read the filenames.
 					for(unsigned int i = 0; i < NRecoilStates; i++){
 						getline(input_file, input); input = Parse(input);
 						if(!DoRutherford && input != "RUTHERFORD"){
@@ -346,17 +350,29 @@ int main(int argc, char* argv[]){
 							std::cout << "   Using Rutherford scattering\n";
 						}
 					}
-					
-					// Supply beam rate information
+				
+					// Supply beam rate information.
 					getline(input_file, input); input = Parse(input);
 					if(SetBool(input, "  Calculate Rates", SupplyRates)){ 
 						getline(input_file, input); input = Parse(input);
 						BeamRate = atof(input.c_str());
 						std::cout << "   Beam Rate: " << BeamRate << " pps\n";
 					}
-					else{ BeamRate = 0.0; }
 				}
-				else{ SupplyRates = false; }
+				else if(ADists == 2){
+					std::cout << "  Supply Angular Distributions: Yes\n";
+					
+					// Supply the rates relative to the ground state. i.e. a value of
+					// 1.0 will generate 1 particle for each ground state particle. A
+					// value of 2.0 will generate 2 particles for each ground state and so on.
+					for(unsigned int i = 0; i < NRecoilStates; i++){
+						getline(input_file, input); input = Parse(input);
+						AngDist_fname.push_back(input);
+						if(i == 0){ std::cout << "   Production rate ground state: " << input << " per event.\n"; }
+						else{ std::cout << "   Production rate for state " << i+1 << ": " << input << " per event.\n"; }
+					}
+				}
+				else{ std::cout << "  Supply Angular Distributions: No\n"; }
 			}
 			else if(count == 19){
 				// Target material
@@ -631,16 +647,29 @@ int main(int argc, char* argv[]){
 
 	//std::cout << "\n ==  ==  ==  ==  == \n\n";
 
-	if(ADists && !DoRutherford){ 
-		std::cout << "\n Loading state angular distribution files...\n";
-		if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), materials[targ_mat_id].GetDensity(), BeamRate)){
-			// Successfully set the angular distributions
-			std::cout << " Successfully loaded angular distributions\n";
-			kind.Print();
+	if((ADists == 1 || ADists == 2) && !DoRutherford){ 
+		if(ADists == 1){
+			std::cout << "\n Loading state angular distribution files...\n";
+			if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), materials[targ_mat_id].GetDensity(), BeamRate)){
+				// Successfully set the angular distributions
+				std::cout << " Successfully loaded angular distributions.\n";
+				kind.Print();
+			}
+			else{
+				std::cout << "  Warning! Could not properly initialize distributions.\n";
+				std::cout << "  Note: Setting all energy states to isotropic!\n";
+			}
 		}
 		else{
-			std::cout << "  Warning! Could not properly initialize distributions.\n";
-			std::cout << "  Note: Setting all energy states to isotropic!\n";
+			std::cout << "\n Setting relative intensities for recoil states...\n";
+			if(kind.SetDist(AngDist_fname)){
+				// Successfully set the angular distributions
+				std::cout << " Successfully set relative intensities for recoil states.\n";
+			}
+			else{
+				std::cout << "  Warning! Could not properly initialize distributions.\n";
+				std::cout << "  Note: Setting all energy states to isotropic!\n";
+			}
 		}
 	}
 	else if(DoRutherford){
@@ -729,7 +758,20 @@ int main(int argc, char* argv[]){
 		std::stringstream stream; stream << i;
 		SetName(named, "Recoil Ex. State "+stream.str(), ExRecoilStates[i], "MeV");
 	}
-	if(ADists){ SetName(named, "Supply Distributions?", "Yes"); }
+	if(ADists == 1){ 
+		SetName(named, "Supply Distributions?", "Yes, 1"); 
+		for(unsigned int i = 0; i < NRecoilStates; i++){
+			std::stringstream stream; stream << i;
+			SetName(named, "State "+stream.str()+" Dist.", AngDist_fname[i]);
+		}
+	}
+	else if(ADists == 2){
+		SetName(named, "Supply Distributions?", "Yes, 2");
+		for(unsigned int i = 0; i < NRecoilStates; i++){
+			std::stringstream stream; stream << i;
+			SetName(named, "State "+stream.str()+" Rate", AngDist_fname[i], "per event");
+		}
+	}
 	else{ SetName(named, "Supply Distributions?", "No"); }
 	SetName(named, "Target Material", targ_mat_name);
 	if(targ_mat_name != "NONE"){ SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2"); }	
