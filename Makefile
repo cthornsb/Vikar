@@ -1,7 +1,7 @@
 #####################################################################
 
 # Set the RootPixieScan directory
-PIXIE_SCAN_DIR = $(HOME)/RootPixieScan
+SIMPLE_SCAN_DIR = $(HOME)/Research/Pixie16/SimplePixieScan
 
 #####################################################################
 
@@ -37,6 +37,8 @@ SHARED_OBJ_FILE = $(DICT_OBJ_DIR)/libRootDict.so
 ROOTOBJ = $(DICT_OBJ_DIR)/$(DICT_SOURCE).o 
 ROOTOBJ += $(OBJ_DIR)/$(STRUCT_FILE).o
 SFLAGS = $(addprefix -l,$(DICT_SOURCE))
+
+RCBUILD_DIR = $(SIMPLE_SCAN_DIR)/rcbuild
 
 INSTALL_DIR = ~/bin
 
@@ -93,7 +95,7 @@ $(EXECUTABLE): $(OBJ_DIR) $(SHARED_OBJ_FILE) $(OBJECTS) $(MAIN_OBJ)
 
 $(SHARED_OBJ_FILE): $(OBJ_DIR) $(DEFINITION_FILE)
 #	Create root dictionary objects
-	@$(PIXIE_SCAN_DIR)/tools/rcbuild.sh -t $(PIXIE_SCAN_DIR)/tools -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
+	@$(RCBUILD_DIR)/rcbuild.sh -c $(SIMPLE_SCAN_DIR) -d $(DICT_DIR) -s $(SOURCE_DIR) -i $(INCLUDE_DIR) -o $(OBJ_DIR)
 
 libs: $(OBJ_DIR) $(OBJECTS)
 #	Make only library objects
