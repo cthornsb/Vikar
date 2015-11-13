@@ -731,13 +731,13 @@ int main(int argc, char* argv[]){
 	SetName(named, "Beam Mass", beam_part.GetMassAMU(), "amu");
 	SetName(named, "Target-Z", targ.GetZ());
 	SetName(named, "Target-A", targ.GetA());
-	SetName(named, "Target Mass", beam_part.GetMassAMU(), "amu");
+	SetName(named, "Target Mass", targ.GetMassAMU(), "amu");
 	SetName(named, "Recoil-Z", recoil_part.GetZ());
 	SetName(named, "Recoil-A", recoil_part.GetA());
-	SetName(named, "Recoil Mass", beam_part.GetMassAMU(), "amu");
+	SetName(named, "Recoil Mass", recoil_part.GetMassAMU(), "amu");
 	SetName(named, "Ejectile-Z", eject_part.GetZ());
 	SetName(named, "Ejectile-A", eject_part.GetA());
-	SetName(named, "Ejectile Mass", beam_part.GetMassAMU(), "amu");
+	SetName(named, "Ejectile Mass", eject_part.GetMassAMU(), "amu");
 	if(InverseKinematics){ SetName(named, "Inverse Kinematics?", "Yes"); }
 	else{ SetName(named, "Inverse Kinematics?", "No"); }
 	SetName(named, "Beam Energy", Ebeam0, "MeV");	
