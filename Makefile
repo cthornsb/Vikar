@@ -7,8 +7,8 @@ SIMPLE_SCAN_DIR = $(HOME)/Research/Pixie16/SimplePixieScan
 
 COMPILER = g++
 
-CFLAGS = -g -fPIC -Wall -O3 -Iinclude
-RFLAGS = -g -fPIC -Wall -O3 `root-config --cflags` -Iinclude
+CFLAGS = -Wall -O3 -Iinclude
+RFLAGS = -Wall -O3 `root-config --cflags` -Iinclude
 LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
