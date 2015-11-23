@@ -1,8 +1,8 @@
-# Silicon.mat
-Silicon		# Vikar name
+# Si28.mat
+# Silicon
+Si28		# Vikar name
 2.3212		# Density (g/cm^3)
-28.0855		# Molar mass of material (g/mol)
 1			# Number of target elements per molecule
 14			# Element 1 Z
-28			# Element 1 A
+28.0855		# Mass of element 1 (g/mol)
 1			# Number of element 1 per target molecule

@@ -11,13 +11,12 @@
 /////////////////////////////////////////////////////////////////////
 
 // Constants for use in stopping power calcuations
-extern const double electron_RME, proton_RME, neutron_RME;
-extern const double bohr_e_radius, e, h, coeff;
+extern const double electron_RME;
+extern const double proton_RME;
+extern const double neutron_RME;
+extern const double bohr_e_radius;
 extern const double alpha, avagadro;
 extern const double amu2mev;
-
-// Constant coefficients for the shell correction term
-extern const double a1, a2, b1, b2, c1, c2;
 
 // Ionization potentials
 extern const double ionpot[13];
@@ -73,100 +72,117 @@ class Efficiency{
 
 class Material{
   protected:
-	std::string vikar_name; // The name vikar uses to search for this material
-  	unsigned int num_elements; // Number of unique elements per molecule of the material
-  	unsigned int total_elements; // Total number of elements per molecule in the material
-  	unsigned int *num_per_molecule; // Number of each element per molecule
-  	double *element_Z, *element_A; // Atomic numbers and atomic masses (u) for each element
-  	double *element_I; // Ionization potentials (MeV) 
-  	double avgZ, avgA; // Average Z and A of the elements within the material molecule
-	double density; // Density of the material (g/cm^3)
-	double Mmass; // Molar mass of material (g/mol)
-	double edens; // Electron density (1/m^3)
-	double rad_length; // The radiation length of the material (mg/cm^2)
-	double lnIbar; // The natural log of the average ionization potential
-	bool init;
-	bool use_eloss;
-	
+	std::string vikar_name; /// The name vikar uses to search for this material.
+  	unsigned int num_elements; /// Number of unique elements per molecule of the material.
+  	unsigned int total_elements; /// Total number of elements per molecule in the material.
+  	unsigned int *num_per_molecule; /// Number of each element per molecule.
+  	double *element_Z, *element_A; /// Atomic numbers and atomic masses (u) for each element.
+  	double *element_I; /// Ionization potentials (MeV).
+  	double *weight; /// The fractional weight of each element.
+  	double avgZ, avgA; /// Average Z and A of the elements within the material molecule.
+	double density; /// Density of the material (g/cm^3).
+	double Mmass; /// Molar mass of material (g/mol).
+	double rad_length; /// The radiation length of the material (mg/cm^2).
+	double lnIbar; // The natural log of the average ionization potential.
+	double coeff; /// The leading coefficient of the Bethe-Bloch equation (MeV * g / (mol * m)).
+	bool init; /// Set to true if this material has been initialized correctly.
+	bool use_eloss; /// Set to true if this material is able to do dE/dx calculations.
+
+	///Initialize all variables with default values.
 	void _initialize();
 
-	void _calculate(); // Calculate the average atomic charge, mass, and ionization potential for the material
+	///Calculate the average atomic charge, mass, and ionization potential for the material.
+	void _calculate();
 
-	// Return the effective atomic charge (unitless) for a given value of beta_ and Z_
-	double _zeff(double beta_, double Z_){ return Z_*(1-std::exp(-125.0*beta_/pow(Z_, 2.0/3.0))); }
+	///Return the velocity of a particle with a given energy and mass relative to c.
+	double _beta(double energy_, double mass_);
 
-	// Return the value of beta^2 (unitless) for a particle with a given energy_ and mass_
-	// energy_ in MeV in (kinetic energy) and mass_ in MeV/c^2 (rest mass energy)
-	double _b2(double energy_, double mass_){ return 1-pow(mass_/(energy_+mass_), 2.0); }
+	///Return the maximum kinetic energy which may be transferred to a free electron per collision.
+	double _tmax(double beta_, double gamma_, double mass_);
 	
-	// Return the energy (MeV) for a particle with a given beta2_ and mass_
-	// mass_ in MeV/c^2 (rest mass energy)
-	double _energy(double beta2_, double mass_){ return mass_*((1.0/std::sqrt(1.0-beta2_))-1.0); }
-
-	// Return the ionization potential (MeV) for a particle with a given atomic charge Z_
-	// Z_ is the atomic number of the ion of interest
+	///Return the energy for a particle.
+	double _energy(double beta2_, double mass_);
+	
+	///Return the mean ionization potential.
 	double _ionpot(unsigned int Z_);
 
-	// Return the shell correction term for a particle with a given energy_ in this material
-	// energy_ in MeV
-	double _shell(double energy_);
-
-	// Return the density effect correction term (unitless) for a particle with a given energy_ in this material
-	// energy_ in MeV
+	///Return the density effect correction term.
 	double _density(double energy_);
 
-	// Return the stopping power for a proton with a given KE (energy_) in this material
-	// energy_ in MeV
-	double _pstop(double energy_);
-
-	// Return the range (m) for a proton with given KE (energy_) in this material
-	// energy_ in MeV
-	double _prange(double energy_, unsigned int num_iterations_);
-
   public:
+	/// Default constructor.
   	Material();
+  	
+	/// Constructor which initializes all data arrays to the correct size.
   	Material(unsigned int);
+  	
+  	/// Destructor.
 	~Material();
 	
+	/// Initialize all element variable arrays.
 	bool Init(unsigned int);
 	
+	/// Set a flag to either use or not use energy loss calculations.
 	void SetUseFlag(bool state_=true){ use_eloss = state_; }
+	
+	/// Set the density of the material (g/cm^3).
 	void SetDensity(double density_){ density = density_; }
+	
+	/// Set the molar mass of the material (g/mol).
 	void SetMolarMass(double Mmass_){ Mmass = Mmass_; }
+	
+	/// Set the number of unique elements in this material.
 	void SetElements(unsigned int*, double*, double*);
+	
+	/// Set the Vikar name of this material.
 	void SetName(std::string name_){ vikar_name = name_; }
 
-	bool IsInit(){ return init; }
+	/// Return true if this material is initialized and false otherwise.
+	bool IsInit(){ return init; } 
 	
-	double GetAverageZ(){ return avgZ; } // Return the average atomic number of the elements in the molecule
-	double GetAverageA(){ return avgA; } // Return the average atomic mass of the elements in the molecule
-	double GetRadLength(){ return rad_length; } // Return the radiation length of the material (mg/cm^2)
-	double GetDensity(){ return density; } // Return the density of the material (g/cm^3)
-	double GetEdensity(){ return edens; } // Return the electron density (1/m^3) for the material
-	double GetLNibar(){ return lnIbar; } // Return the natural log of the average ionization potential	
-	double GetMolarMass(){ return Mmass; } // Return the molar mass of the material (g/mol)
-	std::string GetName(){ return vikar_name; }
+	/// Return the average atomic number of the elements in the molecule.
+	double GetAverageZ(){ return avgZ; } 
+	
+	/// Return the average atomic mass of the elements in the molecule.
+	double GetAverageA(){ return avgA; } 
+	
+	/// Return the radiation length of the material (mg/cm^2).
+	double GetRadLength(){ return rad_length; } 
+	
+	/// Return the density of the material (g/cm^3).
+	double GetDensity(){ return density; } 
+	
+	/// Return the natural log of the average ionization potential.
+	double GetLNibar(){ return lnIbar; } 
+	
+	/// Return the molar mass of the material (g/mol).
+	double GetMolarMass(){ return Mmass; } 
+	
+	/// Return the Vikar name of this material.
+	std::string GetName(){ return vikar_name; } 
 
-	unsigned int GetTotalElements(){ return total_elements; } // Return the total number of elements in the material molecule
-	unsigned int GetNumElements(){ return num_elements; } // Return the number of unique elements per material molecule
+	/// Return the total number of elements in the material molecule.
+	unsigned int GetTotalElements(){ return total_elements; } 
+
+	/// Return the number of unique elements per material molecule.
+	unsigned int GetNumElements(){ return num_elements; } 
 	
-	// Read a material file
+	/// Load a material from a file.
 	bool ReadMatFile(const char* filename_);
 	
-	// Return the stopping power (MeV/m) for a particle with given energy_, Z_, and mass_ in this material
-	// energy_ in MeV and mass_ in MeV/c^2
+	/// Compute and return the stopping power for an incoming particle in this material.
 	double StopPower(double energy_, double Z_, double mass_);
 
-	// Return the range (m) for a particle with given energy_, Z_, and mass_, in this material
-	// energy_ in MeV and mass_ in MeV/c^2
+	/// Compute and return the range of an incoming particle in this material.
 	double Range(double energy_, double Z_, double mass_);
 	
-	// Use Birks' equation to calculate the light output for a particle at a given energy_ in this material
-	// energy_ in MeV, mass_ in MeV/c^2, L0_ in 1/MeV, kB_ in m/MeV, and C_ in (m/MeV)^2
-	double Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_);
+	/// Use Birks' equation to calculate the light output for a particle in this material.
+	double Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_=0.0);
 	
+	/// Print useful parameters about this material for debugging purposes.
 	void Print();
 	
+	/// Write useful parameters about this material to a file for debugging purposes.
 	void Print(std::ofstream *file_);
 };
 
@@ -253,7 +269,7 @@ class Particle{
 		init = false;
 	}
 	
-	/** Set the mass number of the particle. This does NOT set 
+	/**Set the mass number of the particle. This does NOT set 
 	  * the actual mass of the particle. To do that, call SetMass().
 	  */
 	void SetA(const double &A_){ A = A_; }
@@ -279,7 +295,7 @@ class Particle{
 	/// Set the name of the particle.
 	void SetName(std::string name_){ name = name_; }
 	
-	/** Set the material for the particle to use for energy loss calculations.
+	/**Set the material for the particle to use for energy loss calculations.
 	  * This also sets up the range table.
 	  */
 	bool SetMaterial(Material *mat_, const double &Ebeam_, const double &Espread_);
@@ -330,7 +346,7 @@ class Particle{
 	/// Get the range of the particle given an initial energy_.
 	double GetTableRange(const double &energy_);
 	
-	/** Get the final energy of a particle with energy_ moving a
+	/**Get the final energy of a particle with energy_ moving a
 	  * distance dist_ through the material.
 	  */
 	double GetTableNewE(const double &energy_, const double &dist_, double &dist_traveled);

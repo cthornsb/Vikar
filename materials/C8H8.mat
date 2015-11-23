@@ -1,0 +1,11 @@
+# C8H8.mat
+# Polystyrene
+C8H8		# Vikar name
+1.05		# Density (g/cm^3)
+2			# Number of target elements per molecule
+6			# Element 1 Z
+12.0107		# Mass of element 1 (g/mol)
+8			# Number of element 1 per target molecule
+1			# Element 2 Z
+1.00794		# Mass of element 2 (g/mol)
+8			# Number of element 2 per target molecule

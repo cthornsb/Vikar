@@ -1,9 +1,0 @@
-# CH2.mat
-# Polyethylene
-CH2			# Vikar name
-0.95		# Target density (g/cm^3)
-14.0266		# Molar mass of material (g/mol)
-1			# Number of target elements per molecule
-6			# Element 1 Z
-12			# Element 1 A
-1			# Number of element 1 per target molecule

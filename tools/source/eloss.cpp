@@ -38,6 +38,8 @@ int main(int argc, char* argv[]){
 		std::cout << " Failed to load material file '" << argv[1] << "'\n";
 		return 1; 
 	}
+	
+	mat.Print();
 
 	double Z, A, BE_A;
 	double start = 0.0;
@@ -52,7 +54,8 @@ int main(int argc, char* argv[]){
 	Particle part("", Z, A, BE_A);
 	part.SetMaterial(&mat, start, 0.1);
 	
-	double newE = part.GetTableNewE(start, thickness);
+	double dummy;
+	double newE = part.GetTableNewE(start, thickness, dummy);
 
 	std::cout << "  Eloss = " << start - newE << " MeV\n";
 	std::cout << "  Efinal = " << newE << " MeV\n";

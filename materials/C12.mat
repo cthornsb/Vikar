@@ -2,8 +2,8 @@
 # Natural Carbon
 C12			# Vikar name
 2.2670		# Density (g/cm^3)
-12.0107		# Molar mass of material (g/mol)
 1			# Number of target elements per molecule
 6			# Element 1 Z
 12			# Element 1 A
+12.0107		# Mass of element 1 (g/mol)
 1			# Number of element 1 per target molecule

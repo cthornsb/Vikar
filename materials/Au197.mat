@@ -2,8 +2,7 @@
 # Natural Gold
 Au197		# Vikar name
 19.311		# Density (g/cm^3)
-196.97		# Molar mass of material (g/mol)
 1			# Number of target elements per molecule
 79			# Element 1 Z
-197			# Element 1 A
+196.96657	# Mass of element 1 (g/mol)
 1			# Number of element 1 per target molecule

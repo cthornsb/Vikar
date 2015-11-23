@@ -55,6 +55,7 @@ int main(int argc, char* argv[]){
 		std::cout << " Failed to load material file '" << argv[1] << "'\n";
 		return 1; 
 	}
+	mat.Print();
 
 	double Z, A, BE_A;
 	double start = 0.0, stop;

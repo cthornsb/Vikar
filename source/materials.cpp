@@ -14,20 +14,20 @@ const double electron_RME = 0.510998928; // MeV
 const double proton_RME = 938.272046; // MeV
 const double neutron_RME = 939.565378; // MeV
 const double bohr_e_radius = 2.817940326836615e-15; // m
-const double e = 1.602176565e-19; // C
-const double h = 4.135667516e-21; // MeV * s
-const double coeff = 4*pi*pow(bohr_e_radius, 2.0)*electron_RME; // m^2 * MeV (checked)
-const double alpha = h*h*9E16*bohr_e_radius/pi; // MeV^2 * m^3
 const double avagadro = 6.0221413e+23; // 1/mol
 const double amu2mev = 931.494061; // MeV
 
-// Constant coefficients for the shell correction term
-const double a1 = 0.422377E-6, a2 = 3.858019E-9; // eV
-const double b1 = 0.030403E-6, b2 = -0.1667989E-9; // eV
-const double c1 = -0.00038106E-6, c2 = 0.00157955E-9; // eV
-
-// Ionization potentials for H(eV) He    Li    Be    B     C     N     O     F      Ne     Na     Mg     Al
-const double ionpot[13] = {18.7, 42.0, 39.0, 60.0, 68.0, 78.0, 99.5, 98.5, 117.0, 140.0, 150.0, 157.0, 163.0};
+// Ionization potentials for Z=1 to Z=100 (in eV).
+const float potentials[100] = {19.2, 41.8, 40, 63.7, 76, 78, 82, 95, 115, 137, 
+	                           149, 156, 166, 173, 173, 180, 174, 188, 190, 191, 
+	                           216, 233, 245, 257, 272, 286, 297, 311, 322, 330, 
+	                           334, 350, 347, 348, 357, 352, 363, 366, 379, 393, 
+	                           417, 424, 428, 441, 449, 470, 470, 469, 488, 488, 
+	                           487, 485, 491, 482, 488, 491, 501, 523, 535, 546, 
+	                           560, 574, 580, 591, 614, 628, 650, 658, 674, 684, 
+	                           694, 705, 718, 727, 736, 746, 757, 790, 790, 800, 
+	                           810, 823, 823, 830, 825, 794, 827, 826, 841, 847, 
+	                           878, 890, 902, 921, 934, 939, 952, 966, 980, 994};
 
 /////////////////////////////////////////////////////////////////////
 // RangeTable
@@ -301,6 +301,8 @@ double Efficiency::GetLargeEfficiency(double Energy){
 // Material
 /////////////////////////////////////////////////////////////////////
 
+/** Initialize all variables with default values.
+  */
 void Material::_initialize(){
 	vikar_name = "unknown";
 	density = 1.0;
@@ -309,31 +311,40 @@ void Material::_initialize(){
 	avgZ = 0.0;
 	avgA = 0.0;
 	lnIbar = 0.0;
+	coeff = 0.0;
 	num_elements = 0;
 	total_elements = 0;
 	num_per_molecule = NULL;
 	element_Z = NULL;
 	element_A = NULL;
 	element_I = NULL;
+	weight = NULL;
 	init = false;
 	use_eloss = true;
 }
 
-// Calculate the average atomic charge, mass, and ionization potential for the material
+/** Calculate the average atomic charge, mass, and ionization potential for the material.
+  */
 void Material::_calculate(){
-	double total_num_dens = avagadro*(density*(1E6))/Mmass; // The number density of the material (1/m^3)
-	double num_dens; // The number density of each element in the material (1/m^3)
+	// Calculate the total molar mass of the material (g/mol).
+	Mmass = 0.0;
+	for(unsigned int i = 0; i < num_elements; i++){
+		Mmass += num_per_molecule[i] * element_A[i];
+	}
+	
+	// Calculate the fractional weight for each element.
+	for(unsigned int i = 0; i < num_elements; i++){
+		weight[i] = num_per_molecule[i] * element_A[i] / Mmass;
+	}
+
 	double ztot = 0.0; // Z total
 	double atot = 0.0; // A total
 	lnIbar = 0.0;
-	edens = 0.0;
 	for(unsigned int i = 0; i < num_elements; i++){
 		ztot += num_per_molecule[i]*element_Z[i];
 		atot += num_per_molecule[i]*element_A[i];
-		num_dens = num_per_molecule[i]*total_num_dens;
 		
-		lnIbar += num_dens*element_Z[i]*element_I[i];
-		edens += num_dens*element_Z[i];
+		lnIbar += weight[i]*(element_Z[i]/element_A[i])*std::log(element_I[i]);
 	}
 	double denominator = 0.0;
 	for(unsigned int i = 0; i < num_elements; i++){
@@ -341,7 +352,15 @@ void Material::_calculate(){
 	}
 	avgZ = ztot/denominator;
 	avgA = atot/denominator;
-	lnIbar = lnIbar/edens;
+
+	denominator = 0.0;
+	for(unsigned int i = 0; i < num_elements; i++){
+		denominator += weight[i] * element_Z[i] / element_A[i];
+	}
+	
+	lnIbar = lnIbar/denominator;
+
+	coeff = 4.0 * pi * avagadro * std::pow(bohr_e_radius, 2.0) * electron_RME * (density * 1E6); // (MeV * g / (mol * m))
 
 	// Calculate the radiation length for the target material
 	// for use in angular straggling calculations later.
@@ -354,114 +373,88 @@ void Material::_calculate(){
 	rad_length = 1.0/rad_length; 
 }
 
-// Return the ionization potential (MeV) for a particle with a given atomic charge Z_
-// Z_ is the atomic number of the ion of interest
-double Material::_ionpot(unsigned int Z_){ 
-	if(Z_ <= 13){ return ionpot[Z_-1]*(1E-6); }
-	return((9.76*Z_ + 58.8*pow(1.0*Z_, -0.19))*(1E-6));
+/** Return the velocity of a particle with a given energy and mass relative to c.
+  * \param[in] energy_ The kinetic energy of the incoming particle (MeV).
+  * \param[in] mass_ The mass of the incoming particle (MeV/c^2).
+  * \return the velocity of the particle relative to c (unitless).
+  */
+double Material::_beta(double energy_, double mass_){ 
+	return std::sqrt(1-pow(mass_/(energy_+mass_), 2.0)); 
 }
 
-// Return the shell correction term for a proton with a given KE (energy_) in this material
-// This corrects the assumption that the proton's velocity is much greater than the bound electron velocity
-// energy_ in MeV
-double Material::_shell(double energy_){
-	double Ibar = std::exp(lnIbar);
-	if(energy_ >= 8.0){
-		double nu2 = (energy_/proton_RME)*((energy_/proton_RME) + 2); // unitless
-		double f1 = ((a1/nu2) + (b1/(nu2*nu2)) + (c1*std::sqrt(nu2)/(nu2*nu2*nu2)))*(1E-6); // MeV
-		double f2 = ((a2/nu2) + (b2/(nu2*nu2)) + (c2*std::sqrt(nu2)/(nu2*nu2*nu2)))*(1E-6); // MeV
-		return ((f1*pow(Ibar, 2.0) + f2*pow(Ibar, 3.0))/avgZ);
-	}
-	else{
-		return 0.0;
-		// Aluminum and water stopping power
-		/*double beta2 = _b2(energy_, proton_RME);
-		double x = 18769.0*beta2/avgZ; // 137^2 = 187690
-		double lnx = std::log(x);
-		double output = std::log(2*electron_RME*beta2) - lnIbar;
-		double xl, xl1;
-	
-		const double p1 = 4.774248E-4, p2 = 1.143478E-3, p3 = -5.63392E-2; 
-		const double p4 = 4.763953E-1, p5 = 4.844536E-1; 
-		const double w1 = -1.819954E-6, w2 = -2.232760E-5, w3 = 1.219912E-4; 
-		const double w4 = 1.837873E-3, w5 = -4.457574E-3, w6 = -6.837103E-2; 
-		const double w7 = 5.266586E-1, w8 = 3.743715E-1; 
-		
-		// Need to calculate L(x)
-		if(avgZ >= 13.0){ // Use L2(x) (proton stopping in Al)
-			xl = std::exp(p5 + lnx*(p4+lnx*(p3+lnx*(p2+lnx*p1))));
-			if(avgZ > 13.0){ output = output - xl; }
-			else{ output = output - (avgZ-3.33)/(13.0-3.33)*xl; }
-		}
-		else{
-			xl1 = std::exp(w8 + lnx*(w7+lnx*(w6+lnx*(w5+lnx*(w4+lnx*(w3+lnx*(w2+lnx*w1)))))));
-			if(avgZ <= 3.33){ // Use L1(x) (proton stopping in H20)
-				xl = std::exp(p5 + lnx*(p4+lnx*(p3+lnx*(p2+lnx*p1))));
-				if(avgZ > 13.0){ output = output - xl; }
-				else{ output = output - xl1 + (avgZ-3.33)/(13.0-3.33)*(xl-xl1); }
-			}
-			else{ // Interpolate between L1 and L2
-				output = output - std::exp(w8 + lnx*(w7+lnx*(w6+lnx*(w5+lnx*(w4+lnx*(w3+lnx*(w2+lnx*w1)))))));
-			}
-		}
-		return output;*/
-	}
+/** Return the maximum kinetic energy which may be transferred to a free electron per collision.
+  * \param[in] beta_ The velocity of the incoming particle relative to c (unitless).
+  * \param[in] gamma_ The Lorentz factor for the incoming particle (unitless).
+  * \param[in] mass_ The mass of the incoming particle (MeV/c^2).
+  * \return the maximum kinetic energy which may be transferred to a free electron (MeV).
+  */
+double Material::_tmax(double beta_, double gamma_, double mass_){ 
+	return (2.0*electron_RME*std::pow(beta_*gamma_, 2.0) / (1.0 + (2.0*gamma_*electron_RME/mass_) + std::pow(electron_RME/mass_, 2.0))); 
+}
+
+/** Return the energy for a particle.
+  * \param[in] beta2_ The squared velocity of the incoming particle relative to c (unitless).
+  * \param[in] mass_ The mass of the incoming particle (MeV/c^2).
+  * \return the energy of the particle (MeV).
+  */
+double Material::_energy(double beta2_, double mass_){ 
+	return mass_*((1.0/std::sqrt(1.0-beta2_))-1.0); 
+}
+
+/** Return the mean ionization potential.
+  * See S. Seltzer, International Journal of Applied Radiation and Isotopes 33, 1189 (1982).
+  * \param[in] Z_ The atomic number of the element of interest.
+  * \return the ionization potential (MeV) or -1 if the atomic charge is not in the range [1,100].
+  */
+double Material::_ionpot(unsigned int Z_){ 
+	if(Z_ == 1){ return 19.2E-6; }
+	else if(Z_ == 6){ return 81E-6; }
+	else if(Z_ == 7){ return 82E-6; }
+	else if(Z_ == 8){ return 106E-6; }
+	else if(Z_ == 9){ return 112E-6; }
+	else if(Z_ == 17){ return 180E-6; }
+	return (Z_ > 0 && Z_ <= 100 ? potentials[Z_-1]*1.13E-6 : -1.0);
+}
+
+/** Return the density effect correction term.
+  * See R. Sternheimer, Phys. Rev. B 3, 3681 (1971).
+  * \param[in] energy_ The energy of the incident particle in MeV.
+  * \return the density effect correction (MeV).
+  */
+double Material::_density(double energy_){
 	return 0.0;
 }
 
-// Return the density effect correction term (unitless) for a proton with a given KE (energy_) in this material
-// This corrects for dielectric effects in the medium
-// energy_ in MeV
-double Material::_density(double energy_){
-	double nu2 = (energy_/proton_RME)*((energy_/proton_RME) + 2); // unitless
-	double output = std::log(alpha*edens*nu2/(lnIbar*lnIbar)) - 1;
-	if(output < 0.0){ return 0.0; }
-	return output;
-}
-
-// Return the stopping power for a proton with a given KE (energy_) in this material
-// energy_ in MeV
-double Material::_pstop(double energy_){
-	double beta2 = _b2(energy_, proton_RME);
-	double beta = std::sqrt(beta2);
-	double output = edens*coeff*pow(_zeff(beta, 1.0), 2.0)/beta2; // Stopping coefficient
-	double L0 = std::log(2.0*electron_RME*(beta2/(1-beta2)))-beta2-lnIbar; // Primary stopping number
-	//double L0 = std::log(2.0*electron_RME*(beta2/(1-beta2)))-beta2-lnIbar-ShellCorrect(energy_)-0.5*DensityEffect(energy_); // Primary stopping number
-	return -2.5*output*(L0);
-}
-
-// Return the range (m) for a proton with given KE (energy_) in this material
-// energy_ in MeV
-double Material::_prange(double energy_, unsigned int num_iterations_){
-	double sum = 0.0;
-	double e1, e2;
-	double step = energy_/num_iterations_;
-	for(unsigned int i = 1; i < num_iterations_; i++){
-		e1 = step*i; e2 = step*(i+1);
-		sum += 0.5*(1.0/_pstop(e2)+1.0/_pstop(e1))*step;
-	}
-
-	return sum;
-}
-
+/** Default constructor.
+  */
 Material::Material(){
 	_initialize();
 }
 
+/** Constructor which initializes all data arrays to the correct size.
+  * \param[in] num_elements_ The number of unique elements in this material.
+  */
 Material::Material(unsigned int num_elements_){
 	_initialize();
 	Init(num_elements_);
 }
 
+/** Destructor.
+  */
 Material::~Material(){
 	if(init){
 		delete[] num_per_molecule;
 		delete[] element_Z;
 		delete[] element_A;
 		delete[] element_I;
+		delete[] weight;
 	}
 }
 
+/** Initialize all element variable arrays.
+  * \param[in] num_elements_ The number of unique elements in this material.
+  * \return true upon success or false if the object has already been initialized.
+  */
 bool Material::Init(unsigned int num_elements_){
 	if(init){ return false; }
 	num_elements = num_elements_;
@@ -469,11 +462,13 @@ bool Material::Init(unsigned int num_elements_){
 	element_Z = new double[num_elements];
 	element_A = new double[num_elements];
 	element_I = new double[num_elements];
+	weight = new double[num_elements];
 	for(unsigned int i = 0; i < num_elements; i++){
 		num_per_molecule[i] = 0;
 		element_Z[i] = 0.0;
 		element_A[i] = 0.0;
 		element_I[i] = 0.0;
+		weight[i] = 0.0;
 	}
 
 	rad_length = 0.0;
@@ -482,7 +477,13 @@ bool Material::Init(unsigned int num_elements_){
 	return true;
 }
 
+/** Set the Z and A of all of the unique elements in this material. All input arrays should be the same size.
+  * \param[in] num_per_molecule_ Pointer to an array containing the number of each element in one molecule of this material.
+  * \param[in] Z_ Pointer to an array containing the atomic charge of each element in one molecule of this material.
+  * \param[in] A_ Pointer to an array containing the molar mass (in g/mol) of each element in one molecule of this material.
+  */
 void Material::SetElements(unsigned int *num_per_molecule_, double *Z_, double *A_){
+	// Set all unique elements.
 	for(unsigned int i = 0; i < num_elements; i++){
 		num_per_molecule[i] = num_per_molecule_[i];
 		total_elements += num_per_molecule_[i];
@@ -490,10 +491,14 @@ void Material::SetElements(unsigned int *num_per_molecule_, double *Z_, double *
 		element_A[i] = A_[i];
 		element_I[i] = _ionpot(element_Z[i]);
 	}
-	
+
 	_calculate();
 }
 
+/** Load a material from a file.
+  * \param[in] filename_ The name of the material file to load.
+  * \return true upon success or false if loading fails for whatever reason.
+  */
 bool Material::ReadMatFile(const char* filename_){
 	if(init){ return false; }
 	std::ifstream input_file(filename_);
@@ -509,8 +514,7 @@ bool Material::ReadMatFile(const char* filename_){
 		
 		if(count == 0){ vikar_name = line; }
 		else if(count == 1){ density = (double)atof(line.c_str()); }
-		else if(count == 2){ Mmass = (double)atof(line.c_str()); }
-		else if(count == 3){  
+		else if(count == 2){  
 			num_elements = (unsigned int)atoi(line.c_str());
 			Init(num_elements);
 			
@@ -519,58 +523,67 @@ bool Material::ReadMatFile(const char* filename_){
 				getline(input_file, line); line = Parse(line); element_A[i] = (double)atof(line.c_str());  
 				getline(input_file, line); line = Parse(line); num_per_molecule[i] = (unsigned int)atoi(line.c_str()); 
 				element_I[i] = _ionpot(element_Z[i]);
+				
+				total_elements += num_per_molecule[i];
 			}
 			
 			_calculate();
 		}
 		count++;
 	}
-	if(count <= 3){ return false; }
+	if(count <= 2){ return false; }
 
 	return true;
 }
 
-// Return the stopping power (MeV/m) for a particle with given KE (energy_), Z_, and mass_ in this material
-// energy_ in MeV and mass_ in MeV/c^2
+/** Compute and return the stopping power for an incoming particle in this material.
+  * See C. Amsler et al., PL B667, 1 (2008). 
+  * \param[in] energy_ The energy of the incoming particle (in MeV).
+  * \param[in] Z_ The atomic charge of the incoming particle.
+  * \param[in] mass_ The mass of the incoming particle (in MeV/c^2).
+  * \return the stopping power (MeV/m).
+  */
 double Material::StopPower(double energy_, double Z_, double mass_){
-	double beta = std::sqrt(_b2(energy_, mass_));
-	double output = pow((_zeff(beta, Z_)/_zeff(beta, 1.0)), 2.0);
-	output *= _pstop(energy_*(proton_RME/mass_));
+	double beta = _beta(energy_, mass_);
+	double gamma = 1.0 / std::sqrt(1.0 - beta*beta);
+	double tmax = _tmax(beta, gamma, mass_);
+	
+	double output = 0.0;
+	for(unsigned int i = 0; i < num_elements; i++){
+		output += weight[i] * (coeff * std::pow(Z_/beta, 2.0) * element_Z[i] / element_A[i]) * (0.5 * std::log(2.0*electron_RME*std::pow(beta*gamma, 2.0)*tmax) - lnIbar - beta*beta - _density(energy_)/2.0);
+	}
+	
 	return output;
 }
 
-// Return the range (m) for a particle with given KE (energy_), Z_, and mass_, in this material
-// energy_ in MeV and mass_ in MeV/c^2
+/** Compute and return the range of an incoming particle in this material.
+  * \param[in] energy_ The energy of the incoming particle (in MeV).
+  * \param[in] Z_ The atomic charge of the incoming particle.
+  * \param[in] mass_ The mass of the incoming particle (in MeV/c^2).
+  * \return the range (m).
+  */
 double Material::Range(double energy_, double Z_, double mass_){
 	unsigned int iterations = (unsigned int)Order(energy_)*10;
-	double Eci = _energy(0.04*pow(Z_, 2.0/3.0), mass_);
 	double sum = 0.0;
-	if(energy_ <= Eci){
-		double e1, e2;
-		double step = energy_/iterations;
-		for(unsigned int i = 1; i < iterations; i++){
-			e1 = step*i; e2 = step*(i+1);
-			sum += 0.5*(1.0/StopPower(e2, Z_, mass_)+1.0/StopPower(e1, Z_, mass_))*step;
-		}
-	}
-	else{
-		double e1, e2;
-		double step = Eci/iterations;
-		
-		// Ri(Eci, Zi, mi)
-		for(unsigned int i = 1; i < iterations; i++){
-			e1 = step*i; e2 = step*(i+1);
-			sum += 0.5*(1.0/StopPower(e2, Z_, mass_)+1.0/StopPower(e1, Z_, mass_))*step;
-		}
-		
-		sum += (mass_/(proton_RME*Z_*Z_))*(_prange(energy_*proton_RME/mass_, iterations) - _prange(Eci*proton_RME/mass_, iterations));
+	double e1, e2;
+	double step = energy_/iterations;
+	for(unsigned int i = 1; i < iterations; i++){
+		e1 = step*i; e2 = step*(i+1);
+		sum += 0.5*(1.0/StopPower(e2, Z_, mass_)+1.0/StopPower(e1, Z_, mass_))*step;
 	}
 	return sum;
 }
 
-	// Use Birks' equation to calculate the light output for a particle at a given energy_ in this material
-	// energy_ in MeV, mass_ in MeV/c^2, L0_ in 1/MeV, kB_ in m/MeV, and C_ in (m/MeV)^2
-double Material::Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_){
+/** Use Birks' equation to calculate the light output for a particle in this material.
+  * \param[in] energy_ The energy of the incoming particle (in MeV).
+  * \param[in] Z_ The atomic charge of the incoming particle.
+  * \param[in] mass_ The mass of the incoming particle (in MeV/c^2).
+  * \param[in] L0_ Light output efficiency of this material (in ??/MeV).
+  * \param[in] kB_ Adjustable parameter used for fitting to data (in m/MeV).
+  * \param[in] C_ Adjustable parameter used for fitting to data (in m^2/MeV^2).
+  * \return the light output (variable unit, takes the unit from the numerator of L0_).
+  */
+double Material::Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_/*=0.0*/){
 	unsigned int iterations = (unsigned int)Order(energy_)*10;
 	double sum = 0.0;
 	double dedx1, dedx2;
@@ -583,37 +596,40 @@ double Material::Birks(double energy_, double Z_, double mass_, double L0_, doub
 	return sum;
 }
 
+/** Print useful parameters about this material for debugging purposes.
+  */ 
 void Material::Print(){
 	std::cout << " Name: " << vikar_name << std::endl;
 	std::cout << "  Number of unique elements: " << num_elements << std::endl;
 	for(unsigned int i = 0; i < num_elements; i++){
 		std::cout << "   Element " << i+1 << ": N = " << num_per_molecule[i] << ", Z = " << element_Z[i];
-		std::cout << ", A = " << element_A[i] << ", I = " << element_I[i] << std::endl;
+		std::cout << ", A = " << element_A[i] << ", I = " << element_I[i] << ", Wn = " << weight[i] << std::endl;
 	}
 	std::cout << "  Average Z: " << avgZ << "\n";
 	std::cout << "  Average A: " << avgA << "\n";
 	std::cout << "  Density: " << density << " g/cm^3\n";
-	std::cout << "  Edensity: " << edens << " 1/m^3\n";
 	std::cout << "  Molar Mass: " << Mmass << " g/mol\n";
 	std::cout << "  Rad Length: " << rad_length << " mg/cm^2\n";
-	std::cout << "  lnIbar: " << lnIbar << "\n";
+	std::cout << "  Ibar: " << std::exp(lnIbar) << "\n";
 }
 
+/** Write useful parameters about this material to a file for debugging purposes.
+  * \param[in] file_ Pointer to an output stream file which is open for writing.
+  */ 
 void Material::Print(std::ofstream *file_){
 	if(!file_ || !file_->good()){ return; }
 	(*file_) << "Name\t" << vikar_name << std::endl;
 	(*file_) << "NumElements\t" << num_elements << std::endl;
 	for(unsigned int i = 0; i < num_elements; i++){
 		(*file_) << "Element" << i+1 << "\tN=" << num_per_molecule[i] << ", Z=" << element_Z[i];
-		(*file_) << ", A=" << element_A[i] << ", I=" << element_I[i] << std::endl;
+		(*file_) << ", A=" << element_A[i] << ", I=" << element_I[i] << ", Wn = " << weight[i] << std::endl;
 	}
 	(*file_) << "AvgZ\t" << avgZ << "\n";
 	(*file_) << "AvgA\t" << avgA << "\n";
 	(*file_) << "Density\t" << density << " g/cm^3\n";
-	(*file_) << "eDensity\t" << edens << " 1/m^3\n";
-	(*file_) << "MolarMass\t" << Mmass << " g/mol\n";
-	(*file_) << "RadLength\t" << rad_length << " mg/cm^2\n";
-	(*file_) << "lnIbar\t" << lnIbar << "\n";
+	(*file_) << "  Molar Mass: " << Mmass << " g/mol\n";
+	(*file_) << "  Rad Length: " << rad_length << " mg/cm^2\n";
+	(*file_) << "  Ibar: " << std::exp(lnIbar) << "\n";
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -711,10 +727,10 @@ void Target::SetDensity(double density_){
 }
 
 /** Get the depth into the target at which the reaction occurs
-  * \param[in] offset_ is the global position where the beam particle originates
-  * \param[in] direction_ is the direction of the beam particle entering the target
-  * \param[out] intersect is the global position where the beam particle intersects the front face of the target
-  * \param[out] interact is the global position where the beam particle reacts inside the target
+  * \\param[in] offset_ is the global position where the beam particle originates
+  * \\param[in] direction_ is the direction of the beam particle entering the target
+  * \\param[out] intersect is the global position where the beam particle intersects the front face of the target
+  * \\param[out] interact is the global position where the beam particle reacts inside the target
   */
 double Target::GetInteractionDepth(const Vector3 &offset_, const Vector3 &direction_, Vector3 &intersect, Vector3 &interact){
 	double t1, t2;
