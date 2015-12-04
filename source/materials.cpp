@@ -40,22 +40,45 @@ bool RangeTable::_initialize(const unsigned int &num_entries_){
 	if(use_table){ return false; }
 	num_entries = num_entries_;
 	energy = new double[num_entries];
+	dedx = new double[num_entries];
 	range = new double[num_entries];
 	use_table = true;
 	return true;
 }
 
+/// Interpolate between two points
+double RangeTable::_interpolate(double *x_, double *y_, const double &val_){
+	if(!x_ || !y_){ return -1; }
+	for(unsigned int i = 0; i < num_entries-1; i++){
+		if(val_ == x_[i]){ return y_[i]; }
+		else if(val_ == x_[i+1]){ return y_[i+1]; }
+		else if(val_ >= x_[i] && val_ <= x_[i+1]){
+			// Interpolate and return the result
+			return (((y_[i+1]-y_[i])/(x_[i+1]-x_[i]))*(val_-x_[i])+y_[i]);
+		}
+	}
+	return -1;
+}
+
+RangeTable::RangeTable(){ 
+	use_table = false; 
+	use_birks = false;
+}
+
 /// Constructor to set the number of table entries.
 RangeTable::RangeTable(const unsigned int &num_entries_){
 	_initialize(num_entries_);
+	use_birks = false;
 }
 
 /// Destructor.
 RangeTable::~RangeTable(){
 	if(use_table){
 		delete[] energy;
+		delete[] dedx;
 		delete[] range;
 	}
+	if(use_birks){ delete[] birks; }
 }
 	
 /// Initialize arrays but do not fill them.
@@ -67,13 +90,36 @@ bool RangeTable::Init(const unsigned int &num_entries_){
 bool RangeTable::Init(const unsigned int &num_entries_, const double &startE_, const double &stopE_, const double &Z_, const double &mass_, Material *mat_){
 	if(!_initialize(num_entries_)){ return false; }
 	
-	// Use Material to fill the arrays
-	double step = (stopE_-startE_)/(num_entries_-1);
+	// Use Material to fill the stopping power arrays.
+	step = (stopE_-startE_)/(num_entries_-1);
 	for(unsigned int i = 0; i < num_entries_; i++){
 		energy[i] = startE_ + i*step; // Energy in MeV
-		range[i] = mat_->Range(energy[i], Z_, mass_); // Range in m
+		dedx[i] = -1*mat_->StopPower(energy[i], Z_, mass_); // Stopping power in MeV/m;
 	}
+	
+	range[0] = 0.0;
+	
+	// Calculate ranges.
+	for(unsigned int i = 1; i < num_entries_; i++){
+		range[i] = range[i-1] - 0.5*(1.0/dedx[i-1] + 1.0/dedx[i])*step;
+	}
+	
+	return true;
+}
 
+/// Initialize the birks light response array.
+bool RangeTable::InitBirks(double L0_, double kB_, double C_/*=0.0*/){
+	if(!use_table || use_birks){ return false; }
+	
+	birks = new double[num_entries];
+	birks[0] = 0.0;
+	
+	for(unsigned int i = 1; i < num_entries; i++){
+		birks[i] = birks[i-1] + L0_*0.5*(1.0/(1.0 + kB_*dedx[i-1] + C_*dedx[i-1]*dedx[i-1]) + 1.0/(1.0 + kB_*dedx[i] + C_*dedx[i]*dedx[i]))*step;
+	}
+	
+	use_birks = true;
+	
 	return true;
 }
 
@@ -89,29 +135,25 @@ bool RangeTable::Set(const unsigned int &pt_, const double &energy_, const doubl
 /// Get the particle range at a given energy using linear interpolation.
 double RangeTable::GetRange(const double &energy_){
 	if(!use_table){ return -1; }
-	for(unsigned int i = 0; i < num_entries-1; i++){
-		if(energy_ == energy[i]){ return range[i]; }
-		else if(energy_ == energy[i+1]){ return range[i+1]; }
-		else if(energy_ >= energy[i] && energy_ <= energy[i+1]){
-			// Interpolate and return the result
-			return (((range[i+1]-range[i])/(energy[i+1]-energy[i]))*(energy_-energy[i])+range[i]);
-		}
-	}
-	return -1;
+	return _interpolate(this->energy, this->range, energy_);
 }
 
 /// Get the particle energy at a given range using linear interpolation.
 double RangeTable::GetEnergy(const double &range_){
 	if(!use_table){ return -1; }
-	for(unsigned int i = 0; i < num_entries-1; i++){
-		if(range_ == range[i]){ return energy[i]; }
-		else if(range_ == range[i+1]){ return energy[i+1]; }
-		else if(range_ >= range[i] && range_ <= range[i+1]){
-			// Interpolate and return the result
-			return (((energy[i+1]-energy[i])/(range[i+1]-range[i]))*(range_-range[i])+energy[i]);
-		}
-	}
-	return -1;
+	return _interpolate(this->range, this->energy, range_);
+}
+
+/// Get the scintillator light response due to a particle traversing a material with given kinetic energy.
+double RangeTable::GetLRfromKE(const double &energy_){
+	if(!use_birks){ return -1; }
+	return _interpolate(this->energy, this->birks, energy_);
+}
+
+/// Get the kinetic energy of a particle which produces a given light response in a scintillator.
+double RangeTable::GetKEfromLR(const double &response_){
+	if(!use_birks){ return -1; }
+	return _interpolate(this->birks, this->energy, response_);
 }
 
 /// Get the new energy of a particle traversing a distance through a material.
@@ -124,6 +166,7 @@ double RangeTable::GetNewE(const double &energy_, const double &dist_){
 double RangeTable::GetNewE(const double &energy_, const double &dist_, double &dist_traveled){
 	if(!use_table){ return -1; }
 	dist_traveled = GetRange(energy_);
+	if(dist_traveled < 0.0){ return -1; }
 	if(dist_traveled - dist_ > 0.0){ return GetEnergy(dist_traveled - dist_); } // The particle loses some energy in the material
 	else{ return 0.0; } // The particle stops in the material
 	return -1;
@@ -140,7 +183,9 @@ bool RangeTable::GetEntry(const unsigned int &entry_, double &E, double &R){
 void RangeTable::Print(){
 	if(!use_table){ return; }
 	for(unsigned int i = 0; i < num_entries; i++){
-		std::cout << i << "\t" << energy[i] << "\t" << range[i] << std::endl;
+		std::cout << i << "\t" << energy[i] << "\t" << dedx[i] << "\t" << range[i];
+		if(use_birks){ std::cout << "\t" << birks[i]; }
+		std::cout << std::endl;
 	}
 }
 
@@ -565,7 +610,7 @@ double Material::StopPower(double energy_, double Z_, double mass_){
   * \return the range (m).
   */
 double Material::Range(double energy_, double Z_, double mass_){
-	unsigned int iterations = (unsigned int)Order(energy_)*10;
+	unsigned int iterations = 100;
 	double sum = 0.0;
 	double e1, e2;
 	double step = energy_/iterations;
@@ -585,17 +630,21 @@ double Material::Range(double energy_, double Z_, double mass_){
   * \param[in] C_ Adjustable parameter used for fitting to data (in m^2/MeV^2).
   * \return the light output (variable unit, takes the unit from the numerator of L0_).
   */
-double Material::Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_/*=0.0*/){
-	unsigned int iterations = (unsigned int)Order(energy_)*10;
+double Material::Birks(double startE_, double energy_, double Z_, double mass_, double L0_, double kB_, double C_/*=0.0*/){
+	unsigned int iterations = 100;
 	double sum = 0.0;
 	double dedx1, dedx2;
-	double step = energy_/iterations;
-	for(unsigned int i = 1; i < iterations; i++){
-		dedx1 = StopPower(step*i, Z_, mass_);
-		dedx2 = StopPower(step*(i+1), Z_, mass_);
-		sum += 0.5*L0_*((1.0/(1.0 + kB_*dedx1 + C_*dedx1*dedx1)) + (1.0/(1.0 + kB_*dedx2 + C_*dedx2*dedx2)))*step;
+	double igrand1, igrand2;
+	double step = (energy_-startE_)/iterations;
+	dedx1 = -1*StopPower(startE_, Z_, mass_);
+	for(unsigned int i = 0; i <= iterations; i++){
+		dedx2 = -1*StopPower(startE_+step*(i+1), Z_, mass_);
+		igrand1 = 1.0/(1.0 + kB_*dedx1 + C_*dedx1*dedx1);
+		igrand2 = 1.0/(1.0 + kB_*dedx2 + C_*dedx2*dedx2);
+		sum += 0.5*(igrand1 + igrand2)*step;
+		dedx1 = dedx2;
 	}
-	return sum;
+	return L0_*sum;
 }
 
 /** Print useful parameters about this material for debugging purposes.

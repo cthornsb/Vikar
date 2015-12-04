@@ -179,7 +179,7 @@ class Material{
 	double Range(double energy_, double Z_, double mass_);
 	
 	/// Use Birks' equation to calculate the light output for a particle in this material.
-	double Birks(double energy_, double Z_, double mass_, double L0_, double kB_, double C_=0.0);
+	double Birks(double startE_, double energy_, double Z_, double mass_, double L0_, double kB_, double C_=0.0);
 	
 	/// Print useful parameters about this material for debugging purposes.
 	void Print();
@@ -195,16 +195,23 @@ class Material{
 class RangeTable{
   private:
 	double *energy; /// Array for storing energy values.
+	double *dedx; /// Array for storing stopping power.
 	double *range; /// Array for storing range values.
+	double *birks; /// Array for storing light response.
+	double step; /// Energy step size (MeV).
 	unsigned int num_entries; /// Number of table array entries.
 	bool use_table; /// True if the table is to be used for energy loss calculations.
+	bool use_birks; /// True if the birks light response table may be used for calculations.
 	
 	/// Initialize range table arrays.
 	bool _initialize(const unsigned int &num_entries_);
 	
+	/// Interpolate between two points
+	double _interpolate(double *x_, double *y_, const double &val_);
+	
   public:
   	/// Default constructor.
-	RangeTable(){ use_table = false; }
+	RangeTable();
 	
 	/// Constructor to set the number of table entries.
 	RangeTable(const unsigned int &num_entries_);
@@ -217,6 +224,9 @@ class RangeTable{
 
 	/// Initialize arrays and fill them using Material.
 	bool Init(const unsigned int &num_entries_, const double &startE_, const double &stopE_, const double &Z_, const double &mass_, Material *mat_); 
+
+	/// Initialize the birks light response array.
+	bool InitBirks(double L0_, double kB_, double C_=0.0);
 
 	/// Return true if the range table is to be used for energy loss and false otherwise.
 	bool UseTable(){ return use_table; }
@@ -232,6 +242,12 @@ class RangeTable{
 
 	/// Get the particle energy at a given range using linear interpolation.
 	double GetEnergy(const double &range_); 
+
+	/// Get the scintillator light response due to a particle traversing a material with given kinetic energy.
+	double GetKEfromLR(const double &energy_);
+	
+	/// Get the kinetic energy of a particle which produces a given light response in a scintillator.
+	double GetLRfromKE(const double &response_);
 
 	/// Get the new energy of a particle traversing a distance through a material.
 	double GetNewE(const double &energy_, const double &dist_); 
@@ -319,6 +335,12 @@ class Particle{
 	
 	/// Get the relativistic factor of the particle (unitless).
 	double GetGamma(const double &velocity_){ return 1.0/std::sqrt(1.0-velocity_*velocity_/(c*c)); }
+
+	/// Get the particle velocity relative to c from the total energy (MeV).
+	double GetBetafromTE(const double &energy_){ return GetVfromTE(energy_)/c; }
+
+	/// Get the particle velocity relative to c from the kinetic energy (MeV).
+	double GetBetafromKE(const double &energy_){ return GetVfromKE(energy_)/c; }
 	
 	/// Get the relativistic velocity of the particle (unitless).
 	double GetBeta(const double &velocity_){ return velocity_/c; }	
