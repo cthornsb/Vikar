@@ -44,4 +44,5 @@ testSetup
 testViewer
 relativistic
 renderer
+light
 elastic.sh

@@ -65,9 +65,12 @@ TEST_VIEWER_EXE = $(TOOL_DIR)/testViewer
 TEST_VIEWER_SRC = $(TOOL_SRC_DIR)/testViewer.cpp
 RELATIVISTIC_EXE = $(TOOL_DIR)/relativistic
 RELATIVISTIC_SRC = $(TOOL_SRC_DIR)/relativistic.cpp
+LIGHT_EXE = $(TOOL_DIR)/light
+LIGHT_SRC = $(TOOL_SRC_DIR)/light.cpp
 
 TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) \
-        $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE) $(TEST_VIEWER_EXE) $(RELATIVISTIC_EXE)
+        $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE) $(TEST_VIEWER_EXE) $(RELATIVISTIC_EXE) \
+        $(LIGHT_EXE)
 
 RENDERER_DIR = $(TOOL_DIR)/qtfiles
 RENDERER_EXE = renderer
@@ -157,6 +160,9 @@ $(TEST_VIEWER_EXE): $(TEST_VIEWER_SRC)
 
 $(RELATIVISTIC_EXE): $(OBJECTS) $(RELATIVISTIC_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
+
+$(LIGHT_EXE): $(OBJECTS) $(LIGHT_SRC)
+	$(COMPILER) $(RFLAGS) $^ -o $@ $(LDLIBS)
 	
 $(RENDERER_EXE): $(OBJECTS)
 #	Use qmake to generate the renderer Makefile, if it doesn't exist.
@@ -173,9 +179,8 @@ $(RENDERER_EXE): $(OBJECTS)
 install: tools
 #	Install tools into the install directory
 	@echo "Installing tools to "$(INSTALL_DIR)
-	@ln -s -f $(KINEMATICS_EXE) $(INSTALL_DIR)/kinematics
-	@ln -s -f $(KINDIST_EXE) $(INSTALL_DIR)/kindist
 	@ln -s -f $(ROOT2RAW_EXE) $(INSTALL_DIR)/root2raw
+	@ln -s -f $(RELATIVISTIC_EXE) $(INSTALL_DIR)/relativistic
 
 #####################################################################
 
