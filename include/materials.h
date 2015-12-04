@@ -15,8 +15,10 @@ extern const double electron_RME;
 extern const double proton_RME;
 extern const double neutron_RME;
 extern const double bohr_e_radius;
+extern const double e_charge;
 extern const double alpha, avagadro;
-extern const double amu2mev;
+extern const double mev2amu;
+extern const double mev2kg;
 
 // Ionization potentials
 extern const double ionpot[13];
@@ -284,7 +286,10 @@ class Particle{
 	void SetMassMeV(const double &mass_){ mass = mass_; }
 	
 	/// Manually set the mass of the particle in units of amu.
-	void SetMassAMU(const double &mass_){ mass = mass_*amu2mev; } 
+	void SetMassAMU(const double &mass_){ mass = mass_/mev2amu; } 
+	
+	/// Manually set the mass of the particle in units of kg.
+	void SetMassKg(const double &mass_){ mass = mass_/mev2kg; }
 	
 	/// Setup the particle name, charge number, and mass.
 	void SetParticle(const std::string &name_, const double &Z_, const double &A_, const double &BE_A_=0.0){
@@ -303,15 +308,20 @@ class Particle{
 	double GetA(){ return A; } /// Return the atomic mass of the particle
 	double GetZ(){ return Z; } /// Return the atomic charge of the particle
 	double GetN(){ return A-Z; } /// Return the number of neutrons
-	double GetMass(){ return mass; } /// Return the rest mass of the particle (MeV)
-	double GetMassAMU(){ return mass/amu2mev; } /// Return the rest mass of the particle (amu).
+	double GetMass(){ return mass; } /// Return the rest mass of the particle (MeV/c^2)
+	double GetMassKg(){ return mass*mev2kg; } /// Return the rest mass of the particle (kg).
+	double GetMassAMU(){ return mass*mev2amu; } /// Return the rest mass of the particle (amu).
 	double GetMaxE(){ return maxE; } /// Return the maximum particle energy (MeV)
+	double GetCharge(){ return Z*e_charge; } /// Return the electric charge of the particle (C).
 	std::string GetName(){ return name; } /// Return the name of the particle.
 	Material *GetMaterial(){ return mat; } /// Return a pointer to the energy loss material.
 	RangeTable *GetTable(){ return &table; } /// Return a pointer to the range table.
 	
 	/// Get the relativistic factor of the particle (unitless).
 	double GetGamma(const double &velocity_){ return 1.0/std::sqrt(1.0-velocity_*velocity_/(c*c)); }
+	
+	/// Get the relativistic velocity of the particle (unitless).
+	double GetBeta(const double &velocity_){ return velocity_/c; }	
 	
 	/// Get the kinetic energy from the total energy (MeV).
 	double GetKEfromTE(const double &energy_){ return (energy_ - mass); }	
@@ -320,25 +330,34 @@ class Particle{
 	double GetTEfromKE(const double &energy_){ return (energy_ + mass); }
 	
 	/// Get the kinetic energy from the velocity of the particle (MeV).
-	double GetKEfromV(const double &velocity_);
+	double GetKEfromV(const double &velocity_){ return (GetGamma(velocity_) - 1)*mass; }
 	
 	/// Get the total energy from the velocity of the particle (MeV).
-	double GetTEfromV(const double &velocity_);
+	double GetTEfromV(const double &velocity_){ return (std::sqrt(GetGamma(velocity_)*GetGamma(velocity_)*velocity_*velocity_/(c*c) + 1.0)*mass); }
+
+	/// Get the kinetic energy from the momentum of the particle (MeV/c).
+	double GetKEfromP(const double &momentum_){ return (GetTEfromP(momentum_) - mass); }
 	
-	/// Get the relativistic momentum from the total energy of the particle (MeV/c).
-	double GetPfromTE(const double &energy_){ return std::sqrt(energy_*energy_ - mass*mass); }
+	/// Get the total energy from the velocity of the particle (MeV).
+	double GetTEfromP(const double &momentum_){ return std::sqrt(momentum_*momentum_ + mass*mass); }
 	
 	/// Get the relativistic momentum from the kinetic energy of the particle (MeV/c).
-	double GetPfromKE(const double &energy_){ return GetPfromTE(energy_+mass); }
+	double GetPfromKE(const double &energy_){ return GetPfromTE(energy_+mass); }	
+	
+	/// Get the relativistic momentum from the total energy of the particle (MeV/c).
+	double GetPfromTE(const double &energy_){ return std::sqrt(energy_*energy_/(c*c) - mass*mass); }
 
 	/// Get the relativistic momentum from the velocity of the particle (MeV/c).
 	double GetPfromV(const double &velocity_){ return GetGamma(velocity_)*mass*velocity_/c; }
 
-	/// Get the relativistic velocity from the total energy of the particle (m/s).
-	double GetVfromTE(const double &energy_){ return GetVfromKE(energy_-mass); }
-	
 	/// Get the relativistic velocity from the kinetic energy of the particle (m/s).
-	double GetVfromKE(const double &energy_){ return c*std::sqrt(1.0 - std::pow(1.0/(1+energy_/mass), 2.0)); }
+	double GetVfromKE(const double &energy_){ return c*std::sqrt(1.0 - std::pow(1.0/(1.0 + energy_/mass), 2.0)); }
+
+	/// Get the relativistic velocity from the total energy of the particle (m/s).
+	double GetVfromTE(const double &energy_){ return c*std::sqrt(1.0 - mass*mass/(energy_*energy_)); }
+	
+	/// Get the relativistic velocity from the momentum of the particle (MeV/c).
+	double GetVfromP(const double &momentum_){ return GetVfromKE(GetKEfromP(momentum_)); }
 	
 	/// Get the energy of a particle stopped in distance range_.
 	double GetTableEnergy(const double &range_);

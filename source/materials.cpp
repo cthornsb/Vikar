@@ -14,8 +14,10 @@ const double electron_RME = 0.510998928; // MeV
 const double proton_RME = 938.272046; // MeV
 const double neutron_RME = 939.565378; // MeV
 const double bohr_e_radius = 2.817940326836615e-15; // m
+const double e_charge = 1.60217662E-19; // C
 const double avagadro = 6.0221413e+23; // 1/mol
-const double amu2mev = 931.494061; // MeV
+const double mev2amu = 1.0/931.494061; // (amu*c^2)/MeV
+const double mev2kg = 1.783E-30; // (kg*c^2)/MeV
 
 // Ionization potentials for Z=1 to Z=100 (in eV).
 const float potentials[100] = {19.2, 41.8, 40, 63.7, 76, 78, 82, 95, 115, 137, 
@@ -646,18 +648,6 @@ bool Particle::SetMaterial(Material *mat_, const double &Ebeam_, const double &E
 		return true;
 	}
 	return false;
-}
-
-/// Get the relativistic kinetic energy of the particle (MeV).
-double Particle::GetKEfromV(const double &velocity_){
-	double gamma = GetGamma(velocity_);
-	return (gamma - 1)*mass;
-}
-
-/// Get the relativistic total energy of the particle (MeV).
-double Particle::GetTEfromV(const double &velocity_){
-	double gamma = GetGamma(velocity_);
-	return (std::sqrt(gamma*gamma*velocity_*velocity_/(c*c) + 1.0)*mass);
 }
 
 /// Get the energy of a particle stopped in distance range_.

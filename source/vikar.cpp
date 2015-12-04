@@ -579,17 +579,17 @@ int main(int argc, char* argv[]){
 		// Calculate the stopping power table for the reactino particles in the target
 		if(beam_part.GetZ() > 0){ // The beam is a charged particle (not a neutron)
 			std::cout << " Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()*amu2mev, &materials[targ_mat_id]);
+			beam_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 		if(eject_part.GetZ() > 0){
 			std::cout << " Calculating range table for ejectile in " << materials[targ_mat_id].GetName() << "...";
-			eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()*amu2mev, &materials[targ_mat_id]);
+			eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 		if(recoil_part.GetZ() > 0){
 			std::cout << " Calculating range table for recoil in " << materials[targ_mat_id].GetName() << "...";
-			recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()*amu2mev, &materials[targ_mat_id]);
+			recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -599,7 +599,7 @@ int main(int argc, char* argv[]){
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()*amu2mev, &materials[i]);
+			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -610,7 +610,7 @@ int main(int argc, char* argv[]){
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()*amu2mev, &materials[i]);
+			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}
