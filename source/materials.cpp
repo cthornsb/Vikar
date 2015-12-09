@@ -49,6 +49,7 @@ bool RangeTable::_initialize(const unsigned int &num_entries_){
 /// Interpolate between two points
 double RangeTable::_interpolate(double *x_, double *y_, const double &val_){
 	if(!x_ || !y_){ return -1; }
+	else if(val_ < x_[0]){ return 0.0; }
 	for(unsigned int i = 0; i < num_entries-1; i++){
 		if(val_ == x_[i]){ return y_[i]; }
 		else if(val_ == x_[i+1]){ return y_[i+1]; }
@@ -167,7 +168,10 @@ double RangeTable::GetNewE(const double &energy_, const double &dist_, double &d
 	if(!use_table){ return -1; }
 	dist_traveled = GetRange(energy_);
 	if(dist_traveled < 0.0){ return -1; }
-	if(dist_traveled - dist_ > 0.0){ return GetEnergy(dist_traveled - dist_); } // The particle loses some energy in the material
+	if(dist_traveled - dist_ > 0.0){ // The particle loses some energy in the material
+		dist_traveled = dist_;
+		return GetEnergy(dist_traveled - dist_); 
+	} 
 	else{ return 0.0; } // The particle stops in the material
 	return -1;
 }

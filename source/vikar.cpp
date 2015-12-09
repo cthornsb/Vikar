@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.24e"
+#define VERSION "1.25"
 
 struct debugData{
 	double var1, var2, var3;
@@ -599,7 +599,7 @@ int main(int argc, char* argv[]){
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[i]);
+			eject_tables[i].Init(100, eject_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -610,7 +610,7 @@ int main(int argc, char* argv[]){
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[i]);
+			recoil_tables[i].Init(100, recoil_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -775,7 +775,7 @@ int main(int argc, char* argv[]){
 	else{ SetName(named, "Supply Distributions?", "No"); }
 	SetName(named, "Target Material", targ_mat_name);
 	if(targ_mat_name != "NONE"){ SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2"); }	
-	else{ SetName(named, "Target Thickness", targ.GetRealThickness(), "cm"); }	
+	else{ SetName(named, "Target Thickness", targ.GetRealThickness(), "m"); }	
 	SetName(named, "Target Angle", targ.GetAngle()*rad2deg, "deg");
 	if(PerfectDet){ SetName(named, "Perfect Detectors?", "Yes"); }
 	else{ SetName(named, "Perfect Detectors?", "No"); }
@@ -1015,11 +1015,33 @@ int main(int argc, char* argv[]){
 process:			
 			if(proc_eject){ 
 				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath1, fpath2); 
-				temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
+				
+				// Calculate the vector pointing from the first intersection point to the second
+				if(fpath1 >= 0.0 && fpath2 >= 0.0){  
+					// The ray originates outside the detector. In this case, HitDetect1 represents the vector
+					// from the origin to the point at which the ray intersects the detector surface.
+					temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); 
+				}
+				else{ 
+					// The ray originates within the detector. HitDetect1 already represents the vector from
+					// the origin to the intersection of the surface of the detector.
+					temp_vector = HitDetect1; 
+				}
 			}
 			else{ 
 				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath1, fpath2); 
-				temp_vector = ((lab_beam_interaction + Recoil*fpath2)-HitDetect1); // The vector pointing from the first intersection point to the second
+				
+				// Calculate the vector pointing from the first intersection point to the second
+				if(fpath1 >= 0.0 && fpath2 >= 0.0){ 
+					// The ray originates outside the detector. In this case, HitDetect1 represents the vector
+					// from the origin to the point at which the ray intersects the detector surface.
+					temp_vector = ((lab_beam_interaction + Recoil*fpath2)-HitDetect1); 
+				}
+				else{ 
+					// The ray originates within the detector. HitDetect1 already represents the vector from
+					// the origin to the intersection of the surface of the detector.
+					temp_vector = HitDetect1; 
+				}
 			}
 			
 			// If a geometric hit was detected, process the particle
@@ -1030,6 +1052,7 @@ process:
 				// from the target to the intersection point inside the detector
 				penetration = temp_vector.Length(); // Total distance traveled through detector	
 
+				// Solve for the energy deposited in the material.
 				if((*iter)->UseMaterial()){ // Do energy loss and range considerations
 					if(proc_eject){
 						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
@@ -1050,49 +1073,57 @@ process:
 					else{ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
 				}
 
-				// Calculate the total distance traveled to the interaction point inside the detector
-				dist_traveled += fpath1;
-			
-				// Calculate the particle ToF (ns)
+				// If particle originates outside of the detector, add the flight path to the first encountered
+				// detector face. Otherwise, if the particle originates inside the detector (i.e. a detector at
+				// the origin), the distance traveled through the detector is already the total flight path and
+				// the time of flight is irrelevant.
 				tof = 0.0;
-				if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod); }
-				else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/ErecoilMod); }
+				if(fpath1 >= 0.0 && fpath2 >= 0.0){
+					dist_traveled += fpath1;
+					
+					// Calculate the particle ToF (ns)
+					if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod); }
+					else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/ErecoilMod); }
 
-				// Smear tof due to PIXIE resolution
-				tof += rndgauss0(timeRes); 
-		
+					// Smear tof due to PIXIE resolution
+					tof += rndgauss0(timeRes); 
+				}
+
+				// Get the local coordinates of the intersection point.
+				(*iter)->GetLocalCoords(HitDetect1, hit_x, hit_y, hit_z);
+			
+				// Calculate the lab angles of the detector intersection point. Ignore normalization, we're
+				// going to throw away R anyway.
+				if(proc_eject){ Cart2Sphere(HitDetect1, EjectSphere); }
+				else{ Cart2Sphere(HitDetect1, RecoilSphere); }
+			
+				// Calculate the hit detection point in 3d space. This point will lie along the vector pointing
+				// from the origin to the point where the ray intersects a detector and takes finite range of a
+				// particle in a material into account.
+				HitDetect1.Normalize();
+				HitDetect1 = HitDetect1*dist_traveled;
+			
 				// Main output
-				// X(m) Y(m) Z(m) LabTheta(deg) LabPhi(deg) QDC(MeV) ToF(ns) Bar# Face# HitX(m) HitY(m) HitZ(m)
 				if(proc_eject){
-					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-					if((*iter)->GetType() == "vandle"){ dummyE = MeV2MeVee(dummyE); }
-					
-					// Get the local coordinates of the intersection point.
-					(*iter)->GetLocalCoords(HitDetect1, hit_x, hit_y, hit_z);
-					
-					Cart2Sphere(HitDetect1, EjectSphere); // Ignore normalization, we're going to throw away R anyway
 					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+								
+					// Adjust the ejectile energy to take energy loss into account. 
+					EejectMod = EejectMod - QDC;
 				}
 				else{
-					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
-
-					// Get the local coordinates of the intersection point.
-					(*iter)->GetLocalCoords(HitDetect1, hit_x, hit_y, hit_z);
-
-					Cart2Sphere(HitDetect1, RecoilSphere); // Ignore normalization, we're going to throw away R anyway
 					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
-				}
+									  RecoilSphere.axis[2]*rad2deg, QDC, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				
-				// Adjust the particle energies to take energy loss into account
-				if(proc_eject){ EejectMod = EejectMod - QDC; }
-				else{ ErecoilMod = ErecoilMod - QDC; }
+					// Adjust the recoil energy to take energy loss into account. 
+					ErecoilMod = ErecoilMod - QDC;
+				}
 			} // if(hit)
 			
+			// Check if we need to process the recoil in this detector.
 			if(proc_eject){ 
 				proc_eject = false; 
-				if((*iter)->IsRecoilDet()){ goto process; } // Still need to process the recoil in this detector
+				if((*iter)->IsRecoilDet()){ goto process; }
 			}
 		} // for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
@@ -1121,6 +1152,8 @@ process:
 				Ndetected++;
 			}
 		}
+		
+		// Zero all output data structures.
 		EJECTdata.Zero();
 		RECOILdata.Zero();
 		if(WriteReaction){ REACTIONdata.Zero(); }
