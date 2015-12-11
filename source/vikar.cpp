@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.25"
+#define VERSION "1.25b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]){
 	bool bgPerDetection = false;
 	
 	std::string det_fname; // Detector filename
-	std::string output_fname_prefix = "VIKAR";
+	std::string output_fname = "VIKAR.root";
 	
 	// Input/output variables
 	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
@@ -220,7 +220,7 @@ int main(int argc, char* argv[]){
 		}
 		
 		// Specify the name of the output files
-		if(argc >= 3){ output_fname_prefix = std::string(argv[2]); }
+		if(argc >= 3){ output_fname = std::string(argv[2]); }
 		
 		unsigned int count = 0;
 		std::string input;
@@ -704,7 +704,7 @@ int main(int argc, char* argv[]){
 	//---------------------------------------------------------------------------
 		
 	// Root stuff
-	TFile *file = new TFile("VIKAR.root", "RECREATE");
+	TFile *file = new TFile(output_fname.c_str(), "RECREATE");
 	TTree *VIKARtree = new TTree("VIKAR", "VIKAR output tree");
 	TTree *DEBUGtree = NULL;
 	
@@ -1177,7 +1177,7 @@ process:
 	VIKARtree->Write();
 	if(DEBUGtree){ DEBUGtree->Write(); }
 	
-	std::cout << "  Wrote file " << output_fname_prefix << ".root\n";
+	std::cout << "  Wrote file " << output_fname << "\n";
 	std::cout << "   Wrote " << VIKARtree->GetEntries() << " tree entries for VIKAR\n";
 	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " tree entries for DEBUG\n"; }
 	file->Close();
