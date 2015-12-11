@@ -213,6 +213,7 @@ int ReadDetFile(const char* fname_, std::vector<Primitive*> &detectors){
 	detfile.close();
 
 	// Fill the detector
+	unsigned int index = 0;
 	for(std::vector<NewVIKARdet*>::iterator iter = temp_detectors.begin(); iter != temp_detectors.end(); iter++){
 		if((*iter)->type == "vandle" || (*iter)->subtype == "planar"){ detectors.push_back(new Planar((*iter))); }
 		else if((*iter)->subtype == "cylinder"){ detectors.push_back(new Cylindrical((*iter))); }
@@ -226,6 +227,9 @@ int ReadDetFile(const char* fname_, std::vector<Primitive*> &detectors){
 			continue; 
 		}
 		delete (*iter);
+		
+		// Set the detector ID number based on its location in the detector setup file.
+		detectors.back()->SetLocation(index++);
 	}
 	
 	return detectors.size();
