@@ -8,6 +8,17 @@
 
 class Primitive;
 
+class RGBcolor{
+  public:
+	unsigned char r, g, b;
+	
+	RGBcolor(int color_=0xFFFFFF);
+	
+	void SetColor(int color_);
+	
+	void GetColor(unsigned char &red, unsigned char &green, unsigned char &blue, float luminosity_=1.0);
+};
+
 namespace Ui {
 class Camera;
 }
@@ -123,11 +134,15 @@ private:
     double psi;
     bool rotated;
 
+	RGBcolor colors[12]; /// Array of RGB codes for coloring on screen objects.
+
     std::vector<Primitive*> primitives;
     
     void set_pixel_size();
 
     void set_rotation();
+    
+    void set_colors();
 };
 
 #endif // CAMERA_H

@@ -6,6 +6,24 @@
 
 #include "detectors.h"
 
+RGBcolor::RGBcolor(int color_/*=0xFFFFFF*/){
+	SetColor(color_);
+}
+
+void RGBcolor::SetColor(int color_){
+	unsigned char temparr[3];
+	memcpy(temparr, &color_, 3);
+	b = temparr[0];
+	g = temparr[1];
+	r = temparr[2];
+}
+
+void RGBcolor::GetColor(unsigned char &red, unsigned char &green, unsigned char &blue, float luminosity_/*=1.0*/){
+	red = (unsigned char)(r * luminosity_);
+	green = (unsigned char)(g * luminosity_);
+	blue = (unsigned char)(b * luminosity_);
+}
+
 void Camera::set_pixel_size(){
     pixelX = 2.0*std::tan(fov/(2.0*scaling));
     pixelY = 2.0*std::tan(fov/(2.0*scaling));
@@ -27,6 +45,16 @@ void Camera::set_rotation(){
     rotated = false;
 }
 
+void Camera::set_colors(){
+	int rgbcodes[12] = {0xFF0000, 0xFF7F00, 0xFFFF00, 0x7FFF00,
+	                    0x00FF00, 0x00FF7F, 0x00FFFF, 0x007FFF,
+	                    0x0000FF, 0x7F00FF, 0xFF00FF, 0xFF007F};
+	
+	for(int i = 0; i < 12; i++){
+		colors[i].SetColor(rgbcodes[i]);    
+	}
+}
+
 Camera::Camera(QWidget* parent): QMainWindow(parent), ui(new Ui::Camera) {
     fov = pi/2.0;
     sizeX = 240;
@@ -45,6 +73,8 @@ Camera::Camera(QWidget* parent): QMainWindow(parent), ui(new Ui::Camera) {
 
     scene->addPixmap(*pixmap);
     the_app = NULL;
+    
+    set_colors();
 }
 
 Camera::Camera(double x_, double y_, double z_, double theta_, double phi_, QWidget* parent): QMainWindow(parent), ui(new Ui::Camera) {
@@ -66,6 +96,8 @@ Camera::Camera(double x_, double y_, double z_, double theta_, double phi_, QWid
 
     scene->addPixmap(*pixmap);
     the_app = NULL;
+    
+    set_colors();
 }
 
 Camera::~Camera(){
@@ -130,7 +162,11 @@ void Camera::Render() {
     Vector3 face_hit1;
     Vector3 face_hit2;
 
-    int rgb; // Color of the drawing pen.
+	unsigned char red, green, blue;
+
+    float luminosity; // Intensity of the color of the drawing pen.
+    int index; // Current detector index in the Primitive vector.
+    int detector; // Index of visible detector in the Primitive vector.
     double currentX; // Current pixel along the x-axis.
     double currentY; // Current pixel along the y-axis.
     double depth; // Distance of the "pixel" from the viewer.
@@ -146,20 +182,27 @@ void Camera::Render() {
             
             // Set the initial conditions.
             depth = 9999;
-            rgb = 0;
+            luminosity = 0;
             
             // Loop over all pixels in this row.
+           index = 0;
             for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
                 if((*iter)->IntersectPrimitive(pos, ray, p1, normal, t1, t2) && t1 < depth){
-			        rgb = (int)(fabs(ray.CosAngle(normal))*255);
-			        if(rgb < 0 || rgb > 255){ continue; }
+			        luminosity = fabs(ray.CosAngle(normal));
+			        if(luminosity < 0.0 || luminosity > 1.0){ continue; }
+			        detector = index;
                 	depth = t1;
                 }
+                index++;
             }
             
             // Only draw the pixel if we found a valid intersection.
             if(depth != 9999){ 
-                pen_color.setRgb(rgb, rgb, rgb);
+        		while(detector >= 12){ // Wrap the detector id around so we don't go outside the bounds of the color array.
+        			detector -= 12;
+        		}
+            	colors[detector].GetColor(red, green, blue, luminosity);
+                pen_color.setRgb(red, green, blue);
                 pen.setPen(pen_color);
                 pen.drawPoint(j, i);
             }
