@@ -1,7 +1,7 @@
 #####################################################################
 
 # Set the RootPixieScan directory
-SIMPLE_SCAN_DIR = $(HOME)/Research/Pixie16/SimplePixieScan
+SIMPLE_SCAN_DIR = $(HOME)/Research/pixie16/SimplePixieScan
 
 #####################################################################
 

@@ -211,8 +211,9 @@ class AngularDist{
 /////////////////////////////////////////////////////////////////////
 
 bool IsInVector(const std::string &input_, const std::vector<std::string> &str_vector_);
-void RandomCircle(double radius_, double offset_, Vector3 &beam);
 void RandomGauss(double fwhm_, double offset_, Vector3 &beam);
+void RandomCircle(double radius_, double offset_, Vector3 &beam);
+void RandomHalo(double fwhm_, double offset_, Vector3 &beam);
 bool SetBool(std::string input_, std::string text_, bool &output);
 bool SetBool(std::string input_, bool &output);
 bool Prompt(std::string prompt_);

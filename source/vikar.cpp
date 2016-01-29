@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.25c"
+#define VERSION "1.26"
 
 struct debugData{
 	double var1, var2, var3;
@@ -112,7 +112,7 @@ int main(int argc, char* argv[]){
 	Vector3 Ejectile, Recoil, Gamma;
 	Vector3 HitDetect1, HitDetect2;
 	Vector3 EjectSphere, RecoilSphere;
-	Vector3 lab_beam_focus; // The focus point for the beam. Non-cylindrical beam particles will originate from this point
+	Vector3 lab_beam_focus; // The focal point for the beam. Non-cylindrical beam particles will originate from this point.
 	Vector3 lab_beam_start; // The originating point of the beam particle in the lab frame
 	Vector3 lab_beam_trajectory; // The original trajectory of the beam particle before it enters the target
 	Vector3 lab_beam_interaction; // The position of the reaction inside the target
@@ -168,6 +168,7 @@ int main(int argc, char* argv[]){
 	int Ndet = 0; // Total number of detectors
 	int NdetEject = 0; // Total number of ejectile detectors
 	int NdetRecoil = 0; // Total number of recoil detectors
+	int BeamType = 0; // The type of beam to simulate (0=gaussian, 1=cylindrical, 2=halo)
 	clock_t timer; // Clock object for calculating time taken and remaining
 
 	// Default options
@@ -179,7 +180,6 @@ int main(int argc, char* argv[]){
 	bool SupplyRates = false;
 	bool BeamFocus = false;
 	bool DoRutherford = false;
-	bool CylindricalBeam = true;
 	int ADists = 0;
 
 	//------------------------------------------------------------------------
@@ -301,15 +301,20 @@ int main(int argc, char* argv[]){
 				std::cout << "  Beam Energy: " << Ebeam0 << " MeV\n";
 			}
 			else if(count == 14){ 
-				SetBool(input, "  Cylindrical Beam", CylindricalBeam);
+				BeamType = atoi(input.c_str());
 				getline(input_file, input); input = Parse(input);
 				beamspot = atof(input.c_str());
-				if(CylindricalBeam){ std::cout << "  Beam Spot Diameter: " << beamspot << " mm\n"; }
-				else{ std::cout << "  Beam Spot FWHM: " << beamspot << " mm\n"; }
+				if(BeamType == 0){ std::cout << "  Beam Spot FWHM: " << beamspot << " mm\n"; }
+				else if(BeamType == 1){ std::cout << "  Beam Spot Diameter: " << beamspot << " mm\n"; }
+				else if(BeamType == 2){ std::cout << "  Beam Halo Diameter: " << beamspot << " mm\n"; }
+				else{ 
+					std::cout << " FATAL ERROR! Invalid beam type selection (" << BeamType << ")...\n";
+					return 1;
+				}
 				beamspot = beamspot/1000.0; // in meters
 			}
 			else if(count == 15){ 
-				beamAngdiv = atof(input.c_str());  
+				beamAngdiv = fabs(atof(input.c_str()));  
 				std::cout << "  Beam Angular Divergence: " << beamAngdiv << " degrees\n";
 				beamAngdiv *= deg2rad; // in radians
 			}
@@ -616,13 +621,9 @@ int main(int argc, char* argv[]){
 	}
 	
 	// Calculate the beam focal point (if it exists)
-	if(beamAngdiv >= 0.000174532925199){ // Beam focus is upstream of target
-		lab_beam_focus = Vector3(0.0, 0.0, -(beamspot/(2.0*std::tan(beamAngdiv))+targ.GetRealZthickness()/2.0));
-		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
-		BeamFocus = true;
-	}
-	if(beamAngdiv <= -0.000174532925199){ // Beam focus is downstream of target
-		lab_beam_focus = Vector3(0.0, 0.0, (beamspot/(2.0*std::tan(beamAngdiv))+targ.GetRealZthickness()/2.0));
+	lab_beam_focus = Vector3(0.0, 0.0, 0.0);
+	if(beamAngdiv >= 0.000174532925199){
+		lab_beam_focus.axis[2] = -beamspot/(2.0*std::tan(beamAngdiv));
 		std::cout << " Beam focal point at Z = " << lab_beam_focus.axis[2] << " m\n";
 		BeamFocus = true;
 	}
@@ -740,15 +741,9 @@ int main(int argc, char* argv[]){
 	SetName(named, "Ejectile Mass", eject_part.GetMassAMU(), "amu");
 	if(InverseKinematics){ SetName(named, "Inverse Kinematics?", "Yes"); }
 	else{ SetName(named, "Inverse Kinematics?", "No"); }
-	SetName(named, "Beam Energy", Ebeam0, "MeV");	
-	if(CylindricalBeam){
-		SetName(named, "Gaussian Beam", "No");	
-		SetName(named, "Beamspot Dia.", beamspot, "m");	
-	}
-	else{
-		SetName(named, "Gaussian Beam", "Yes");	
-		SetName(named, "Beamspot FWHM", beamspot, "m");	
-	}
+	SetName(named, "Beam Energy", Ebeam0, "MeV");
+	SetName(named, "Beam Type", BeamType);
+	SetName(named, "Beamspot Dia.", beamspot, "m");
 	SetName(named, "Beam Divergence", beamAngdiv*rad2deg, "deg");
 	SetName(named, "Beam dE", beamEspread, "MeV");
 	SetName(named, "G.S. Q-Value", gsQvalue, "MeV");
@@ -896,21 +891,29 @@ int main(int argc, char* argv[]){
 			// Randomly select a point uniformly distributed on the beamspot
 			// Calculate where the beam particle reacts inside the target
 			// beamspot as well as the distance traversed through the target
-			if(BeamFocus){ 
+			if(lab_beam_focus.axis[2] != 0.0){ 
 				// In this case, lab_beam_focus is the originating point of the beam particle
 				// (or the terminating point for beams focused downstream of the target)
 				// The direction is given by the cartesian vector 'lab_beam_trajectory'
-				if(CylindricalBeam){ RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Cylindrical beam
-				else{ RandomGauss(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Gaussian beam
+				if(BeamType == 0){ RandomCircle(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Gaussian beam
+				else if(BeamType == 1){ RandomGauss(beamspot, lab_beam_focus.axis[2], lab_beam_trajectory); } // Cylindrical beam
+				else if(BeamType == 2){ RandomHalo(beamspot/2.0, lab_beam_focus.axis[2], lab_beam_trajectory); } // Halo beam
+				
+				// Normalize the trajectory and calculate the interaction depth.
+				lab_beam_trajectory.Normalize();
 				Zdepth = targ.GetInteractionDepth(lab_beam_focus, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 			}
 			else{ 
 				// In this case, lab_beam_start stores the originating point of the beam particle
 				// The direction is given simply by the +z-axis
 				// The 1m offset ensures the particle originates outside the target
-				if(CylindricalBeam){ RandomCircle(beamspot, 1.0, lab_beam_start); } 
-				else{ RandomGauss(beamspot, 1.0, lab_beam_start); } 
+				if(BeamType == 0){ RandomGauss(beamspot/2.0, -1.0, lab_beam_start); } // Gaussian beam
+				else if(BeamType == 1){ RandomCircle(beamspot, -1.0, lab_beam_start); } // Cylindrical beam
+				else if(BeamType == 2){ RandomHalo(beamspot/2.0, -1.0, lab_beam_start); } // Halo beam
 				lab_beam_start.axis[2] *= -1; // This is done to place the beam particle upstream of the target
+				
+				// Normalize the trajectory and calculate the interaction depth.
+				lab_beam_trajectory.Normalize();
 				Zdepth = targ.GetInteractionDepth(lab_beam_start, lab_beam_trajectory, targ_surface, lab_beam_interaction);
 			}	
 
