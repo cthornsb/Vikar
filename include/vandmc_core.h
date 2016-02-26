@@ -1,6 +1,14 @@
-// vikar_core.h
-// Cory Thornsberry
-
+/** \file vandmc_core.cpp
+ * \brief Handles low level mathematics and calculations.
+ *
+ * This file contains classes and functions which perform a very
+ * specific function for the vandmc program (i.e. matrix and
+ * vector calculations) but are not overly useful on their own.
+ * Most of the functions in this file are used in other classes.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #ifndef VIKAR_LIB_H
 #define VIKAR_LIB_H
 

@@ -23,6 +23,6 @@ SOURCES += main.cpp camera.cpp
 
 OBJECTS += ../../obj/geometry.o \
            ../../obj/detectors.o \
-           ../../obj/vikar_core.o
+           ../../obj/vandmc_core.o
 
 FORMS += camera.ui

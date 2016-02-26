@@ -9,7 +9,7 @@
 #include <string>
 #include <time.h>
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "kindeux.h"
 
 int main(int argc, char* argv[]){

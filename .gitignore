@@ -31,8 +31,8 @@ tools/qtfiles/ui/*
 
 # Executables #
 ###############
-vikar
-vikarFront
+vandmc
+vandmcFront
 angleConvert
 kinematics
 kindist

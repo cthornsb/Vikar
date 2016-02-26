@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "kindeux.h"
 #include "detectors.h"
 #include "Structures.h"

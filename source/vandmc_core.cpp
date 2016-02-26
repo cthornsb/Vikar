@@ -1,8 +1,15 @@
-// vikar_lib.cpp
-// Converted by FortranConvert v0.1
-// Wed Feb 12 19:33:21 2014
-
-#include "vikar_core.h"
+/** \file vandmc_core.cpp
+ * \brief Handles low level mathematics and calculations.
+ *
+ * This file contains classes and functions which perform a very
+ * specific function for the vandmc program (i.e. matrix and
+ * vector calculations) but are not overly useful on their own.
+ * Most of the functions in this file are used in other classes.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
+#include "vandmc_core.h"
 #include "detectors.h"
 
 /////////////////////////////////////////////////////////////////////

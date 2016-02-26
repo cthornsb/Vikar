@@ -9,7 +9,7 @@
 #include <vector>
 #include <time.h>
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "kindeux.h"
 
 // Return true if substr is found in the character array

@@ -1,6 +1,15 @@
-// geometry.cpp
-// Cory Thornsberry
-
+/** \file geometry.cpp
+ * \brief Classes which provide support for doing ray-tracing on 3d geometry.
+ *
+ * Primitive is the main class in this file. All geometry classes (sphere,
+ * cylinder, etc.) are derived from the Primitive base class. Primitive
+ * simplifies the setup of geometry in 3d space and handles ray tracing
+ * operations on said geometry. Primitive may also be used to do rendering
+ * of 3d geometry (try make renderer).
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #include "geometry.h"
 #include "detectors.h"
 

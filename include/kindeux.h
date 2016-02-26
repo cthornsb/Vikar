@@ -1,6 +1,15 @@
-// kindeux.h
-// Cory Thornsberry
-
+/** \file kindeux.cpp
+ * \brief Performs kinematics calculations.
+ *
+ * The Kindeux class is intended to be used for calculating energies
+ * and outgoing angles for two body reactions. The kinematics methods
+ * are based on a document by J. B. Ball (ORNL-3251) and are used in
+ * conjunction with a monte carlo program to simulate low energy
+ * reactions.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #ifndef KINDEUX_H
 #define KINDEUX_H
 

@@ -166,7 +166,7 @@ void Camera::Render() {
 
     float luminosity; // Intensity of the color of the drawing pen.
     int index; // Current detector index in the Primitive vector.
-    int detector; // Index of visible detector in the Primitive vector.
+    int detector = 0; // Index of visible detector in the Primitive vector.
     double currentX; // Current pixel along the x-axis.
     double currentY; // Current pixel along the y-axis.
     double depth; // Distance of the "pixel" from the viewer.

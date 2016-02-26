@@ -6,33 +6,31 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 
 int main(){
 	unsigned short version = 312;
 	unsigned short idummy, Nstates, Nelements;
 	std::string input;
 
-	std::cout << "\n####       #### ######## ####     ###         ###       #########\n"; 
-	std::cout << " ##         ##     ##     ##     ##          ## ##       ##     ##\n";
-	std::cout << "  ##       ##      ##     ##    ##          ##   ##      ##     ##\n";
-	std::cout << "  ##       ##      ##     ##   ##           ##   ##      ##   ##\n";
-	std::cout << "   ##     ##       ##     #####            #########     #####\n";
-	std::cout << "   ##     ##       ##     ##   ##          ##     ##     ##   ##\n";
-	std::cout << "    ##   ##        ##     ##    ##        ##       ##    ##    ##\n";
-	std::cout << "    ##   ##        ##     ##     ##       ##       ##    ##     ##\n";
-	std::cout << "     ## ##         ##     ##      ##     ##         ##   ##      ##\n";
-	std::cout << "      ###       ######## ####      ###  ####       #### ####      ###\n";
+	std::cout << "####       ####       ###       ####   #### ########     ####          ####   #######   \n";
+	std::cout << " ##         ##       ## ##       ##     ##   ##    ##     ##            ##   ###    ##  \n";
+	std::cout << "  ##       ##       ##   ##      ###    ##   ##      ##   ###          ###   ##      ## \n";
+	std::cout << "  ##       ##       ##   ##      ####   ##   ##       ##  ####        ####   ##         \n";
+	std::cout << "   ##     ##       #########     ## ##  ##   ##       ##  ## ##      ## ##   ##         \n";
+	std::cout << "   ##     ##       ##     ##     ##  ## ##   ##       ##  ##  ##    ##  ##   ##         \n";
+	std::cout << "    ##   ##       ##       ##    ##   ####   ##       ##  ##   ##  ##   ##   ##         \n";
+	std::cout << "    ##   ##       ##       ##    ##    ###   ##      ##   ##    ####    ##   ##      ## \n";
+	std::cout << "     ## ##       ##         ##   ##     ##   ##    ##     ##     ##     ##   ###    ##  \n";
+	std::cout << "      ###       ####       #### ####   #### ########     ####          ####   #######   \n";
 
-	std::cout << "\n VIKAR 3.12\n"; 
+	std::cout << "\n VANDMC\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
 	
-	std::cout << " Welcome to VIKAR << the Virtual Instrumentation\n"; 
-	std::cout << " for Kinematics And Reactions program front-end program\n\n"; 
-
-	std::cout << " How about a nice cup of tea?\n"; 
-	
-	// Read in the reaction type to be simulated
-	std::cout << " No? Well then, let's get started shall we?\n";
+	std::cout << " Welcome to VANDMC, the Versatile Array of Neutron Detectors Monte Carlo program.\n";
+	std::cout << "  Let's get started setting up a simulation...\n";
+	std::cout << "\n ==  ==  ==  ==  == \n";
+	sleep(1);
 
 	std::cout << "\n Enter the filename for your input file: "; 
 	std::cin >> input;

@@ -1,7 +1,14 @@
-// vikar.h
-// Converted by FortranConvert v0.1
-// Wed Feb 12 19:55:17 2014
-
+/** \file vandmc.cpp
+ * \brief Ray tracing kinematics simulations program for arbitrary setups.
+ *
+ * This program is intended to be used as a way of performing kinematics 
+ * simulations on arbitary combinations of detector geometries. It should 
+ * provide a semi-transparent way to visualize what is happening in a low 
+ * energy reaction. It is written in the spirit of VIKAR by Steve Pain.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #include <fstream>
 #include <iostream>
 #include <time.h>
@@ -10,13 +17,13 @@
 #include "TTree.h"
 #include "TNamed.h"
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "kindeux.h"
 #include "materials.h"
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.27d"
+#define VERSION "1.28"
 
 struct debugData{
 	double var1, var2, var3;
@@ -46,45 +53,6 @@ double MeV2MeVee(const double &Tp_){
 }
 
 int main(int argc, char* argv[]){ 
-	// A Monte-Carlo charged particle experiment simulation program - details below
-	//
-	// vikar 1.0 written by S.D. Pain on some date in 2004
-	//
-	// vikar 2.0 updated by S.D. Pain on 5/5/2006
-	//   - Updated to employ non-isotropic angular distributions
-	//
-	// vikar 3.0 last updated by S.D. Pain on 6/13/2010
-	//   - Major structural reworking
-	//   - Updated to employ charged particle processing subroutine
-	//   - Fixed to set detector properties (RadLength, conv) for SRIM tables
-	//   - Fixed ranges array size in SRIM tables and main to match
-	//
-	// vikar 3.1 last updated by S.D. Pain on 10/15/2013
-	//   - Added beam energy spread (SRIM input unchecked for functionality)
-	//   - Added beamspot size parameter in input file
-	//   - Applied beamspot size variation to annular and cylindrical detectors (1st-order application)
-	//   - Applied version check to input file read/write
-	//
-	// vikar 3.11 last updated by S.D. Pain on 12/11/2013
-	//   - resolution_cyl updated (v1.0 to v1.1) to improve beam-spot-size effects
-	//   - product_proc updated (v1.0 to v1.1) to improve beam-spot-size effects for annular detectors
-	//
-	// Outstanding things for future versions
-	//----------------------------------------
-	// Write relativistic conversion routines
-	// Put in recoil breakup
-	// Add energy straggling (see NIMS 117, 125 (1974))
-	// Tilt annular detectors
-	// Add in gamma-rays
-	// Make strips selectively resistive/non-resistive
-	// Allow different strips to be hit on dE and E detectors
-	// Allow ejectile excitations
-	// Put in user defined energy for position resolution point
-	// Add user selected detector material
-	// Add different detector materials
-	// Fix stuck problems for detecting both ejectiles and recoils when no coincidence
-	// is required
-	
 	// Seed randomizer
 	srand(time(NULL));
 	
@@ -160,7 +128,7 @@ int main(int argc, char* argv[]){
 	bool bgPerDetection = false;
 	
 	std::string det_fname; // Detector filename
-	std::string output_fname = "VIKAR.root";
+	std::string output_fname = "VANDMC.root";
 	
 	// Input/output variables
 	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
@@ -200,25 +168,22 @@ int main(int argc, char* argv[]){
 	//
 	//------------------------------------------------------------------------
 
-	std::cout << "\n####       #### ######## ####     ###         ###       #########      ########\n"; 
-	std::cout << " ##         ##     ##     ##     ##          ## ##       ##     ##    ##      ##\n";
-	std::cout << "  ##       ##      ##     ##    ##          ##   ##      ##     ##             ##\n";
-	std::cout << "  ##       ##      ##     ##   ##           ##   ##      ##   ##              ##\n";
-	std::cout << "   ##     ##       ##     #####            #########     #####               ##\n";
-	std::cout << "   ##     ##       ##     ##   ##          ##     ##     ##   ##           ##\n";
-	std::cout << "    ##   ##        ##     ##    ##        ##       ##    ##    ##         ##\n";
-	std::cout << "    ##   ##        ##     ##     ##       ##       ##    ##     ##      ##\n";
-	std::cout << "     ## ##         ##     ##      ##     ##         ##   ##      ##    ##\n";
-	std::cout << "      ###       ######## ####      ###  ####       #### ####      ### ###########\n";
+	std::cout << "####       ####       ###       ####   #### ########     ####          ####   #######   \n";
+	std::cout << " ##         ##       ## ##       ##     ##   ##    ##     ##            ##   ###    ##  \n";
+	std::cout << "  ##       ##       ##   ##      ###    ##   ##      ##   ###          ###   ##      ## \n";
+	std::cout << "  ##       ##       ##   ##      ####   ##   ##       ##  ####        ####   ##         \n";
+	std::cout << "   ##     ##       #########     ## ##  ##   ##       ##  ## ##      ## ##   ##         \n";
+	std::cout << "   ##     ##       ##     ##     ##  ## ##   ##       ##  ##  ##    ##  ##   ##         \n";
+	std::cout << "    ##   ##       ##       ##    ##   ####   ##       ##  ##   ##  ##   ##   ##         \n";
+	std::cout << "    ##   ##       ##       ##    ##    ###   ##      ##   ##    ####    ##   ##      ## \n";
+	std::cout << "     ## ##       ##         ##   ##     ##   ##    ##     ##     ##     ##   ###    ##  \n";
+	std::cout << "      ###       ####       #### ####   #### ########     ####          ####   #######   \n";
 
-	std::cout << "\n VIKAR v " << VERSION << "\n"; 
+	std::cout << "\n VANDMC v " << VERSION << "\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
 	
-	std::cout << " Welcome to NewVIKAR, the Virtual Instrumentation for Kinematics\n"; 
-	std::cout << " And Reactions program, optimized for use with VANDLE bars\n\n";
-
-	std::cout << " How about a nice cup of tea?\n"; 
-	std::cout << " No? Well let me just load the input file then\n";
+	std::cout << " Welcome to VANDMC, the Versatile Array of Neutron Detectors Monte Carlo program.\n";
+	std::cout << "  Loading the input configuration file...\n";
 	std::cout << "\n ==  ==  ==  ==  == \n";
 	sleep(1);
 
@@ -227,7 +192,7 @@ int main(int argc, char* argv[]){
 		// Read an input file
 		input_file.open(argv[1]);
 		if(!input_file.good()){
-			std::cout << " Error: Problem loading the input file\n";
+			std::cout << "\n Error: Problem loading the input file\n";
 			return 1;
 		}
 		
@@ -474,7 +439,7 @@ int main(int argc, char* argv[]){
 		if(count <= 28){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
-		std::cout << " FATAL ERROR! Missing required variable! Aborting...\n";
+		std::cout << "\n FATAL ERROR! Missing required variable! Aborting...\n";
 		return 1;
 	}
 		
@@ -497,7 +462,7 @@ int main(int argc, char* argv[]){
 	kind.Initialize(beam_part.GetA(), targ.GetA(), recoil_part.GetA(), eject_part.GetA(), gsQvalue, NRecoilStates, ExRecoilStates);
 
 	// Read the detector setup file
-	std::cout << " Reading in NewVIKAR detector setup file...\n";
+	std::cout << " Reading in NewVANDMC detector setup file...\n";
 	Ndet = ReadDetFile(det_fname.c_str(), vandle_bars);
 	if(Ndet < 0){ // Failed to load setup file
 		std::cout << " Error: failed to load detector setup file!\n";
@@ -529,11 +494,11 @@ int main(int argc, char* argv[]){
 
 	bool use_target_eloss = true;
 
-	// Load VIKAR material files
+	// Load VANDMC material files
 	targ_mat_id = 0;
 	std::ifstream material_names("./materials/names.in");
 	if(material_names.good()){
-		std::cout << "\n Loading VIKAR material files...\n";
+		std::cout << "\n Loading VANDMC material files...\n";
 		std::vector<std::string> names;
 		std::string line;
 		while(true){
@@ -727,7 +692,7 @@ int main(int argc, char* argv[]){
 		
 	// Root stuff
 	TFile *file = new TFile(output_fname.c_str(), "RECREATE");
-	TTree *VIKARtree = new TTree("VIKAR", "VIKAR output tree");
+	TTree *VANDMCtree = new TTree("VANDMC", "VANDMC output tree");
 	TTree *DEBUGtree = NULL;
 	
 	EjectObjectStructure EJECTdata;
@@ -735,13 +700,13 @@ int main(int argc, char* argv[]){
 	ReactionObjectStructure REACTIONdata;
 	debugData DEBUGdata;
 	
-	VIKARtree->Branch("Eject", &EJECTdata);
-	VIKARtree->Branch("Recoil", &RECOILdata);
+	VANDMCtree->Branch("Eject", &EJECTdata);
+	VANDMCtree->Branch("Recoil", &RECOILdata);
 	if(WriteReaction){
-		VIKARtree->Branch("Reaction", &REACTIONdata);
+		VANDMCtree->Branch("Reaction", &REACTIONdata);
 	}
 	if(WriteDebug){ 
-		DEBUGtree = new TTree("DEBUG", "VIKAR debug tree");
+		DEBUGtree = new TTree("DEBUG", "VANDMC debug tree");
 		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
 	}
 
@@ -899,13 +864,13 @@ int main(int argc, char* argv[]){
 				if((*iter)->IsEjectileDet()){
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
 									 temp_vector_sphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
-					VIKARtree->Fill(); 
+					VANDMCtree->Fill(); 
 					EJECTdata.Zero();
 				}
 				else if((*iter)->IsRecoilDet()){
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
 									  RecoilSphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
-					VIKARtree->Fill();
+					VANDMCtree->Fill();
 					RECOILdata.Zero();
 				}
 			}
@@ -1230,7 +1195,7 @@ process:
 					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				if(bgPerDetection){ backgroundWait = backgroundRate; }
-				VIKARtree->Fill(); 
+				VANDMCtree->Fill(); 
 				Ndetected++;
 			}
 		}
@@ -1243,7 +1208,7 @@ process:
 					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
 				}
 				if(bgPerDetection){ backgroundWait = backgroundRate; }
-				VIKARtree->Fill(); 
+				VANDMCtree->Fill(); 
 				Ndetected++;
 			}
 		}
@@ -1272,11 +1237,11 @@ process:
 	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 	
 	file->cd();
-	VIKARtree->Write();
+	VANDMCtree->Write();
 	if(DEBUGtree){ DEBUGtree->Write(); }
 	
 	std::cout << "  Wrote file " << output_fname << "\n";
-	std::cout << "   Wrote " << VIKARtree->GetEntries() << " tree entries for VIKAR\n";
+	std::cout << "   Wrote " << VANDMCtree->GetEntries() << " tree entries for VANDMC\n";
 	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " tree entries for DEBUG\n"; }
 	file->Close();
 	

@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QGraphicsScene>
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 
 class Primitive;
 

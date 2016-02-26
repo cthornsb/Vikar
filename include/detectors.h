@@ -1,6 +1,12 @@
-// detectors.h
-// Cory Thornsberry
-
+/** \file detectors.h
+ * \brief Handles high level detector geometries.
+ *
+ * Included in this file are classes and methods which are used to
+ * handle the reading of detectors from detector setup files.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #ifndef DETECTORS_H
 #define DETECTORS_H
 

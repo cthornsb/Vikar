@@ -2,7 +2,7 @@
 
 #include "camera.h"
 #include "ui_camera.h"
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "detectors.h"
 
 int main(int argc, char* argv[]){

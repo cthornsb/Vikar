@@ -13,7 +13,7 @@ LDLIBS = `root-config --libs`
 LDFLAGS = `root-config --glibs`
 ROOT_INC = `root-config --incdir`
 
-SOURCES = vikar_core.cpp kindeux.cpp geometry.cpp detectors.cpp materials.cpp
+SOURCES = vandmc_core.cpp kindeux.cpp geometry.cpp detectors.cpp materials.cpp
 OBJECTS = $(addprefix $(OBJ_DIR)/,$(SOURCES:.cpp=.o))
 
 TOP_LEVEL = $(shell pwd)
@@ -43,8 +43,8 @@ RCBUILD_DIR = $(SIMPLE_SCAN_DIR)/rcbuild
 INSTALL_DIR = ~/bin
 
 # Tools
-VIKAR_FRONT_EXE = $(TOOL_DIR)/vikarFront
-VIKAR_FRONT_SRC = $(TOOL_SRC_DIR)/vikarFront.cpp
+VANDMC_FRONT_EXE = $(TOOL_DIR)/vandmcFront
+VANDMC_FRONT_SRC = $(TOOL_SRC_DIR)/vandmcFront.cpp
 ANGLE_CONVERT_EXE = $(TOOL_DIR)/angleConvert
 ANGLE_CONVERT_SRC = $(TOOL_SRC_DIR)/angleConvert.cpp
 KINEMATICS_EXE = $(TOOL_DIR)/kinematics
@@ -68,7 +68,7 @@ RELATIVISTIC_SRC = $(TOOL_SRC_DIR)/relativistic.cpp
 LIGHT_EXE = $(TOOL_DIR)/light
 LIGHT_SRC = $(TOOL_SRC_DIR)/light.cpp
 
-TOOLS = $(VIKAR_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) \
+TOOLS = $(VANDMC_FRONT_EXE) $(ANGLE_CONVERT_EXE) $(KINEMATICS_EXE) $(KINDIST_EXE) $(ROOT2RAW_EXE) \
         $(INTEGRATOR_EXE) $(RANGE_EXE) $(ELOSS_EXE) $(TEST_SETUP_EXE) $(TEST_VIEWER_EXE) $(RELATIVISTIC_EXE) \
         $(LIGHT_EXE)
 
@@ -76,10 +76,10 @@ RENDERER_DIR = $(TOOL_DIR)/qtfiles
 RENDERER_EXE = renderer
 
 # Main executable
-MAIN_SRC = $(SOURCE_DIR)/vikar.cpp
-MAIN_OBJ = $(OBJ_DIR)/vikar.o
+MAIN_SRC = $(SOURCE_DIR)/vandmc.cpp
+MAIN_OBJ = $(OBJ_DIR)/vandmc.o
 
-EXECUTABLE = vikar
+EXECUTABLE = vandmc
 
 ########################################################################
 
@@ -128,16 +128,16 @@ $(OBJ_DIR):
 
 #####################################################################
 
-$(VIKAR_FRONT_EXE): $(VIKAR_FRONT_SRC)
+$(VANDMC_FRONT_EXE): $(VANDMC_FRONT_SRC)
 	$(COMPILER) $(CFLAGS) -o $@ $^
 
-$(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(ANGLE_CONVERT_SRC)
+$(ANGLE_CONVERT_EXE): $(OBJ_DIR)/vandmc_core.o $(OBJ_DIR)/kindeux.o $(ANGLE_CONVERT_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
-$(KINEMATICS_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(KINEMATICS_SRC)
+$(KINEMATICS_EXE): $(OBJ_DIR)/vandmc_core.o $(OBJ_DIR)/kindeux.o $(KINEMATICS_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
-$(KINDIST_EXE): $(OBJ_DIR)/vikar_core.o $(OBJ_DIR)/kindeux.o $(KINDIST_SRC)
+$(KINDIST_EXE): $(OBJ_DIR)/vandmc_core.o $(OBJ_DIR)/kindeux.o $(KINDIST_SRC)
 	$(COMPILER) $(CFLAGS) $^ -o $@
 
 $(ROOT2RAW_EXE): $(ROOT2RAW_SRC)

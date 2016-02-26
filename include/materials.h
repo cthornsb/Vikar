@@ -1,6 +1,12 @@
-// materials.h
-// Cory Thornsberry
-
+/** \file materials.cpp
+ * \brief Handles particles, isotopes, and their interactions w/ matter.
+ *
+ * This file contains classes to handle particle/isotope interaction with
+ * matter, detector efficiencies, particle ranges, etc.
+ *
+ * \author C. R. Thornsberry
+ * \date Feb. 26th, 2016
+ */
 #ifndef MATERIALS_H
 #define MATERIALS_H
 

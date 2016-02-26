@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "vikar_core.h"
+#include "vandmc_core.h"
 #include "materials.h"
 #include "detectors.h"
 
