@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.27c"
+#define VERSION "1.27d"
 
 struct debugData{
 	double var1, var2, var3;
@@ -168,6 +168,9 @@ int main(int argc, char* argv[]){
 	unsigned int Nsimulated = 0; // Total number of simulated particles
 	unsigned int NdetHit = 0; // Total number of particles which collided with a bar
 	unsigned int Nreactions = 0; // Total number of particles which react with the target
+	unsigned int NrecoilHits = 0;
+	unsigned int NejectileHits = 0;
+	unsigned int NgammaHits = 0;
 	int Ndet = 0; // Total number of detectors
 	int NdetRecoil = 0; // Total number of recoil detectors
 	int NdetEject = 0; // Total number of ejectile detectors
@@ -844,9 +847,9 @@ int main(int argc, char* argv[]){
 	
 	int detector_type = 0;
 	
-	int recoil_detections;
-	int eject_detections;
-	int gamma_detections;
+	int recoil_detections = 0;
+	int eject_detections = 0;
+	int gamma_detections = 0;
 	
 	// Struct for storing reaction information.
 	reactData rdata;
@@ -1118,9 +1121,9 @@ process:
 				}
 				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
 					dist_traveled = 0.0; // The particle does not enter the detector.
-					if(detector_type == 0){ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
-					else if(detector_type == 1){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
-					else if(detector_type == 2){ QDC = Egamma; }
+					if(detector_type == 0){ QDC = frand()*ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
+					else if(detector_type == 1){ QDC = frand()*EejectMod; } // The ejectile may leave any portion of its energy inside the detector
+					else if(detector_type == 2){ QDC = frand()*Egamma; }
 				}
 
 				// If particle originates outside of the detector, add the flight path to the first encountered
@@ -1213,6 +1216,10 @@ process:
 		else if(detector_type == 2){
 		}
 
+		NrecoilHits += recoil_detections;
+		NejectileHits += eject_detections;
+		NgammaHits += gamma_detections;
+
 		// Check to see if anything needs to be written to file.
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 			if(recoil_detections > 0 && (eject_detections > 0 || gamma_detections > 0)){ 
@@ -1252,7 +1259,10 @@ process:
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
 	std::cout << " Total MC Events: " << Nreactions << "\n";
-	std::cout << " Total Detector Hits: " << NdetHit << " (" << NdetHit*100.0/Nreactions << "%)\n";
+	std::cout << " Total Detector Hits: " << NdetHit << "\n";
+	std::cout << "  Recoil Hits: " << NrecoilHits << " (" << (100.0*NrecoilHits)/Nreactions << "%)\n";
+	std::cout << "  Ejectile Hits: " << NejectileHits << " (" << (100.0*NejectileHits)/Nreactions << "%)\n";
+	std::cout << "  Gamma Hits: " << NgammaHits << " (" << (100.0*NgammaHits)/Nreactions << "%)\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";
 		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << " (" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
