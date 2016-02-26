@@ -121,7 +121,6 @@ int main(int argc, char* argv[]){
 	Vector3 interaction; // The interaction point inside the target (wrt beam focus)
 	Matrix3 rotation_matrix; // The rotation matrix used to transform vectors from the beam particle frame to the lab frame
 
-	double tof; // Neutron time of flight (s)
 	double Zdepth; // Interaction depth inside of the target (m)
 	double range_beam;
 		
@@ -166,8 +165,9 @@ int main(int argc, char* argv[]){
 	unsigned int NdetHit = 0; // Total number of particles which collided with a bar
 	unsigned int Nreactions = 0; // Total number of particles which react with the target
 	int Ndet = 0; // Total number of detectors
-	int NdetEject = 0; // Total number of ejectile detectors
 	int NdetRecoil = 0; // Total number of recoil detectors
+	int NdetEject = 0; // Total number of ejectile detectors
+	int NdetGamma = 0; // Total number of gamma detectors
 	int BeamType = 0; // The type of beam to simulate (0=gaussian, 1=cylindrical, 2=halo)
 	clock_t timer; // Clock object for calculating time taken and remaining
 
@@ -181,6 +181,11 @@ int main(int argc, char* argv[]){
 	bool BeamFocus = false;
 	bool DoRutherford = false;
 	int ADists = 0;
+	
+	// Detector options
+	bool have_recoil_det = false;
+	bool have_ejectile_det = false;
+	bool have_gamma_det = false;
 
 	//------------------------------------------------------------------------
 	//
@@ -501,10 +506,19 @@ int main(int argc, char* argv[]){
 		
 		if((*iter)->IsEjectileDet()){ NdetEject++; }
 		if((*iter)->IsRecoilDet()){ NdetRecoil++; }
+		//if((*iter)->IsGammaDet()){ NdetGamma++; }
 	}
 
+	if(NdetRecoil > 0){ have_recoil_det = true; }
+	if(NdetEject > 0){ have_ejectile_det = true; }
+	if(NdetGamma > 0){ have_gamma_det = true; }
+
 	// Report on how many detectors were read in
-	std::cout << " Found " << NdetEject << " ejectile and " << NdetRecoil << " recoil detectors in file " << det_fname << std::endl;
+	std::cout << " Found " << NdetEject << " ejectile, " << NdetRecoil << " recoil, and " << NdetGamma << " gamma detectors in file " << det_fname << std::endl;
+
+	if(!have_recoil_det && !have_ejectile_det && !have_gamma_det){
+		std::cout << " Error: Found no valid detectors in detector setup file!\n";
+	}
 
 	bool use_target_eloss = true;
 
@@ -811,6 +825,9 @@ int main(int argc, char* argv[]){
 	double dummy_t1, dummy_t2;
 	double dist_traveled = 0.0, QDC = 0.0;
 	double penetration = 0.0, fpath1 = 0.0, fpath2 = 0.0;
+	double recoil_tof = 0.0;
+	double eject_tof = 0.0;
+	//double gamma_tof = 0.0;
 	float totTime = 0.0;
 	char counter = 1;
 	bool flag = false;
@@ -821,7 +838,7 @@ int main(int argc, char* argv[]){
 	unsigned int eject_stopped = 0;
 	timer = clock();
 	
-	bool proc_eject = false;
+	int detector_type = 0;
 	
 	// Struct for storing reaction information.
 	reactData rdata;
@@ -856,8 +873,8 @@ int main(int argc, char* argv[]){
 			for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 				if(!((*iter)->IsEjectileDet() || (*iter)->IsRecoilDet())){ continue; } // This detector cannot detect particles
 
-				// Select the "tof" of the background event
-				tof = (double)frand(0, detWindow)*(1E-9);
+				// Select the "tof" of the background event. Use the recoil tof, because it doesn't matter.
+				recoil_tof = (double)frand(0, detWindow)*(1E-9);
 			
 				// Select a random point insde the detector
 				(*iter)->GetRandomPointInside(temp_vector);
@@ -865,16 +882,14 @@ int main(int argc, char* argv[]){
 			
 				// Calculate the apparent energy of the particle using the tof
 				if((*iter)->IsEjectileDet()){
-					double dummyE = 0.5*kind.GetMejectMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
-									 temp_vector_sphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
+									 temp_vector_sphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill(); 
 					EJECTdata.Zero();
 				}
 				else if((*iter)->IsRecoilDet()){
-					double dummyE = 0.5*kind.GetMrecoilMeV()*dist_traveled*dist_traveled/(c*c*tof*tof);
 					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, dummyE, tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
+									  RecoilSphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VIKARtree->Fill();
 					RECOILdata.Zero();
 				}
@@ -1003,35 +1018,28 @@ int main(int argc, char* argv[]){
 			}
 		}
 
+		// Set the first detector type to process.
+		if(have_recoil_det){ detector_type = 0; }
+		else if(have_ejectile_det){ detector_type = 1; }
+		else if(have_gamma_det){ detector_type = 2; }
+
+process:
 		// Process the reaction products
 		for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
-			if((*iter)->IsEjectileDet()){ // This detector can detect ejectiles
-				if(EejectMod <= 0.0){ continue; } // There still may be recoil detectors left
-				proc_eject = true; 
+			// Check if we need to process this detector.
+			if(detector_type == 0){
+				if(!(*iter)->IsRecoilDet()){ continue; } // This detector is not able to detect recoils.
 			}
-			else if((*iter)->IsRecoilDet()){ // This detector can detect recoils
-				if(ErecoilMod <= 0.0){ continue; } // There still may be ejectile detectors left
-				proc_eject = false; 
+			else if(detector_type == 1){
+				if(!(*iter)->IsEjectileDet()){ continue; } // This detector is not able to detect ejectiles.
 			}
-			else{ continue; } // This detector cannot detect particles, so skip it
+			else if(detector_type == 2){
+				//if(!(*iter)->IsGammaDet()){ continue; } // This detector is not able to detect gammas.
+				continue;
+			}
+			else{ continue; } // This detector cannot detect particles.
 
-process:			
-			if(proc_eject){ 
-				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath1, fpath2); 
-				
-				// Calculate the vector pointing from the first intersection point to the second
-				if(fpath1 >= 0.0 && fpath2 >= 0.0){  
-					// The ray originates outside the detector. In this case, HitDetect1 represents the vector
-					// from the origin to the point at which the ray intersects the detector surface.
-					temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); 
-				}
-				else{ 
-					// The ray originates within the detector. HitDetect1 already represents the vector from
-					// the origin to the intersection of the surface of the detector.
-					temp_vector = HitDetect1; 
-				}
-			}
-			else{ 
+			if(detector_type == 0){ // Process the recoil.
 				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath1, fpath2); 
 				
 				// Calculate the vector pointing from the first intersection point to the second
@@ -1046,6 +1054,23 @@ process:
 					temp_vector = HitDetect1; 
 				}
 			}
+			else if(detector_type == 1){ // Process the ejectile.
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath1, fpath2); 
+				
+				// Calculate the vector pointing from the first intersection point to the second
+				if(fpath1 >= 0.0 && fpath2 >= 0.0){  
+					// The ray originates outside the detector. In this case, HitDetect1 represents the vector
+					// from the origin to the point at which the ray intersects the detector surface.
+					temp_vector = ((lab_beam_interaction + Ejectile*fpath2)-HitDetect1); 
+				}
+				else{ 
+					// The ray originates within the detector. HitDetect1 already represents the vector from
+					// the origin to the intersection of the surface of the detector.
+					temp_vector = HitDetect1; 
+				}
+			}
+			else if(detector_type == 2){ // Process the gamma ray.
+			}
 			
 			// If a geometric hit was detected, process the particle
 			if(hit){
@@ -1057,39 +1082,47 @@ process:
 
 				// Solve for the energy deposited in the material.
 				if((*iter)->UseMaterial()){ // Do energy loss and range considerations
-					if(proc_eject){
-						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
-							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration, dist_traveled);
-						}
-						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
-					}
-					else{ 
+					if(detector_type == 0){ 
 						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
 							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, penetration, dist_traveled);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
+					else if(detector_type == 1){
+						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
+							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration, dist_traveled);
+						}
+						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
+					}
+					else if(detector_type == 2){ std::cout << " ERROR! Doing energy loss on a gamma ray???\n"; }
 				}
 				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
-					dist_traveled = penetration*frand(); // The fraction of the detector which the particle travels through before interacting
-					if(proc_eject){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
-					else{ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
+					dist_traveled = 0.0; // The particle does not enter the detector.
+					if(detector_type == 0){ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
+					else if(detector_type == 1){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
+					else if(detector_type == 2){ }
 				}
 
 				// If particle originates outside of the detector, add the flight path to the first encountered
 				// detector face. Otherwise, if the particle originates inside the detector (i.e. a detector at
 				// the origin), the distance traveled through the detector is already the total flight path and
 				// the time of flight is irrelevant.
-				tof = 0.0;
-				if(fpath1 >= 0.0 && fpath2 >= 0.0){
+				if(fpath1 >= 0.0){
 					dist_traveled += fpath1;
 					
 					// Calculate the particle ToF (ns)
-					if(proc_eject){ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod); }
-					else{ tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/ErecoilMod); }
-
-					// Smear tof due to PIXIE resolution
-					tof += rndgauss0(timeRes); 
+					if(detector_type == 0){ 
+						recoil_tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMrecoilMeV()/ErecoilMod); 
+						recoil_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+					}
+					else if(detector_type == 1){ 
+						eject_tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod);
+						eject_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+					}
+					else if(detector_type == 2){ 
+						//gamma_tof = recoil_tof - (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod);
+						//gamma_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+					}
 				}
 
 				// Get the local coordinates of the intersection point.
@@ -1097,8 +1130,9 @@ process:
 			
 				// Calculate the lab angles of the detector intersection point. Ignore normalization, we're
 				// going to throw away R anyway.
-				if(proc_eject){ Cart2Sphere(HitDetect1, EjectSphere); }
-				else{ Cart2Sphere(HitDetect1, RecoilSphere); }
+				if(detector_type == 0){ Cart2Sphere(HitDetect1, RecoilSphere); }
+				else if(detector_type == 1){ Cart2Sphere(HitDetect1, EjectSphere); }
+				else if(detector_type == 2){ }
 			
 				// Calculate the hit detection point in 3d space. This point will lie along the vector pointing
 				// from the origin to the point where the ray intersects a detector and takes finite range of a
@@ -1107,26 +1141,41 @@ process:
 				HitDetect1 = HitDetect1*dist_traveled;
 			
 				// Main output
-				if(proc_eject){
-					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, QDC, tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
-								
-					// Adjust the ejectile energy to take energy loss into account. 
-					EejectMod = EejectMod - QDC;
-				}
-				else{
+				if(detector_type == 0){
 					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, QDC, tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+									  RecoilSphere.axis[2]*rad2deg, QDC, recoil_tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				
 					// Adjust the recoil energy to take energy loss into account. 
 					ErecoilMod = ErecoilMod - QDC;
 				}
+				else if(detector_type == 1){
+					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
+									 EjectSphere.axis[2]*rad2deg, QDC, eject_tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+								
+					// Adjust the ejectile energy to take energy loss into account. 
+					EejectMod = EejectMod - QDC;
+				}
+				else if(detector_type == 2){ }
 			} // if(hit)
 			
-			// Check if we need to process the recoil in this detector.
-			if(proc_eject){ 
-				proc_eject = false; 
-				if((*iter)->IsRecoilDet()){ goto process; }
+			// Decide which detector type to process next.
+			if(detector_type == 0){
+				if(have_ejectile_det){ 
+					detector_type = 1; 
+					goto process;
+				}
+				else if(have_gamma_det){
+					detector_type = 2;
+					goto process;
+				}
+			}
+			else if(detector_type == 1){
+				if(have_gamma_det){
+					detector_type = 2;
+					goto process;
+				}
+			}
+			else if(detector_type == 2){
 			}
 		} // for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 

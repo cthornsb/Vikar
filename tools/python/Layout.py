@@ -567,21 +567,21 @@ def main():
 			if(s_ == "esc"): wx.Exit()
 			elif(s_ == "h"): myLab.PrintHelp()
 			elif(s_ == "p"): 
-				f = open("/home/cory/Research/Vikar/detectors/VANDLE.det", "w")
+				f = open("./VANDLE.det", "w")
 				f.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
 				for i in range(len(LargeBars)): f.write(NewVIKAR(LargeBars[i], offset=target_origin, angle=beam_axis))
 				for i in range(len(SmallBars)): f.write(NewVIKAR(SmallBars[i], offset=target_origin, angle=beam_axis))
-				print "Wrote detector file /home/cory/Research/Vikar/detectors/VANDLE.det"
+				print "Wrote detector file ./VANDLE.det"
 				f.close()
 			elif(s_ == "ctrl+p"): 
-				f = open("/home/cory/Research/Vikar/detectors/LargeBars.det", "w")
-				f2 = open("/home/cory/Research/Vikar/detectors/SmallBars.det", "w")
+				f = open("./LargeBars.det", "w")
+				f2 = open("./SmallBars.det", "w")
 				f.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
 				f2.write("# X(m)\tY(m)\tZ(m)\ttheta(rad)\tphi(rad)\tpsi(rad)\ttype\tsubtype\tlength(m)\twidth(m)\tdepth(m)\tmaterial\n")
 				for i in range(len(LargeBars)): f.write(VIKARdet(LargeBars[i], offset=target_origin, angle=beam_axis))
 				for i in range(len(SmallBars)): f2.write(VIKARdet(SmallBars[i], offset=target_origin, angle=beam_axis))
-				print " Wrote Large bar detector file /home/cory/Research/Vikar/detectors/LargeBars.det"
-				print " Wrote Small bar detector file /home/cory/Research/Vikar/detectors/SmallBars.det"
+				print " Wrote Large bar detector file ./LargeBars.det"
+				print " Wrote Small bar detector file ./SmallBars.det"
 				f.close()
 				f2.close()
 			else: myLab.KeyPress(s_)
