@@ -100,6 +100,7 @@ Primitive::Primitive(){
 	need_set = true;
 	use_recoil = false;
 	use_eject = false;
+	use_gamma = false;
 	use_material = false;
 	type = "unknown";
 	subtype = "unknown";
@@ -121,6 +122,8 @@ Primitive::Primitive(NewVIKARdet *det_){
 	SetSize(det_->data[6], det_->data[7], det_->data[8]);
 	use_recoil = (det_->type=="dual" || det_->type=="recoil");
 	use_eject = (det_->type=="vandle" || det_->type=="dual" || det_->type=="eject");
+	use_gamma = (det_->type=="vandle" || det_->type=="gamma");
+	//use_gamma = det_->type=="gamma";
 	use_material = false;
 	type = det_->type;
 	subtype = det_->subtype;

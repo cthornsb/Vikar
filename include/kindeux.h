@@ -13,6 +13,7 @@ struct reactData{
 	double Ereact;
 	double Eeject;
 	double Erecoil;
+	double Eexcited;
 	double comAngle;
 	unsigned int state;
 };

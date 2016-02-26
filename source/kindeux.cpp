@@ -192,12 +192,11 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, int recoil_state/*=-
   * param[in] theta Allows the user to select the reaction center of mass angle (in rad).
   */
 bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
-	double Recoil_Ex;
 	if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
 		react.state = recoil_state;
-		Recoil_Ex = RecoilExStates[react.state];
+		react.Eexcited = RecoilExStates[react.state];
 	}
-	else if(!get_excitations(Recoil_Ex, react.state)){ // Use built-in state selection
+	else if(!get_excitations(react.Eexcited, react.state)){ // Use built-in state selection
 		// No reaction occured
 		return false; 
 	}
@@ -207,7 +206,7 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 	double Vcm = std::sqrt(2.0*Mbeam*react.Ereact)/(Mbeam+Mtarg); // Velocity of the center of mass
 	double Ecm = Mtarg*react.Ereact/(Mbeam+Mtarg); // Energy of the center of mass
 
-	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+Recoil_Ex))); // Ejectile CoM velocity after reaction
+	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+react.Eexcited))); // Ejectile CoM velocity after reaction
 	react.comAngle = -1.0; // Ejectile and recoil angle in the center of mass frame
 	
 	if(theta >= 0.0){
@@ -248,7 +247,7 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 	Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
 	
 	// Recoil calculations (now in the lab frame)
-	react.Erecoil = (react.Ereact+Qvalue-(0.0+Recoil_Ex)) - react.Eeject;
+	react.Erecoil = (react.Ereact+Qvalue-(0.0+react.Eexcited)) - react.Eeject;
 	Recoil = Vector3(1.0, std::asin(((std::sqrt(2*Meject*react.Eeject))/(std::sqrt(2*Mrecoil*react.Erecoil)))*std::sin(EjectTheta)), WrapValue(EjectPhi+pi,0.0,2*pi));
 	
 	return true;

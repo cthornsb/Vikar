@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.26"
+#define VERSION "1.27b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -111,7 +111,9 @@ int main(int argc, char* argv[]){
 	Vector3 ZeroVector; // The zero vector
 	Vector3 Ejectile, Recoil, Gamma;
 	Vector3 HitDetect1, HitDetect2;
-	Vector3 EjectSphere, RecoilSphere;
+	Vector3 RecoilSphere;
+	Vector3 EjectSphere;
+	Vector3 GammaSphere;
 	Vector3 lab_beam_focus; // The focal point for the beam. Non-cylindrical beam particles will originate from this point.
 	Vector3 lab_beam_start; // The originating point of the beam particle in the lab frame
 	Vector3 lab_beam_trajectory; // The original trajectory of the beam particle before it enters the target
@@ -139,7 +141,9 @@ int main(int argc, char* argv[]){
 
 	// Energy variables
 	double Ebeam = 0.0, Ebeam0 = 0.0;
-	double ErecoilMod = 0.0, EejectMod = 0.0;
+	double ErecoilMod = 0.0;
+	double EejectMod = 0.0;
+	double Egamma = 0.0;
 		
 	// Beam variables
 	double beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
@@ -506,7 +510,7 @@ int main(int argc, char* argv[]){
 		
 		if((*iter)->IsEjectileDet()){ NdetEject++; }
 		if((*iter)->IsRecoilDet()){ NdetRecoil++; }
-		//if((*iter)->IsGammaDet()){ NdetGamma++; }
+		if((*iter)->IsGammaDet()){ NdetGamma++; }
 	}
 
 	if(NdetRecoil > 0){ have_recoil_det = true; }
@@ -827,7 +831,7 @@ int main(int argc, char* argv[]){
 	double penetration = 0.0, fpath1 = 0.0, fpath2 = 0.0;
 	double recoil_tof = 0.0;
 	double eject_tof = 0.0;
-	//double gamma_tof = 0.0;
+	double gamma_tof = 0.0;
 	float totTime = 0.0;
 	char counter = 1;
 	bool flag = false;
@@ -839,6 +843,10 @@ int main(int argc, char* argv[]){
 	timer = clock();
 	
 	int detector_type = 0;
+	
+	int recoil_detections;
+	int eject_detections;
+	int gamma_detections;
 	
 	// Struct for storing reaction information.
 	reactData rdata;
@@ -865,6 +873,10 @@ int main(int argc, char* argv[]){
 			std::cout << "  Time reamining: " << (totTime/counter)*(10-counter) << " seconds\n";
 			counter++; 
 		}
+
+		recoil_detections = 0;
+		eject_detections = 0;
+		gamma_detections = 0;
 
 		if(backgroundWait != 0){ // Simulating background events
 			backgroundWait--;
@@ -995,6 +1007,7 @@ int main(int argc, char* argv[]){
 			// Set the outgoing energy of the ejectile and recoil.
 			EejectMod = rdata.Eeject;
 			ErecoilMod = rdata.Erecoil;
+			Egamma = rdata.Eexcited;
 
 			// Calculate the energy loss for the ejectile and recoil in the target.
 			if(use_target_eloss){
@@ -1023,19 +1036,23 @@ int main(int argc, char* argv[]){
 		else if(have_ejectile_det){ detector_type = 1; }
 		else if(have_gamma_det){ detector_type = 2; }
 
+		recoil_tof = -1;
+
 process:
 		// Process the reaction products
 		for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 			// Check if we need to process this detector.
 			if(detector_type == 0){
 				if(!(*iter)->IsRecoilDet()){ continue; } // This detector is not able to detect recoils.
+				if(ErecoilMod <= 0.0){ break; } // The recoil has stopped. We're done tracking it.
 			}
 			else if(detector_type == 1){
 				if(!(*iter)->IsEjectileDet()){ continue; } // This detector is not able to detect ejectiles.
+				if(EejectMod <= 0.0){ break; } // The ejectile has stopped. We're done tracking it.
 			}
 			else if(detector_type == 2){
-				//if(!(*iter)->IsGammaDet()){ continue; } // This detector is not able to detect gammas.
-				continue;
+				if(!(*iter)->IsGammaDet()){ continue; } // This detector is not able to detect gammas.
+				if(Egamma <= 0.0){ break; } // Do not process the ground state.
 			}
 			else{ continue; } // This detector cannot detect particles.
 
@@ -1070,6 +1087,9 @@ process:
 				}
 			}
 			else if(detector_type == 2){ // Process the gamma ray.
+				// Simulate the gamma emission. The gamma rays are emitted isotropically from the reaction point.
+				UnitSphereRandom(dummy_vector);
+				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, dummy_vector, HitDetect1, fpath1, fpath2);
 			}
 			
 			// If a geometric hit was detected, process the particle
@@ -1100,7 +1120,7 @@ process:
 					dist_traveled = 0.0; // The particle does not enter the detector.
 					if(detector_type == 0){ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
 					else if(detector_type == 1){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
-					else if(detector_type == 2){ }
+					else if(detector_type == 2){ QDC = Egamma; }
 				}
 
 				// If particle originates outside of the detector, add the flight path to the first encountered
@@ -1118,10 +1138,12 @@ process:
 					else if(detector_type == 1){ 
 						eject_tof = (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod);
 						eject_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+						if(recoil_tof > 0.0){ eject_tof = eject_tof - recoil_tof; }
 					}
 					else if(detector_type == 2){ 
-						//gamma_tof = recoil_tof - (dist_traveled/c)*std::sqrt(0.5*kind.GetMejectMeV()/EejectMod);
-						//gamma_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+						gamma_tof = dist_traveled/c;
+						gamma_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
+						//if(recoil_tof > 0.0){ gamma_tof = gamma_tof - recoil_tof; }
 					}
 				}
 
@@ -1132,7 +1154,7 @@ process:
 				// going to throw away R anyway.
 				if(detector_type == 0){ Cart2Sphere(HitDetect1, RecoilSphere); }
 				else if(detector_type == 1){ Cart2Sphere(HitDetect1, EjectSphere); }
-				else if(detector_type == 2){ }
+				else if(detector_type == 2){ Cart2Sphere(HitDetect1, GammaSphere); }
 			
 				// Calculate the hit detection point in 3d space. This point will lie along the vector pointing
 				// from the origin to the point where the ray intersects a detector and takes finite range of a
@@ -1145,6 +1167,8 @@ process:
 					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], RecoilSphere.axis[1]*rad2deg,
 									  RecoilSphere.axis[2]*rad2deg, QDC, recoil_tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				
+					recoil_detections++;
+				
 					// Adjust the recoil energy to take energy loss into account. 
 					ErecoilMod = ErecoilMod - QDC;
 				}
@@ -1152,34 +1176,46 @@ process:
 					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
 									 EjectSphere.axis[2]*rad2deg, QDC, eject_tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 								
+					eject_detections++;			
+								
 					// Adjust the ejectile energy to take energy loss into account. 
 					EejectMod = EejectMod - QDC;
 				}
-				else if(detector_type == 2){ }
+				else if(detector_type == 2){ 
+					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], GammaSphere.axis[1]*rad2deg,
+									 GammaSphere.axis[2]*rad2deg, Egamma, gamma_tof*(1E9), 0.0, hit_x, hit_y, hit_z, (*iter)->GetLoc(), true);
+									 
+					gamma_detections++;
+					
+					// Done tracking the gamma ray.		 
+					break;
+				}
 			} // if(hit)
-			
-			// Decide which detector type to process next.
-			if(detector_type == 0){
-				if(have_ejectile_det){ 
-					detector_type = 1; 
-					goto process;
-				}
-				else if(have_gamma_det){
-					detector_type = 2;
-					goto process;
-				}
-			}
-			else if(detector_type == 1){
-				if(have_gamma_det){
-					detector_type = 2;
-					goto process;
-				}
-			}
-			else if(detector_type == 2){
-			}
 		} // for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
+		
+		// Decide which detector type to process next, if any.
+		if(detector_type == 0){
+			if(have_ejectile_det){ 
+				detector_type = 1; 
+				goto process;
+			}
+			else if(have_gamma_det){
+				detector_type = 2;
+				goto process;
+			}
+		}
+		else if(detector_type == 1){
+			if(have_gamma_det){
+				detector_type = 2;
+				goto process;
+			}
+		}
+		else if(detector_type == 2){
+		}
+
+		// Check to see if anything needs to be written to file.
 		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
-			if(EJECTdata.eject_mult > 0 && RECOILdata.recoil_mult > 0){ 
+			if(recoil_detections > 0 && (eject_detections > 0 || gamma_detections > 0)){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){ // Set some extra reaction data variables.
 					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
@@ -1192,7 +1228,7 @@ process:
 			}
 		}
 		else{ // Coincidence is not required between reaction particles
-			if(EJECTdata.eject_mult > 0 || RECOILdata.recoil_mult > 0){ 
+			if(eject_detections > 0 || recoil_detections > 0 || gamma_detections > 0){ 
 				if(!flag){ flag = true; }
 				if(WriteReaction){
 					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
