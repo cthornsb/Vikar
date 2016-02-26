@@ -16,7 +16,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.27b"
+#define VERSION "1.27c"
 
 struct debugData{
 	double var1, var2, var3;
@@ -1143,7 +1143,7 @@ process:
 					else if(detector_type == 2){ 
 						gamma_tof = dist_traveled/c;
 						gamma_tof += rndgauss0(timeRes); // Smear tof due to PIXIE resolution
-						//if(recoil_tof > 0.0){ gamma_tof = gamma_tof - recoil_tof; }
+						if(recoil_tof > 0.0){ gamma_tof = gamma_tof - recoil_tof; }
 					}
 				}
 
