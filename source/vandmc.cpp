@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.28"
+#define VERSION "1.28b"
 
 struct debugData{
 	double var1, var2, var3;
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]){
 	bool bgPerDetection = false;
 	
 	std::string det_fname; // Detector filename
-	std::string output_fname = "VANDMC.root";
+	std::string output_fname = "vandmc.root";
 	
 	// Input/output variables
 	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
@@ -150,7 +150,6 @@ int main(int argc, char* argv[]){
 	bool InverseKinematics = true;
 	bool InCoincidence = true;
 	bool WriteReaction = false;
-	bool WriteDebug = false;
 	bool PerfectDet = true;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
@@ -168,16 +167,16 @@ int main(int argc, char* argv[]){
 	//
 	//------------------------------------------------------------------------
 
-	std::cout << "####       ####       ###       ####   #### ########     ####          ####   #######   \n";
-	std::cout << " ##         ##       ## ##       ##     ##   ##    ##     ##            ##   ###    ##  \n";
-	std::cout << "  ##       ##       ##   ##      ###    ##   ##      ##   ###          ###   ##      ## \n";
-	std::cout << "  ##       ##       ##   ##      ####   ##   ##       ##  ####        ####   ##         \n";
-	std::cout << "   ##     ##       #########     ## ##  ##   ##       ##  ## ##      ## ##   ##         \n";
-	std::cout << "   ##     ##       ##     ##     ##  ## ##   ##       ##  ##  ##    ##  ##   ##         \n";
-	std::cout << "    ##   ##       ##       ##    ##   ####   ##       ##  ##   ##  ##   ##   ##         \n";
-	std::cout << "    ##   ##       ##       ##    ##    ###   ##      ##   ##    ####    ##   ##      ## \n";
-	std::cout << "     ## ##       ##         ##   ##     ##   ##    ##     ##     ##     ##   ###    ##  \n";
-	std::cout << "      ###       ####       #### ####   #### ########     ####          ####   #######   \n";
+	std::cout << "####    ####      ##      ####    #### ########     ####    ####  #########   \n";
+	std::cout << " ##      ##       ##       ##      ##   ##   ###     ##      ##  ###     ###  \n";
+	std::cout << "  ##    ##       ####      ###     ##   ##     ###   ###    ###  ##        ## \n";
+	std::cout << "  ##    ##       ####      ####    ##   ##       ##  ####  ####  ##           \n";
+	std::cout << "   ##  ##       ##  ##     ## ##   ##   ##       ##  ## #### ##  ##           \n";
+	std::cout << "   ##  ##       ##  ##     ##  ##  ##   ##       ##  ##  ##  ##  ##           \n";
+	std::cout << "    ####       ########    ##   #####   ##       ##  ##      ##  ##           \n";
+	std::cout << "    ####       ##    ##    ##    ####   ##     ###   ##      ##  ##        ## \n";
+	std::cout << "     ##       ##      ##   ##      ##   ##   ###     ##      ##  ###     ###  \n";
+	std::cout << "     ##      ####    #### ####    #### ########     ####    ####  #########   \n";
 
 	std::cout << "\n VANDMC v " << VERSION << "\n"; 
 	std::cout << " ==  ==  ==  ==  == \n\n"; 
@@ -426,10 +425,6 @@ int main(int argc, char* argv[]){
 			else if(count == 27){
 				// Write Reaction data to file?
 				SetBool(input, "  Write Reaction Info", WriteReaction);
-			}
-			else if(count == 28){
-				// Write Debug data to file?
-				SetBool(input, "  Write Debug Info", WriteDebug);
 			}
 			
 			count++;
@@ -692,8 +687,7 @@ int main(int argc, char* argv[]){
 		
 	// Root stuff
 	TFile *file = new TFile(output_fname.c_str(), "RECREATE");
-	TTree *VANDMCtree = new TTree("VANDMC", "VANDMC output tree");
-	TTree *DEBUGtree = NULL;
+	TTree *VANDMCtree = new TTree("data", "VANDMC output tree");
 	
 	EjectObjectStructure EJECTdata;
 	RecoilObjectStructure RECOILdata;
@@ -704,10 +698,6 @@ int main(int argc, char* argv[]){
 	VANDMCtree->Branch("Recoil", &RECOILdata);
 	if(WriteReaction){
 		VANDMCtree->Branch("Reaction", &REACTIONdata);
-	}
-	if(WriteDebug){ 
-		DEBUGtree = new TTree("DEBUG", "VANDMC debug tree");
-		DEBUGtree->Branch("Debug", &DEBUGdata, "var1/D:var2/D:var3/D"); 
 	}
 
 	// Write reaction info to the file.
@@ -772,8 +762,6 @@ int main(int argc, char* argv[]){
 	else{ SetName(named, "Recoil Coincidence?", "No"); }
 	if(WriteReaction){ SetName(named, "Write Reaction?", "Yes"); }
 	else{ SetName(named, "Write Reaction?", "No"); }
-	if(WriteDebug){ SetName(named, "Write Debug?", "Yes"); }
-	else{ SetName(named, "Write Debug?", "No"); }
 
 	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
 		(*iter)->Write();
@@ -990,12 +978,6 @@ int main(int argc, char* argv[]){
 					targ.GetPrimitive()->IntersectPrimitive(lab_beam_interaction, Recoil, dummy_vector, Zdepth, dummy_t2);
 					ErecoilMod = recoil_targ.GetNewE(rdata.Erecoil, Zdepth); 
 				}
-			}
-		
-			// Write debug information to the output file.
-			if(WriteDebug){ 
-				DEBUGdata.Set(Ejectile.axis[0], Ejectile.axis[1], Ejectile.axis[2]);
-				DEBUGtree->Fill();
 			}
 		}
 
@@ -1238,11 +1220,9 @@ process:
 	
 	file->cd();
 	VANDMCtree->Write();
-	if(DEBUGtree){ DEBUGtree->Write(); }
 	
 	std::cout << "  Wrote file " << output_fname << "\n";
 	std::cout << "   Wrote " << VANDMCtree->GetEntries() << " tree entries for VANDMC\n";
-	if(WriteDebug){ std::cout << "   Wrote " << DEBUGtree->GetEntries() << " tree entries for DEBUG\n"; }
 	file->Close();
 	
 	delete file;
