@@ -23,15 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.28b"
-
-struct debugData{
-	double var1, var2, var3;
-	
-	void Set(double v1, double v2, double v3){
-		var1 = v1; var2 = v2; var3 = v3;
-	}
-};
+#define VERSION "1.28c"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -692,7 +684,6 @@ int main(int argc, char* argv[]){
 	EjectObjectStructure EJECTdata;
 	RecoilObjectStructure RECOILdata;
 	ReactionObjectStructure REACTIONdata;
-	debugData DEBUGdata;
 	
 	VANDMCtree->Branch("Eject", &EJECTdata);
 	VANDMCtree->Branch("Recoil", &RECOILdata);
@@ -763,6 +754,11 @@ int main(int argc, char* argv[]){
 	if(WriteReaction){ SetName(named, "Write Reaction?", "Yes"); }
 	else{ SetName(named, "Write Reaction?", "No"); }
 
+	// Create a directory for storing setup information.
+	file->mkdir("config");
+	file->cd("config");
+
+	// Write the TNameds to file.
 	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
 		(*iter)->Write();
 		delete (*iter);
