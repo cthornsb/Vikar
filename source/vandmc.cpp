@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.28c"
+#define VERSION "1.29"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -131,10 +131,12 @@ int main(int argc, char* argv[]){
 	unsigned int NrecoilHits = 0;
 	unsigned int NejectileHits = 0;
 	unsigned int NgammaHits = 0;
+	unsigned int NvetoEvents = 0;
 	int Ndet = 0; // Total number of detectors
 	int NdetRecoil = 0; // Total number of recoil detectors
 	int NdetEject = 0; // Total number of ejectile detectors
 	int NdetGamma = 0; // Total number of gamma detectors
+	int NdetVeto = 0; // Total number of particle vetos
 	int BeamType = 0; // The type of beam to simulate (0=gaussian, 1=cylindrical, 2=halo)
 	clock_t timer; // Clock object for calculating time taken and remaining
 
@@ -152,6 +154,7 @@ int main(int argc, char* argv[]){
 	bool have_recoil_det = false;
 	bool have_ejectile_det = false;
 	bool have_gamma_det = false;
+	bool have_veto_det = false;
 
 	//------------------------------------------------------------------------
 	//
@@ -466,14 +469,20 @@ int main(int argc, char* argv[]){
 		if((*iter)->IsEjectileDet()){ NdetEject++; }
 		if((*iter)->IsRecoilDet()){ NdetRecoil++; }
 		if((*iter)->IsGammaDet()){ NdetGamma++; }
+		if((*iter)->IsVeto()){ NdetVeto++; }
 	}
 
 	if(NdetRecoil > 0){ have_recoil_det = true; }
 	if(NdetEject > 0){ have_ejectile_det = true; }
 	if(NdetGamma > 0){ have_gamma_det = true; }
+	if(NdetVeto > 0){ have_veto_det = true; }
 
 	// Report on how many detectors were read in
-	std::cout << " Found " << NdetEject << " ejectile, " << NdetRecoil << " recoil, and " << NdetGamma << " gamma detectors in file " << det_fname << std::endl;
+	std::cout << " Found the following detector types in detector setup file " << det_fname << std::endl;
+	std::cout << "  Ejectile: " << NdetEject << std::endl; 
+	std::cout << "  Recoil:   " << NdetRecoil << std::endl;
+	std::cout << "  Gamma:    " << NdetGamma << std::endl;
+	std::cout << "  Veto:     " << NdetVeto << std::endl;
 
 	if(!have_recoil_det && !have_ejectile_det && !have_gamma_det){
 		std::cout << " Error: Found no valid detectors in detector setup file!\n";
@@ -788,6 +797,7 @@ int main(int argc, char* argv[]){
 	char counter = 1;
 	bool flag = false;
 	bool hit = false;
+	bool veto_event = false;
 	unsigned int chunk = Nwanted/10;
 	unsigned int beam_stopped = 0;
 	unsigned int recoil_stopped = 0;
@@ -978,17 +988,22 @@ int main(int argc, char* argv[]){
 		}
 
 		// Set the first detector type to process.
-		if(have_recoil_det){ detector_type = 0; }
+		if(have_veto_det){ detector_type = -1; }
+		else if(have_recoil_det){ detector_type = 0; }
 		else if(have_ejectile_det){ detector_type = 1; }
 		else if(have_gamma_det){ detector_type = 2; }
 
 		recoil_tof = -1;
+		veto_event = false;
 
 process:
 		// Process the reaction products
 		for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
 			// Check if we need to process this detector.
-			if(detector_type == 0){
+			if(detector_type == -1){
+				if(!(*iter)->IsVeto()){ continue; } // This detector is not a veto detector.
+			}
+			else if(detector_type == 0){
 				if(!(*iter)->IsRecoilDet()){ continue; } // This detector is not able to detect recoils.
 				if(ErecoilMod <= 0.0){ break; } // The recoil has stopped. We're done tracking it.
 			}
@@ -1002,7 +1017,14 @@ process:
 			}
 			else{ continue; } // This detector cannot detect particles.
 
-			if(detector_type == 0){ // Process the recoil.
+			if(detector_type == -1){ // Process the ejectile and recoil for veto detectors.
+				veto_event = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath1, fpath2) ||
+				             (*iter)->IntersectPrimitive(lab_beam_interaction, Ejectile, HitDetect1, fpath1, fpath2); 
+				      
+				// If the veto detector was triggered, stop this event.
+				if(veto_event){ break; }
+			}
+			else if(detector_type == 0){ // Process the recoil.
 				hit = (*iter)->IntersectPrimitive(lab_beam_interaction, Recoil, HitDetect1, fpath1, fpath2); 
 				
 				// Calculate the vector pointing from the first intersection point to the second
@@ -1139,57 +1161,74 @@ process:
 			} // if(hit)
 		} // for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++)
 		
-		// Decide which detector type to process next, if any.
-		if(detector_type == 0){
-			if(have_ejectile_det){ 
-				detector_type = 1; 
-				goto process;
-			}
-			else if(have_gamma_det){
-				detector_type = 2;
-				goto process;
-			}
-		}
-		else if(detector_type == 1){
-			if(have_gamma_det){
-				detector_type = 2;
-				goto process;
-			}
-		}
-		else if(detector_type == 2){
-		}
-
-		NrecoilHits += recoil_detections;
-		NejectileHits += eject_detections;
-		NgammaHits += gamma_detections;
-
-		// Check to see if anything needs to be written to file.
-		if(InCoincidence){ // We require coincidence between ejectiles and recoils 
-			if(recoil_detections > 0 && (eject_detections > 0 || gamma_detections > 0)){ 
-				if(!flag){ flag = true; }
-				if(WriteReaction){ // Set some extra reaction data variables.
-					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
-					                    lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+		if(!veto_event){ 
+			// Decide which detector type to process next, if any.
+			if(detector_type == -1){
+				if(have_recoil_det){
+					detector_type = 0;
+					goto process;
 				}
-				if(bgPerDetection){ backgroundWait = backgroundRate; }
-				VANDMCtree->Fill(); 
-				Ndetected++;
-			}
-		}
-		else{ // Coincidence is not required between reaction particles
-			if(eject_detections > 0 || recoil_detections > 0 || gamma_detections > 0){ 
-				if(!flag){ flag = true; }
-				if(WriteReaction){
-					REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
-					                    lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
-					                    lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+				else if(have_ejectile_det){ 
+					detector_type = 1; 
+					goto process;
 				}
-				if(bgPerDetection){ backgroundWait = backgroundRate; }
-				VANDMCtree->Fill(); 
-				Ndetected++;
+				else if(have_gamma_det){
+					detector_type = 2;
+					goto process;
+				}
+			}
+			else if(detector_type == 0){
+				if(have_ejectile_det){ 
+					detector_type = 1; 
+					goto process;
+				}
+				else if(have_gamma_det){
+					detector_type = 2;
+					goto process;
+				}
+			}
+			else if(detector_type == 1){
+				if(have_gamma_det){
+					detector_type = 2;
+					goto process;
+				}
+			}
+			else if(detector_type == 2){
+			}
+
+			NrecoilHits += recoil_detections;
+			NejectileHits += eject_detections;
+			NgammaHits += gamma_detections;
+
+			// Check to see if anything needs to be written to file.
+			if(InCoincidence){ // We require coincidence between ejectiles and recoils 
+				if(recoil_detections > 0 && (eject_detections > 0 || gamma_detections > 0)){ 
+					if(!flag){ flag = true; }
+					if(WriteReaction){ // Set some extra reaction data variables.
+						REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
+							                lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+							                lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+					}
+					if(bgPerDetection){ backgroundWait = backgroundRate; }
+					VANDMCtree->Fill(); 
+					Ndetected++;
+				}
+			}
+			else{ // Coincidence is not required between reaction particles
+				if(eject_detections > 0 || recoil_detections > 0 || gamma_detections > 0){ 
+					if(!flag){ flag = true; }
+					if(WriteReaction){
+						REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
+							                lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
+							                lab_beam_stragtraject.axis[0], lab_beam_stragtraject.axis[1], lab_beam_stragtraject.axis[2]);
+					}
+					if(bgPerDetection){ backgroundWait = backgroundRate; }
+					VANDMCtree->Fill(); 
+					Ndetected++;
+				}
 			}
 		}
+		else{ NvetoEvents++; }
 		
 		// Zero all output data structures.
 		EJECTdata.Zero();
@@ -1203,9 +1242,10 @@ process:
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
 	std::cout << " Total MC Events: " << Nreactions << "\n";
 	std::cout << " Total Detector Hits: " << NdetHit << "\n";
-	std::cout << "  Recoil Hits: " << NrecoilHits << " (" << (100.0*NrecoilHits)/Nreactions << "%)\n";
+	std::cout << "  Recoil Hits:   " << NrecoilHits << " (" << (100.0*NrecoilHits)/Nreactions << "%)\n";
 	std::cout << "  Ejectile Hits: " << NejectileHits << " (" << (100.0*NejectileHits)/Nreactions << "%)\n";
-	std::cout << "  Gamma Hits: " << NgammaHits << " (" << (100.0*NgammaHits)/Nreactions << "%)\n";
+	std::cout << "  Gamma Hits:    " << NgammaHits << " (" << (100.0*NgammaHits)/Nreactions << "%)\n";
+	std::cout << "  Vetoed Events: " << NvetoEvents << " (" << (100.0*NvetoEvents)/Nreactions << "%)\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";
 		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << " (" << 100.0*beam_stopped/Nsimulated << "%)\n"; }

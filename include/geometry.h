@@ -98,6 +98,7 @@ class Primitive{
 	bool use_recoil; /// True if this detector is to be used to detect recoil particles.
 	bool use_eject; /// True if this detector is to be used to detect ejectile particles.
 	bool use_gamma; /// True if this detector is to be used to detect gamma rays.
+	bool use_veto; /// True if this detector is to be used to stop particles.
 	std::string type, subtype; /// The type and subtype of the detector.
 	std::string material_name; /// The name of the material to use for energy loss calculations.
 
@@ -171,6 +172,8 @@ class Primitive{
 	bool IsEjectileDet(){ return use_eject; }
 	
 	bool IsGammaDet(){ return use_gamma; }
+	
+	bool IsVeto(){ return use_veto; }
 
 	bool UseMaterial(){ return use_material; }
 	
@@ -220,6 +223,8 @@ class Primitive{
 	void SetEjectile(bool input_=true){ use_eject = input_; }
 	
 	void SetGamma(bool input_=true){ use_gamma = input_; }
+	
+	void SetVeto(bool input_=true){ use_gamma = input_; }
 	
 	/** Check if a point (in local coordinates) is within the bounds of the primitive
 	  * Return true if the coordinates are within the primitive and false otherwise.

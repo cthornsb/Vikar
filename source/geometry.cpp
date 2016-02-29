@@ -110,6 +110,7 @@ Primitive::Primitive(){
 	use_recoil = false;
 	use_eject = false;
 	use_gamma = false;
+	use_veto = false;
 	use_material = false;
 	type = "unknown";
 	subtype = "unknown";
@@ -132,7 +133,7 @@ Primitive::Primitive(NewVIKARdet *det_){
 	use_recoil = (det_->type=="dual" || det_->type=="recoil");
 	use_eject = (det_->type=="vandle" || det_->type=="dual" || det_->type=="eject");
 	use_gamma = (det_->type=="vandle" || det_->type=="gamma");
-	//use_gamma = det_->type=="gamma";
+	use_veto = (det_->type=="veto");
 	use_material = false;
 	type = det_->type;
 	subtype = det_->subtype;
