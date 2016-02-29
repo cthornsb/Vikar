@@ -554,6 +554,7 @@ bool Cylindrical::IntersectPrimitive(const Vector3& offset_, const Vector3& dire
 				// Transform the intersection point into local coordinates and check if they're within the bounds
 				GetLocalCoords((offset_ + direction_*temp_t), px, py, pz);
 				if((px*px + pz*pz) <= width*width/4.0){ // The face was struck
+					P1 = offset_ + direction_*temp_t; 
 					t1 = temp_t;
 					face1 = i;
 					break;

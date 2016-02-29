@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.29b"
+#define VERSION "1.29c"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
