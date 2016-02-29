@@ -131,8 +131,8 @@ Primitive::Primitive(NewVIKARdet *det_){
 	need_set = true;
 	SetSize(det_->data[6], det_->data[7], det_->data[8]);
 	use_recoil = (det_->type=="dual" || det_->type=="recoil");
-	use_eject = (det_->type=="vandle" || det_->type=="dual" || det_->type=="eject");
-	use_gamma = (det_->type=="vandle" || det_->type=="gamma");
+	use_eject = (det_->type=="vandle" || det_->type=="dual" || det_->type == "neutron" || det_->type=="eject");
+	use_gamma = (det_->type=="vandle" || det_->type == "neutron" || det_->type=="gamma");
 	use_veto = (det_->type=="veto");
 	use_material = false;
 	type = det_->type;
