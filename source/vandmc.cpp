@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.29d"
+#define VERSION "1.29e"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -702,66 +702,66 @@ int main(int argc, char* argv[]){
 
 	// Write reaction info to the file.
 	std::vector<TNamed*> named;
-	SetName(named, "Version", VERSION);
-	SetName(named, "Beam-Z", beam_part.GetZ());
-	SetName(named, "Beam-A", beam_part.GetA());
-	SetName(named, "Beam Mass", beam_part.GetMassAMU(), "amu");
-	SetName(named, "Target-Z", targ.GetZ());
-	SetName(named, "Target-A", targ.GetA());
-	SetName(named, "Target Mass", targ.GetMassAMU(), "amu");
-	SetName(named, "Recoil-Z", recoil_part.GetZ());
-	SetName(named, "Recoil-A", recoil_part.GetA());
-	SetName(named, "Recoil Mass", recoil_part.GetMassAMU(), "amu");
-	SetName(named, "Ejectile-Z", eject_part.GetZ());
-	SetName(named, "Ejectile-A", eject_part.GetA());
-	SetName(named, "Ejectile Mass", eject_part.GetMassAMU(), "amu");
-	if(InverseKinematics){ SetName(named, "Inverse Kinematics?", "Yes"); }
-	else{ SetName(named, "Inverse Kinematics?", "No"); }
-	SetName(named, "Beam Energy", Ebeam0, "MeV");
-	SetName(named, "Beam Type", BeamType);
-	SetName(named, "Beamspot Dia.", beamspot, "m");
-	SetName(named, "Beam Divergence", beamAngdiv*rad2deg, "deg");
-	SetName(named, "Beam dE", beamEspread, "MeV");
-	SetName(named, "G.S. Q-Value", gsQvalue, "MeV");
-	SetName(named, "No. Excited", NRecoilStates-1, "MeV");
-	SetName(named, "Recoil G.S.", "0.0", "MeV");
+	SetName(named, "version", VERSION);
+	SetName(named, "beamZ", beam_part.GetZ());
+	SetName(named, "beamA", beam_part.GetA());
+	SetName(named, "beamMass", beam_part.GetMassAMU(), "amu");
+	SetName(named, "targZ", targ.GetZ());
+	SetName(named, "targA", targ.GetA());
+	SetName(named, "targMass", targ.GetMassAMU(), "amu");
+	SetName(named, "recoilZ", recoil_part.GetZ());
+	SetName(named, "recoilA", recoil_part.GetA());
+	SetName(named, "recoilMass", recoil_part.GetMassAMU(), "amu");
+	SetName(named, "ejectileZ", eject_part.GetZ());
+	SetName(named, "ejectileA", eject_part.GetA());
+	SetName(named, "ejectileMass", eject_part.GetMassAMU(), "amu");
+	if(InverseKinematics){ SetName(named, "inverse", "Yes"); }
+	else{ SetName(named, "inverse", "No"); }
+	SetName(named, "beamEnergy", Ebeam0, "MeV");
+	SetName(named, "beamType", BeamType);
+	SetName(named, "beamspotDiameter", beamspot, "m");
+	SetName(named, "beamDivergence", beamAngdiv*rad2deg, "deg");
+	SetName(named, "beamEspread", beamEspread, "MeV");
+	SetName(named, "Qgs", gsQvalue, "MeV");
+	SetName(named, "nExStates", NRecoilStates-1, "MeV");
+	SetName(named, "recoilGS", "0.0", "MeV");
 	for(unsigned int i = 1; i < NRecoilStates; i++){
 		std::stringstream stream; stream << i;
-		SetName(named, "Recoil Ex. State "+stream.str(), ExRecoilStates[i], "MeV");
+		SetName(named, "recoilState"+stream.str(), ExRecoilStates[i], "MeV");
 	}
 	if(ADists == 1){ 
-		SetName(named, "Supply Distributions?", "Yes, 1"); 
+		SetName(named, "xsections", "Yes, 1"); 
 		for(unsigned int i = 0; i < NRecoilStates; i++){
 			std::stringstream stream; stream << i;
-			SetName(named, "State "+stream.str()+" Dist.", AngDist_fname[i]);
+			SetName(named, "state"+stream.str()+"Dist", AngDist_fname[i]);
 		}
 	}
 	else if(ADists == 2){
-		SetName(named, "Supply Distributions?", "Yes, 2");
+		SetName(named, "xsections", "Yes, 2");
 		for(unsigned int i = 0; i < NRecoilStates; i++){
 			std::stringstream stream; stream << i;
-			SetName(named, "State "+stream.str()+" Rate", AngDist_fname[i], "per event");
+			SetName(named, "state"+stream.str()+"Rate", AngDist_fname[i], "per event");
 		}
 	}
-	else{ SetName(named, "Supply Distributions?", "No"); }
-	SetName(named, "Target Material", targ_mat_name);
-	if(targ_mat_name != "NONE"){ SetName(named, "Target Thickness", targ.GetThickness(), "mg/cm^2"); }	
-	else{ SetName(named, "Target Thickness", targ.GetRealThickness(), "m"); }	
-	SetName(named, "Target Angle", targ.GetAngle()*rad2deg, "deg");
-	if(PerfectDet){ SetName(named, "Perfect Detectors?", "Yes"); }
-	else{ SetName(named, "Perfect Detectors?", "No"); }
-	SetName(named, "Detector Filename", det_fname);
-	SetName(named, "Number Detections", Nwanted);
+	else{ SetName(named, "xsections", "No"); }
+	SetName(named, "targetMaterial", targ_mat_name);
+	if(targ_mat_name != "NONE"){ SetName(named, "targetMaterial", targ.GetThickness(), "mg/cm^2"); }	
+	else{ SetName(named, "targetThickness", targ.GetRealThickness(), "m"); }	
+	SetName(named, "targetAngle", targ.GetAngle()*rad2deg, "deg");
+	if(PerfectDet){ SetName(named, "perfectDetectors", "Yes"); }
+	else{ SetName(named, "perfectDetectors", "No"); }
+	SetName(named, "detectorFilename", det_fname);
+	SetName(named, "nDetections", Nwanted);
 	if(backgroundRate > 0){ 
-		if(bgPerDetection){ SetName(named, "Background Rate", backgroundRate, "per detection"); }
-		else{ SetName(named, "Background Rate", backgroundRate, "per recoil"); }
-		SetName(named, "Background Window", detWindow, "ns");
+		if(bgPerDetection){ SetName(named, "backgroundRate", backgroundRate, "per detection"); }
+		else{ SetName(named, "backgroundRate", backgroundRate, "per recoil"); }
+		SetName(named, "backgroundWindow", detWindow, "ns");
 	}
-	else{ SetName(named, "Background Rate", "NONE"); }
-	if(InCoincidence){ SetName(named, "Recoil Coincidence?", "Yes"); }
-	else{ SetName(named, "Recoil Coincidence?", "No"); }
-	if(WriteReaction){ SetName(named, "Write Reaction?", "Yes"); }
-	else{ SetName(named, "Write Reaction?", "No"); }
+	else{ SetName(named, "backgroundRate", "NONE"); }
+	if(InCoincidence){ SetName(named, "recoilCoincidence", "Yes"); }
+	else{ SetName(named, "recoilCoincidence", "No"); }
+	if(WriteReaction){ SetName(named, "writeReaction", "Yes"); }
+	else{ SetName(named, "writeReaction", "No"); }
 
 	// Create a directory for storing setup information.
 	file->mkdir("config");

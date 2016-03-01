@@ -493,8 +493,10 @@ std::string Primitive::DumpDet(){
 	stream << position.axis[0] << "\t" << position.axis[1] << "\t" << position.axis[2];
 	stream << "\t" << theta << "\t" << phi << "\t" << psi;
 	stream << "\t" << type << "\t" << subtype;
-	stream << "\t" << length << "\t" << width << "\t" << depth;
-	stream << "\t" << material_name;
+	if(type != "vandle"){
+		stream << "\t" << length << "\t" << width << "\t" << depth;
+		stream << "\t" << material_name;
+	}
 	return stream.str();
 }
 
