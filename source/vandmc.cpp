@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.29c"
+#define VERSION "1.29d"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -773,7 +773,20 @@ int main(int argc, char* argv[]){
 		delete (*iter);
 	}
 	named.clear();
-
+	
+	// Create a directory for storing detector setup information.
+	file->mkdir("detector");
+	file->cd("detector");
+	
+	// Write all detector entries to file.
+	for(size_t index = 0; index < vandle_bars.size(); index++){
+		std::stringstream stream; stream << "det";
+		if(index < 10){ stream << "0"; }
+		stream << index;
+		TNamed named(stream.str().c_str(), vandle_bars.at(index)->DumpDet().c_str());
+		named.Write();
+	}
+	
 	// Begin the simulation
 	std::cout << " ---------- Simulation Setup Complete -----------\n"; 
 	std::cout << "\n Beginning simulating " << Nwanted << " events....\n"; 
@@ -794,7 +807,7 @@ int main(int argc, char* argv[]){
 	double eject_tof = 0.0;
 	double gamma_tof = 0.0;
 	float totTime = 0.0;
-	char counter = 1;
+	int counter = 1;
 	bool flag = false;
 	bool hit = false;
 	bool veto_event = false;
