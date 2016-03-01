@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.29e"
+#define VERSION "1.29f"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -767,7 +767,7 @@ int main(int argc, char* argv[]){
 	file->mkdir("config");
 	file->cd("config");
 
-	// Write the TNameds to file.
+	// Write the configuration TNameds to file.
 	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
 		(*iter)->Write();
 		delete (*iter);
@@ -783,9 +783,15 @@ int main(int argc, char* argv[]){
 		std::stringstream stream; stream << "det";
 		if(index < 10){ stream << "0"; }
 		stream << index;
-		TNamed named(stream.str().c_str(), vandle_bars.at(index)->DumpDet().c_str());
-		named.Write();
+		SetName(named, stream.str(), vandle_bars.at(index)->DumpDet());
 	}
+	
+	// Write the detector TNameds to file.
+	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
+		(*iter)->Write();
+		delete (*iter);
+	}
+	named.clear();
 	
 	// Begin the simulation
 	std::cout << " ---------- Simulation Setup Complete -----------\n"; 
@@ -1249,16 +1255,35 @@ process:
 		if(WriteReaction){ REACTIONdata.Zero(); }
 	} // Main simulation loop
 	// ==  ==  ==  ==  ==  ==  == 
+
+	// Create a directory for storing end of simulation information.
+	file->mkdir("simulation");
+	file->cd("simulation");
+
+	SetName(named, "simulationTime", (float)(clock()-timer)/CLOCKS_PER_SEC, "seconds");
+	SetName(named, "totalEvents", Nreactions);
+	SetName(named, "totalDetectorHits", NdetHit);
+	SetName(named, "vetoedEvents", NvetoEvents);
+	SetName(named, "recoilHits", NrecoilHits);
+	SetName(named, "ejectileHits", NejectileHits);
+	SetName(named, "gammaHits", NgammaHits);
+
+	// Write the configuration TNameds to file.
+	for(std::vector<TNamed*>::iterator iter = named.begin(); iter != named.end(); iter++){
+		(*iter)->Write();
+		delete (*iter);
+	}
+	named.clear();
 	
 	// Information output and cleanup
 	std::cout << "\n ------------- Simulation Complete --------------\n";
 	std::cout << " Simulation Time: " << (float)(clock()-timer)/CLOCKS_PER_SEC << " seconds\n"; 
 	std::cout << " Total MC Events: " << Nreactions << "\n";
 	std::cout << " Total Detector Hits: " << NdetHit << "\n";
+	std::cout << "  Vetoed Events: " << NvetoEvents << " (" << (100.0*NvetoEvents)/Nreactions << "%)\n";
 	std::cout << "  Recoil Hits:   " << NrecoilHits << " (" << (100.0*NrecoilHits)/Nreactions << "%)\n";
 	std::cout << "  Ejectile Hits: " << NejectileHits << " (" << (100.0*NejectileHits)/Nreactions << "%)\n";
 	std::cout << "  Gamma Hits:    " << NgammaHits << " (" << (100.0*NgammaHits)/Nreactions << "%)\n";
-	std::cout << "  Vetoed Events: " << NvetoEvents << " (" << (100.0*NvetoEvents)/Nreactions << "%)\n";
 	if(beam_stopped > 0 || eject_stopped > 0 || recoil_stopped > 0){
 		std::cout << " Particles Stopped in Target:\n";
 		if(beam_stopped > 0){ std::cout << "  Beam: " << beam_stopped << " (" << 100.0*beam_stopped/Nsimulated << "%)\n"; }
@@ -1269,7 +1294,7 @@ process:
 	
 	file->cd();
 	VANDMCtree->Write();
-	
+
 	std::cout << "  Wrote file " << output_fname << "\n";
 	std::cout << "   Wrote " << VANDMCtree->GetEntries() << " tree entries for VANDMC\n";
 	file->Close();
