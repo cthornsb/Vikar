@@ -736,6 +736,8 @@ Target::Target() : Particle() {
 	thickness = 0.0;
 	Zthickness = 0.0;
 	density = 1.0;
+	Ndensity = 0.0;
+	Mmass = 1.0;
 	rad_length = 0.0;
 	angle = 0.0;
 	physical = new Primitive();
@@ -745,6 +747,8 @@ Target::Target(unsigned int num_elements_) : Particle() {
 	thickness = 0.0;
 	Zthickness = 0.0;
 	density = 1.0;
+	Ndensity = 0.0;
+	Mmass = 1.0;
 	rad_length = 0.0;
 	angle = 0.0;
 	physical = new Primitive();
@@ -752,11 +756,13 @@ Target::Target(unsigned int num_elements_) : Particle() {
 
 void Target::SetThickness(double thickness_){ 
 	thickness = thickness_;	
+	Ndensity = avagadro*(thickness/1000)/Mmass;
 	physical->SetSize(1.0, 1.0, thickness/(density*1E5)); // Only the thickness matters
 }
 
 void Target::SetRealThickness(double thickness_){ 
 	thickness = thickness_*density*1E3;	
+	Ndensity = avagadro*(thickness/1000)/Mmass;
 	physical->SetSize(1.0, 1.0, thickness_/100.0); // Only the thickness matters
 }
 
@@ -773,6 +779,16 @@ void Target::SetDensity(double density_){
 	// so we need to update the thickness
 	physical->SetSize(1.0, 1.0, thickness/(density*1E5));
 }
+
+void Target::SetNumberDensity(double Ndensity_){
+	Ndensity = Ndensity_;
+	Mmass = avagadro*(thickness/1000)/Ndensity;
+}
+
+void Target::SetMolarMass(double Mmass_){
+	Mmass = Mmass_;
+	Ndensity = avagadro*(thickness/1000)/Mmass;
+} 
 
 /** Get the depth into the target at which the reaction occurs
   * \\param[in] offset_ is the global position where the beam particle originates

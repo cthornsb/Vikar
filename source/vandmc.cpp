@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.30c"
+#define VERSION "1.30d"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -582,6 +582,9 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+	// Set the molar mass of the target.
+	targ.SetMolarMass(materials[targ_mat_id].GetMolarMass());
+
 	// Calculate the stopping power table for the ejectiles in the materials
 	if(eject_part.GetZ() > 0){ // The ejectile is a charged particle (not a neutron)
 		for(unsigned int i = 0; i < num_materials; i++){
@@ -634,7 +637,7 @@ int main(int argc, char* argv[]){
 	if((ADists == 1 || ADists == 2) && !DoRutherford){ 
 		if(ADists == 1){
 			std::cout << "\n Loading state angular distribution files...\n";
-			if(kind.SetDist(AngDist_fname, materials[targ_mat_id].GetTotalElements(), materials[targ_mat_id].GetDensity(), BeamRate)){
+			if(kind.SetDist(AngDist_fname, BeamRate, &targ)){
 				// Successfully set the angular distributions
 				std::cout << " Successfully loaded angular distributions.\n";
 				kind.Print();

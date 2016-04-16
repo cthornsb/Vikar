@@ -17,6 +17,7 @@
 #include <string>
 
 class AngularDist;
+class Target;
 
 struct reactData{
 	double Ereact;
@@ -89,7 +90,7 @@ class Kindeux{
    	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);
 	
 	/// Set Kindeux to use angular distributions from files for calculating recoil excitations.
-	bool SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current);
+	bool SetDist(std::vector<std::string> &fnames, double incident_beam_current, Target *targ_);
 	
 	/// Set Kindeux to use relative state intensities for calculating recoil excitations.
 	bool SetDist(const std::vector<std::string> &intensities_);

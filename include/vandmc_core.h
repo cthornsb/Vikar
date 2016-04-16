@@ -35,6 +35,7 @@ extern const double rad2deg, LN2;
 // To handle the circular dependencies.
 class Ray;
 class Line;
+class Target;
 
 class Vector3{
   public:
@@ -193,10 +194,10 @@ class AngularDist{
 	~AngularDist();
 	
 	/// Setup the angular distribution by reading it from a file.
-	bool Initialize(const char* fname, const double &mtarg, const double &tgt_thickness, const double &beam_current);
+	bool Initialize(const char* fname, const double &beam_intensity=0, Target *targ_=NULL);
 	
 	/// Setup the angular distribution using arrays.
-	bool Initialize(const unsigned int &num_points_, double *angle_, double *xsection_);
+	bool Initialize(const unsigned int &num_points_, double *angle_, double *xsection_, const double &beam_intensity=0, Target *targ_=NULL);
 	
 	/// Setup the angular distribution using an isotropic distribution.
 	bool Initialize(const double &xsection_);

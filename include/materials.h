@@ -408,6 +408,8 @@ class Target : public Particle {
 	double thickness; /// Thickness of the target (mg/cm^2).
 	double Zthickness; /// Thickness of the target in the z-direction (mg/cm^2).
 	double density; /// Density of the target (g/cm^3).
+	double Ndensity; /// Number density of the target (p/cm^3).
+	double Mmass; /// Molar mass of the target (g/mol).
 	double rad_length; /// The radiation length of the material (mg/cm^2).
 	double angle; /// Angle of target wrt the beam axis (rad).
 	
@@ -424,6 +426,8 @@ class Target : public Particle {
 	void SetRealThickness(double thickness_); /// Set the actual thickness of the target (in cm).
 	void SetAngle(double angle_); /// Set the angle of the target about the z-axis (in rad).
 	void SetDensity(double density_); /// Set the density of the target (in g/cm^3).
+	void SetNumberDensity(double Ndensity_); /// Set the number density of the target (in p/cm^3).
+	void SetMolarMass(double Mmass_); /// Set the molar mass of the target (in g/mol).
 	void SetRadLength(double rad_length_){ rad_length = rad_length_; } /// Set the radiation length of the target (in mg/cm^2).
 	
 	double GetThickness(){ return thickness; } /// Return the thickness of the target (mg/cm^2).
@@ -432,6 +436,8 @@ class Target : public Particle {
 	double GetRealZthickness(){ return Zthickness/(density*1E5); } /// Return the physical thickness the beam sees (m).
 	double GetAngle(){ return angle; } /// Return the angle of the target about the z-axis (rad).
 	double GetDensity(){ return density; } /// Return the density of the target (g/cm^3).
+	double GetNumberDensity(){ return Ndensity; } /// Return the molecular density of the material (p/cm^3).
+	double GetMolarMass(){ return Mmass; } /// Return the molar mass of the material (g/mol).
 	double GetRadLength(){ return rad_length; } /// Return the radiation length of the target (mg/cm^2).
 	Primitive *GetPrimitive(){ return physical; } /// Return a pointer to the 3d geometry object
 	

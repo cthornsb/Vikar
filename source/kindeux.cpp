@@ -42,11 +42,10 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 /** Set Kindeux to use angular distributions from files for calculating recoil excitations.
   * Returns false if attempt to load distribution fails for any reason.
   * param[in] fnames_ Vector containing filenames for each recoil state distribution (including g.s.).
-  * param[in] total_targ_mass_ Molar mass of the target (g/mol).
-  * param[in] tgt_thickness_ The thickness of the target (mg/cm^2).
   * param[in] incident_beam_current The incident rate of the beam (pps).
+  * param[in] targ_mat A pointer to the target material.
   */
-bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, double tgt_thickness_, double incident_beam_current){
+bool Kindeux::SetDist(std::vector<std::string> &fnames, double incident_beam_current, Target *targ_){
 	if(!init || ang_dist){ return false; }
 	
 	if(fnames.size() < NrecoilStates){
@@ -63,7 +62,7 @@ bool Kindeux::SetDist(std::vector<std::string> &fnames, double total_targ_mass, 
 	// Load all distributions from file
 	total_xsection = 0.0;
 	for(unsigned int i = 0; i < NrecoilStates; i++){
-		if(!distributions[i].Initialize(fnames[i].c_str(), total_targ_mass, tgt_thickness_, incident_beam_current)){
+		if(!distributions[i].Initialize(fnames[i].c_str(), incident_beam_current, targ_)){
 			std::cout << "  Failed to load angular distribution file '" << fnames[i] << "'\n";
 			ang_dist = false;
 			break;

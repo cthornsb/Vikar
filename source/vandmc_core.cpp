@@ -11,6 +11,7 @@
  */
 #include "vandmc_core.h"
 #include "detectors.h"
+#include "materials.h"
 
 /////////////////////////////////////////////////////////////////////
 // Constant Globals (for fortran commons)
@@ -405,11 +406,10 @@ AngularDist::~AngularDist(){
   * param[in] fname Filename of the angular distribution file. File should contain
   *  two columns. First is the center of mass angle (in degrees) and second is the
   *  differential cross section (in mb/Sr) at that CoM angle.
-  * param[in] mtarg The molar mass of the target (g/mol).
-  * param[in] tgt_thickness The thickness of the target (mg/cm^2).
-  * param[in] beam_current The intensity of the beam (pps).
+  * param[in] beam_intensity The intensity of the beam (pps).
+  * param[in] targ_ A pointer to the target object.
   */
-bool AngularDist::Initialize(const char* fname, const double &mtarg, const double &tgt_thickness, const double &beam_current){
+bool AngularDist::Initialize(const char* fname, const double &beam_intensity/*=0*/, Target *targ_/*=NULL*/){
 	if(init){ return false; }
 	
 	std::ifstream inFile(fname);
@@ -447,16 +447,15 @@ bool AngularDist::Initialize(const char* fname, const double &mtarg, const doubl
 		// Calculate the reaction cross-section from the differential cross section
 		double x1, x2, y1, y2;
 		for(unsigned int i = 0; i < num_points-1; i++){
-			x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
-			x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
-			reaction_xsection += 0.5*(x2-x1)*(y2+y1);
-			integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
+			x1 = com_theta[i]; y1 = dsigma_domega[i]*std::sin(x1);
+			x2 = com_theta[i+1]; y2 = dsigma_domega[i+1]*std::sin(x2);
+			reaction_xsection += 0.5*(x2-x1)*(y2+y1)*2*pi;
+			integral[i+1] = reaction_xsection; // The cumulative integral
 		}
 		
-		reaction_xsection *= 2*pi;
-		//rate = avagadro*tgt_thickness*reaction_xsection*(1E-27)/(500*mtarg); // Reaction probability
 		rate = 0.0;
-		rate *= beam_current; // Reaction rate (pps)
+		if(targ_){ rate = reaction_xsection*(1E-27)*beam_intensity*targ_->GetNumberDensity(); }
+		
 		return (init = true);
 	}
 	
@@ -469,8 +468,10 @@ bool AngularDist::Initialize(const char* fname, const double &mtarg, const doubl
   * param[in] num_points_ The number of points in the input arrays.
   * param[in] angle_ Pointer to the array of center of mass angles (rad).
   * param[in] xsection_ Pointer to the array of differential cross sections (mb/Sr).
+  * param[in] beam_intensity The intensity of the beam (pps).
+  * param[in] targ_ A pointer to the target object.
   */
-bool AngularDist::Initialize(const unsigned int &num_points_, double *angle_, double *xsection_){
+bool AngularDist::Initialize(const unsigned int &num_points_, double *angle_, double *xsection_, const double &beam_intensity/*=0*/, Target *targ_/*=NULL*/){
 	if(init || num_points_ <= 1){ return false; }
 	
 	num_points = num_points_;
@@ -491,14 +492,15 @@ bool AngularDist::Initialize(const unsigned int &num_points_, double *angle_, do
 	// Calculate the reaction cross-section from the differential cross section
 	double x1, x2, y1, y2;
 	for(unsigned int i = 0; i < num_points-1; i++){
-		x1 = com_theta[i]*deg2rad; y1 = dsigma_domega[i]*std::sin(x1);
-		x2 = com_theta[i+1]*deg2rad; y2 = dsigma_domega[i+1]*std::sin(x2);
-		reaction_xsection += 0.5*(x2-x1)*(y2+y1);
-		integral[i+1] = reaction_xsection*2*pi; // The cumulative integral
+		x1 = com_theta[i]; y1 = dsigma_domega[i]*std::sin(x1);
+		x2 = com_theta[i+1]; y2 = dsigma_domega[i+1]*std::sin(x2);
+		reaction_xsection += 0.5*(x2-x1)*(y2+y1)*2*pi;
+		integral[i+1] = reaction_xsection; // The cumulative integral
 	}
 	
-	reaction_xsection *= 2*pi;
-	
+	rate = 0.0;
+	if(targ_){ rate = reaction_xsection*beam_intensity*targ_->GetNumberDensity(); }
+		
 	return (init = true);
 }
 
@@ -507,7 +509,7 @@ bool AngularDist::Initialize(const double &xsection_){
 	if(init || xsection_ <= 0.0){ return false; }
 	
 	reaction_xsection = xsection_;
-	
+	rate = 0.0;
 	return (init = true);	
 }
 
