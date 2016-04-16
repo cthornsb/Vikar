@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.30d"
+#define VERSION "1.30e"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -1302,7 +1302,13 @@ process:
 		if(eject_stopped > 0){ std::cout << "  Ejectiles: " << eject_stopped << " (" << 100.0*eject_stopped/Nsimulated << "%)\n"; }
 		if(recoil_stopped > 0){ std::cout << "  Recoils: " << recoil_stopped << " (" << 100.0*recoil_stopped/Nsimulated << "%)\n"; }
 	}
-	if(SupplyRates){ std::cout << " Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
+	if(SupplyRates){ 
+		double beamTime = 0.0;
+		for(unsigned int i = 0; i < NRecoilStates; i++){
+			beamTime += kind.GetDistribution(i)->GetRate()*kind.GetNreactions(i);
+		}
+		std::cout << " Beam Time: " << beamTime << " seconds (" << beamTime/3600 << " hrs.)\n"; 
+	}
 	
 	file->cd();
 	VANDMCtree->Write();

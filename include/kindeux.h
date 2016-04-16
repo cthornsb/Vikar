@@ -36,6 +36,7 @@ class Kindeux{
 	double *Xsections;
 	double total_xsection;
 	
+	unsigned int *Nreactions;
 	unsigned int NDist, NrecoilStates;
 	AngularDist *distributions;
 	bool ang_dist, init;
@@ -44,20 +45,9 @@ class Kindeux{
 	bool get_excitations(double &recoilE, unsigned int &state);
 	
   public:
-	Kindeux(){
-		ang_dist = false; init = false;
-		NDist = 0; NrecoilStates = 0;
-		RecoilExStates = NULL;
-		Mbeam = 0.0; Mtarg = 0.0;
-		Mrecoil = 0.0; Meject = 0.0;
-		Qvalue = 0.0;
-	}
-	~Kindeux(){ 
-		if(ang_dist){ 
-			delete[] distributions; 
-			delete[] Xsections;
-		} 
-	}
+	Kindeux();
+	
+	~Kindeux();
 
 	/// Return true if the object is initialized, and false otherwise.
 	bool IsInit(){ return init; }
@@ -85,6 +75,15 @@ class Kindeux{
 
 	/// Return the mass of the ejectile particle in MeV/c^2.
 	double GetMejectMeV(){ return 931.49*Meject; } 
+   	
+   	/// Return the number of recoil states being used.
+   	unsigned int GetNrecoilStates(){ return NrecoilStates; }
+   	
+   	/// Return the number of reactions for a given state.
+   	unsigned int GetNreactions(const unsigned int &index_){ return (index_ < NrecoilStates ? Nreactions[index_] : 0); }
+   	
+   	/// Return a pointer to the angular distribution for a given state.
+   	AngularDist *GetDistribution(const unsigned int &index_){ return (ang_dist && index_ < NrecoilStates ? &distributions[index_] : NULL); }
    	
    	/// Initialize Kindeux object with reaction parameters.
    	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);

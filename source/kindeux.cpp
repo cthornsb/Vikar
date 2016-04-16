@@ -16,7 +16,28 @@
 /////////////////////////////////////////////////////////////////////
 // Kindeux
 /////////////////////////////////////////////////////////////////////
-    	
+Kindeux::Kindeux(){
+	ang_dist = false; 
+	init = false;
+	NDist = 0; 
+	NrecoilStates = 0;
+	RecoilExStates = NULL;
+	Xsections = NULL;
+	Nreactions = NULL;
+	distributions = NULL;
+	Mbeam = 0.0; Mtarg = 0.0;
+	Mrecoil = 0.0; Meject = 0.0;
+	Qvalue = 0.0;
+}
+
+Kindeux::~Kindeux(){ 
+	if(ang_dist){ 
+		delete[] distributions; 
+		delete[] Xsections;
+	} 
+	if(init){ delete[] Nreactions; }
+}
+	
 /** Initialize Kindeux object with reaction parameters.
   * param[in] Mbeam_ Mass of the beam (amu).
   * param[in] Mtarg_ Mass of the target (amu).
@@ -35,6 +56,10 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 		Qvalue = Qvalue_;
 		NrecoilStates = NrecoilStates_;
 		RecoilExStates = RecoilExStates_;
+		Nreactions = new unsigned int[NrecoilStates];
+		for(unsigned int i = 0; i < NrecoilStates; i++){
+			Nreactions[i] = 0;
+		}
 		init = true;
 	}
 }
@@ -156,6 +181,7 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 	if(NrecoilStates == 0){
 		state = 0;
 		recoilE = RecoilExStates[state];
+		Nreactions[state]++;
 		return true;
 	}
 	else if(ang_dist){	
@@ -166,17 +192,20 @@ bool Kindeux::get_excitations(double &recoilE, unsigned int &state){
 				// State i has been selected
 				state = i;
 				recoilE = RecoilExStates[state];
+				Nreactions[state]++;
 				return true;
 			}
 		}
 		state = NrecoilStates-1;
 		recoilE = RecoilExStates[state];
+		Nreactions[state]++;
 		return true;
 	}
 	else{ 
 		// Isotropic
 		state = (unsigned int)(frand()*NrecoilStates);
 		recoilE = RecoilExStates[state];
+		Nreactions[state]++;
 	}
 	return true;
 }
