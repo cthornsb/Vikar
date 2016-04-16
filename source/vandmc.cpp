@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.30b"
+#define VERSION "1.30c"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -809,7 +809,7 @@ int main(int argc, char* argv[]){
 	Vector3 dummy_vector;
 	double dummy_t1, dummy_t2;
 	double dist_traveled = 0.0, QDC = 0.0;
-	double penetration = 0.0, fpath1 = 0.0, fpath2 = 0.0;
+	double fpath1 = 0.0, fpath2 = 0.0;
 	double recoil_tof = 0.0;
 	double eject_tof = 0.0;
 	double gamma_tof = 0.0;
@@ -1084,32 +1084,28 @@ process:
 			// If a geometric hit was detected, process the particle
 			if(hit){
 				NdetHit++; 
-				
-				// The time of flight is the time it takes the particle to traverse the distance
-				// from the target to the intersection point inside the detector
-				penetration = temp_vector.Length(); // Total distance traveled through detector	
 
 				// Solve for the energy deposited in the material.
 				if((*iter)->UseMaterial()){ // Do energy loss and range considerations
 					if(detector_type == 0){ 
 						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
-							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, penetration, dist_traveled);
+							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, temp_vector.Length(), dist_traveled);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
 					else if(detector_type == 1){
 						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
-							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, penetration, dist_traveled);
+							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, temp_vector.Length(), dist_traveled);
 						}
 						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
 					else if(detector_type == 2){ std::cout << " ERROR! Doing energy loss on a gamma ray???\n"; }
 				}
 				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
-					dist_traveled = (fpath2-fpath1)*frand(); // The particle penetrates a random distance into the detector.
-					if(detector_type == 0){ QDC = frand()*ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
-					else if(detector_type == 1){ QDC = frand()*EejectMod; } // The ejectile may leave any portion of its energy inside the detector
-					else if(detector_type == 2){ QDC = frand()*Egamma; }
+					dist_traveled = temp_vector.Length()*frand(); // The particle penetrates a random distance into the detector and stops.
+					if(detector_type == 0){ QDC = ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
+					else if(detector_type == 1){ QDC = EejectMod; } // The ejectile may leave any portion of its energy inside the detector
+					else if(detector_type == 2){ QDC = Egamma; }
 				}
 
 				// If particle originates outside of the detector, add the flight path to the first encountered
