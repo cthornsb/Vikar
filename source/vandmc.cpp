@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.29f"
+#define VERSION "1.30"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -1104,7 +1104,7 @@ process:
 					else if(detector_type == 2){ std::cout << " ERROR! Doing energy loss on a gamma ray???\n"; }
 				}
 				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
-					dist_traveled = 0.0; // The particle does not enter the detector.
+					dist_traveled = (fpath2-fpath1)*frand(); // The particle penetrates a random distance into the detector.
 					if(detector_type == 0){ QDC = frand()*ErecoilMod; } // The recoil may leave any portion of its energy inside the detector
 					else if(detector_type == 1){ QDC = frand()*EejectMod; } // The ejectile may leave any portion of its energy inside the detector
 					else if(detector_type == 2){ QDC = frand()*Egamma; }
