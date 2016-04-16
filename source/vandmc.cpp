@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.30"
+#define VERSION "1.30b"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -123,11 +123,12 @@ int main(int argc, char* argv[]){
 	std::string output_fname = "vandmc.root";
 	
 	// Input/output variables
-	unsigned int Ndetected = 0; // Total number of particles detected in VANDLE
-	unsigned int Nwanted = 0; // Number of desired detections
-	unsigned int Nsimulated = 0; // Total number of simulated particles
-	unsigned int NdetHit = 0; // Total number of particles which collided with a bar
-	unsigned int Nreactions = 0; // Total number of particles which react with the target
+	unsigned int NgoodDetections = 0; // Number of wanted particles detected in ejectile detectors.
+	unsigned int Ndetected = 0; // Total number of particles detected in ejectile detectors.
+	unsigned int Nwanted = 0; // Number of desired ejectile detections.
+	unsigned int Nsimulated = 0; // Total number of simulated particles.
+	unsigned int NdetHit = 0; // Total number of particles which collided with a detector.
+	unsigned int Nreactions = 0; // Total number of particles which react with the target.
 	unsigned int NrecoilHits = 0;
 	unsigned int NejectileHits = 0;
 	unsigned int NgammaHits = 0;
@@ -832,21 +833,22 @@ int main(int argc, char* argv[]){
 	// Struct for storing reaction information.
 	reactData rdata;
 	
-	while(Ndetected < Nwanted){
+	while(NgoodDetections < Nwanted){
 		// ****************Time Estimate**************
-		if(flag && (Ndetected % chunk == 0)){
+		if(flag && (NgoodDetections % chunk == 0)){
 			flag = false;
 			totTime = (float)(clock()-timer)/CLOCKS_PER_SEC;
 			std::cout << "\n ------------------------------------------------\n"; 
 			std::cout << " Number of particles Simulated: " << Nsimulated << std::endl; 
-			std::cout << " Number of particles Detected: " << Ndetected << std::endl; 
+			std::cout << " Number of particles Detected: " << Ndetected << std::endl;
+			std::cout << " Number of ejecile particles Detected: " << NgoodDetections << std::endl; 
 			if(SupplyRates && ADists){ std::cout << " Number of Reactions: " << Nreactions << std::endl; }
 		
-			std::cout << " " << Ndetected*100.0/Nwanted << "% of simulation complete...\n"; 
-			if(PerfectDet){ std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; }
+			std::cout << " " << NgoodDetections*100.0/Nwanted << "% of simulation complete...\n"; 
+			if(PerfectDet){ std::cout << "  Detection Efficiency: " << NgoodDetections*100.0/Nreactions << "%\n"; }
 			else{
 				std::cout << "  Geometric Efficiency: " << NdetHit*100.0/Nreactions << "%\n";
-				std::cout << "  Detection Efficiency: " << Ndetected*100.0/Nreactions << "%\n"; 
+				std::cout << "  Detection Efficiency: " << NgoodDetections*100.0/Nreactions << "%\n"; 
 			}
 			if(SupplyRates){ std::cout << "  Beam Time: " << Nsimulated/BeamRate << " seconds\n"; }
 		
@@ -1222,7 +1224,6 @@ process:
 			// Check to see if anything needs to be written to file.
 			if(InCoincidence){ // We require coincidence between ejectiles and recoils 
 				if(recoil_detections > 0 && (eject_detections > 0 || gamma_detections > 0)){ 
-					if(!flag){ flag = true; }
 					if(WriteReaction){ // Set some extra reaction data variables.
 						REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
 							                lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
@@ -1231,11 +1232,16 @@ process:
 					if(bgPerDetection){ backgroundWait = backgroundRate; }
 					VANDMCtree->Fill(); 
 					Ndetected++;
+					
+					// Ignore background and gamma events for true detection count.
+					if(eject_detections > 0){ 
+						if(!flag){ flag = true; }
+						NgoodDetections++; 
+					}
 				}
 			}
 			else{ // Coincidence is not required between reaction particles
 				if(eject_detections > 0 || recoil_detections > 0 || gamma_detections > 0){ 
-					if(!flag){ flag = true; }
 					if(WriteReaction){
 						REACTIONdata.Append(rdata.Ereact, rdata.Eeject, rdata.Erecoil, rdata.comAngle*rad2deg, rdata.state,
 							                lab_beam_interaction.axis[0], lab_beam_interaction.axis[1], lab_beam_interaction.axis[2],
@@ -1244,6 +1250,12 @@ process:
 					if(bgPerDetection){ backgroundWait = backgroundRate; }
 					VANDMCtree->Fill(); 
 					Ndetected++;
+					
+					// Ignore background and gamma events for true detection count.
+					if(eject_detections > 0){ 
+						if(!flag){ flag = true; }
+						NgoodDetections++; 
+					}
 				}
 			}
 		}
@@ -1263,6 +1275,7 @@ process:
 	SetName(named, "simulationTime", (float)(clock()-timer)/CLOCKS_PER_SEC, "seconds");
 	SetName(named, "totalEvents", Nreactions);
 	SetName(named, "totalDetectorHits", NdetHit);
+	SetName(named, "totalDetectedEvents", Ndetected);
 	SetName(named, "vetoedEvents", NvetoEvents);
 	SetName(named, "recoilHits", NrecoilHits);
 	SetName(named, "ejectileHits", NejectileHits);
