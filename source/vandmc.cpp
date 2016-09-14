@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.30e"
+#define VERSION "1.31"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -694,14 +694,14 @@ int main(int argc, char* argv[]){
 	TFile *file = new TFile(output_fname.c_str(), "RECREATE");
 	TTree *VANDMCtree = new TTree("data", "VANDMC output tree");
 	
-	EjectObjectStructure EJECTdata;
-	RecoilObjectStructure RECOILdata;
+	ReactionProductStructure EJECTdata;
+	ReactionProductStructure RECOILdata;
 	ReactionObjectStructure REACTIONdata;
 	
-	VANDMCtree->Branch("Eject", &EJECTdata);
-	VANDMCtree->Branch("Recoil", &RECOILdata);
+	VANDMCtree->Branch("eject", &EJECTdata);
+	VANDMCtree->Branch("recoil", &RECOILdata);
 	if(WriteReaction){
-		VANDMCtree->Branch("Reaction", &REACTIONdata);
+		VANDMCtree->Branch("reaction", &REACTIONdata);
 	}
 
 	// Write reaction info to the file.
@@ -880,13 +880,13 @@ int main(int argc, char* argv[]){
 			
 				// Calculate the apparent energy of the particle using the tof
 				if((*iter)->IsEjectileDet()){
-					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector_sphere.axis[1]*rad2deg,
+					EJECTdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector.Length(), temp_vector_sphere.axis[1]*rad2deg,
 									 temp_vector_sphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VANDMCtree->Fill(); 
 					EJECTdata.Zero();
 				}
 				else if((*iter)->IsRecoilDet()){
-					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], RecoilSphere.axis[1]*rad2deg,
+					RECOILdata.Append(temp_vector.axis[0], temp_vector.axis[1], temp_vector.axis[2], temp_vector.Length(), RecoilSphere.axis[1]*rad2deg,
 									  RecoilSphere.axis[2]*rad2deg, 0.0, recoil_tof*(1E9), 0.0, 0.0, 0.0, 0.0, (*iter)->GetLoc(), true);
 					VANDMCtree->Fill();
 					RECOILdata.Zero();
@@ -1152,8 +1152,8 @@ process:
 			
 				// Main output
 				if(detector_type == 0){
-					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], RecoilSphere.axis[1]*rad2deg,
-									  RecoilSphere.axis[2]*rad2deg, QDC, recoil_tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+					RECOILdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], HitDetect1.Length(), RecoilSphere.axis[1]*rad2deg,
+					                  RecoilSphere.axis[2]*rad2deg, QDC, recoil_tof*(1E9), rdata.Erecoil, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 				
 					recoil_detections++;
 				
@@ -1161,8 +1161,8 @@ process:
 					ErecoilMod = ErecoilMod - QDC;
 				}
 				else if(detector_type == 1){
-					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], EjectSphere.axis[1]*rad2deg,
-									 EjectSphere.axis[2]*rad2deg, QDC, eject_tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
+					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], HitDetect1.Length(), EjectSphere.axis[1]*rad2deg,
+					                  EjectSphere.axis[2]*rad2deg, QDC, eject_tof*(1E9), rdata.Eeject, hit_x, hit_y, hit_z, (*iter)->GetLoc(), false);
 								
 					eject_detections++;			
 								
@@ -1170,8 +1170,8 @@ process:
 					EejectMod = EejectMod - QDC;
 				}
 				else if(detector_type == 2){ 
-					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], GammaSphere.axis[1]*rad2deg,
-									 GammaSphere.axis[2]*rad2deg, Egamma, gamma_tof*(1E9), 0.0, hit_x, hit_y, hit_z, (*iter)->GetLoc(), true);
+					EJECTdata.Append(HitDetect1.axis[0], HitDetect1.axis[1], HitDetect1.axis[2], HitDetect1.Length(), GammaSphere.axis[1]*rad2deg,
+					                 GammaSphere.axis[2]*rad2deg, Egamma, gamma_tof*(1E9), 0.0, hit_x, hit_y, hit_z, (*iter)->GetLoc(), true);
 									 
 					gamma_detections++;
 					

@@ -27,71 +27,35 @@
 # Last updated: Aug. 21st, 2015
 
 #####################################################################
-# RecoilObject
+# ReactionProduct
 #####################################################################
 # Class name
-BEGIN_CLASS	RecoilObject
+BEGIN_CLASS	ReactionProduct
 
 # Short class description
-SHORT	Recoil particle information
+SHORT	Ejectile & recoil particle information
 
 # Longer class description
-LONG	Structure for storing information about the recoil particle
+LONG	Structure for storing information about the ejectile & recoil particles
 
 # Data types and names
 # type	name	description
 BEGIN_TYPES
-vector:double	recoil_hitX	The x-component of position of the detector hit in 3d space (m).
-vector:double	recoil_hitY	The y-component of position of the detector hit in 3d space (m).
-vector:double	recoil_hitZ	The z-component of position of the detector hit in 3d space (m).
-vector:double	recoil_hitTheta	The angle of the recoil particle about the vertical-axis (deg).
-vector:double	recoil_hitPhi	The angle of the recoil particle about the beam-axis (deg).
-vector:double	recoil_qdc	The energy of the particle calculated from the time-of-flight (MeV).
-vector:double	recoil_tof	The time-of-flight of the particle from the reaction point to the detector (ns).
-vector:double	recoil_energy	The resolution smeared energy detected by the detector (MeV).
-vector:double	recoil_faceX	The x-component of the position of the detector hit on the face of the detector (m).
-vector:double	recoil_faceY	The y-component of the position of the detector hit on the face of the detector (m).
-vector:double	recoil_faceZ	The z-component of the position of the detector hit on the face of the detector (m).
-vector:int	recoil_loc
-vector:bool	recoil_bg	
-u_int	recoil_mult	Multiplicity of recoil detector hits	
-
-# Trace output data types and names (must end with _wave)
-# type	name	description
-END_TYPES
-
-# End this class
-END_CLASS
-
-#####################################################################
-# EjectObject
-#####################################################################
-# Class name
-BEGIN_CLASS	EjectObject
-
-# Short class description
-SHORT	Ejectile particle information
-
-# Longer class description
-LONG	Structure for storing information about the ejectile particle
-
-# Data types and names
-# type	name	description
-BEGIN_TYPES
-vector:double	eject_hitX	The x-component of position of the detector hit in 3d space (m).
-vector:double	eject_hitY	The y-component of position of the detector hit in 3d space (m).
-vector:double	eject_hitZ	The z-component of position of the detector hit in 3d space (m).
-vector:double	eject_hitTheta	The angle of the ejectile particle about the vertical-axis (deg).
-vector:double	eject_hitPhi	The angle of the ejectile particle about the beam-axis (deg).
-vector:double	eject_qdc	The energy of the particle calculated from the time-of-flight (MeV).
-vector:double	eject_tof	The time-of-flight of the particle from the reaction point to the detector (ns).
-vector:double	eject_energy	The resolution smeared energy detected by the detector (MeV).
-vector:double	eject_faceX	The x-component of the position of the detector hit on the face of the detector (m).
-vector:double	eject_faceY	The y-component of the position of the detector hit on the face of the detector (m).
-vector:double	eject_faceZ	The z-component of the position of the detector hit on the face of the detector (m).
-vector:int	eject_loc
-vector:bool	eject_bg	
-u_int	eject_mult	Multiplicity of ejectile detector hits	
+vector:double	hitX	The x-component of position of the detector hit in 3d space (m).
+vector:double	hitY	The y-component of position of the detector hit in 3d space (m).
+vector:double	hitZ	The z-component of position of the detector hit in 3d space (m).
+vector:double	hitR	The distance from the origin to the detector hit in 3d space (m).
+vector:double	hitTheta	The angle of the recoil particle about the vertical-axis (deg).
+vector:double	hitPhi	The angle of the recoil particle about the beam-axis (deg).
+vector:double	qdc	The energy of the particle calculated from the time-of-flight (MeV).
+vector:double	tof	The time-of-flight of the particle from the reaction point to the detector (ns).
+vector:double	energy	The energy of the particle after the reacting (MeV).
+vector:double	faceX	The x-component of the position of the detector hit on the face of the detector (m).
+vector:double	faceY	The y-component of the position of the detector hit on the face of the detector (m).
+vector:double	faceZ	The z-component of the position of the detector hit on the face of the detector (m).
+vector:int	loc	The location of the detector in the detector setup file.
+vector:bool	bg	Set to true if this is a background event.
+u_int	mult	Multiplicity of recoil detector hits	
 
 # Trace output data types and names (must end with _wave)
 # type	name	description
