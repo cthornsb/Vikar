@@ -123,8 +123,15 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 		matrix.SetRotationMatrixSphere(angle_, 0.0);
 	}
 	
+	unsigned int num_trials_chunk = num_trials/10;
+	unsigned int chunk_num = 1;
+	
 	total = 0; count = 0; type = 0;
 	while(count < num_trials){
+		if(count != 0 && count == num_trials_chunk*chunk_num){ // Print a status update.
+			std::cout << "  " << (chunk_num++)*10 << "% - " << "Detected " << count << " of " << total << " total events (" << count*100.0/total << "%)\n";
+		}
+	
 		found_hit = false;
 	
 		UnitSphereRandom(temp_ray); // Generate a uniformly distributed random point on the unit sphere
