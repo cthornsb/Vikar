@@ -47,7 +47,7 @@ struct DataPack{
 			delete file;
 		}
 		
-		tree = new TTree("VIKAR", "Monte carlo detector efficiency tree");
+		tree = new TTree("data", "Monte carlo detector efficiency tree");
 		hist = new TH1D("hist", "Detector Hits vs. CoM Angle", Nbins_, low_, high_);
 		
 		tree->Branch("MCarlo", &MCARLOdata);
