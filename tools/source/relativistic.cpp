@@ -62,7 +62,7 @@ int main(int argc, char* argv[]){
 	double total, kinetic;
 	double momentum;
 	
-	Z = proper_value("Enter particle Z: ", 0.0);
+	Z = proper_value("Enter particle Z: ", 0.0, true);
 	A = proper_value("Enter particle A: ", 0.0);
 	BE_A = proper_value("Enter particle BE/A (MeV): ", 0.0, true);
 	
