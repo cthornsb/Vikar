@@ -174,7 +174,6 @@ double RangeTable::GetNewE(const double &energy_, const double &dist_, double &d
 	dist_traveled = GetRange(energy_);
 	if(dist_traveled < 0.0){ return -1; }
 	if(dist_traveled - dist_ > 0.0){ // The particle loses some energy in the material
-		dist_traveled = dist_;
 		return GetEnergy(dist_traveled - dist_); 
 	} 
 	else{ return 0.0; } // The particle stops in the material
