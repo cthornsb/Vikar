@@ -1,48 +1,32 @@
-# VIKAR files #
-###############
-input/*
-detectors/*
-xsections/*
-efficiency/*
-
-# Root files and data files #
-#############################
-*.root
-*.dat
-*.out 
-*.pcm
-*.bkp
-RootDict.cpp
-RootDict.h
-Structures.cpp
-Structures.h
-LinkDef.h
-
-# qt files #
-############
-tools/qtfiles/Makefile
-tools/qtfiles/moc/*
-tools/qtfiles/ui/*
-
-# C++ object files #
-####################
+# CMake directories #
+#####################
 *.o
-*.so
+build/
+install/
+
+# ROOT Files #
+##############
+*.root
+*.pcm
+
+# Data Files #
+##############
+*.ldf
+*.pld
+*.out
+*.cal
 
 # Executables #
 ###############
-vandmc
-vandmcFront
-angleConvert
-kinematics
-kindist
-root2raw
-integrator
-range
-eloss
-testSetup
-testViewer
-relativistic
-renderer
-light
-elastic.sh
+*.cmd
+
+# Dictionary files #
+####################
+Structures.h
+
+# DAMM Files #
+##############
+*.drr
+*.his
+*.list
+*.log

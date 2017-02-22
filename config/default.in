@@ -1,0 +1,28 @@
+1.19c		# Vikar input file version number
+4			# Beam Z
+7			# Beam A
+1			# Target Z (isotope of interest)
+2			# Target A (isotope of interest)
+0			# Ejectile Z
+1			# Ejectile A
+31.00		# Beam energy (MeV)
+0			# Beam type (0=gaussian, 1=cylindrical)
+1.00		# Beam spot diameter (or FWHM for gaussian beam) (mm)
+0.00		# Beam angular divergence (degrees) (0 degrees is perfectly cylindrical)
+0.05		# Beam energy spread (MeV)
+-2.085		# Ground state Q-value
+2			# Number of excited states
+0.7695		# Energy of excited state 1
+2.3200		# Energy of excited state 2
+0			# Supply angular distributions?
+CD2			# Target material type name
+1.0			# Target thickness (mg/cm^2)
+0.0000		# Target angle wrt beam axis (degrees)
+1			# Perfect detectors?
+default.det	# Detector setup filename
+10000		# Number of detections
+0			# Detect prompt gammas?
+1			# Require ejectile and recoil coincidence?
+1			# Write reaction data to output?
+0			# Write debug info to output?
+0			# Perform Monte Carlo test on detector setup?
