@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.31c"
+#define VERSION "1.31d"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]){
 	double range_beam;
 		
 	unsigned int num_materials = 0;
-	Material *materials = NULL; // Array of materials
+	std::vector<Material> materials; // Array of materials
 	
 	unsigned int targ_mat_id; // The ID number of the target material
 	std::string targ_mat_name; // The name of the target material
@@ -507,7 +507,7 @@ int main(int argc, char* argv[]){
 			names.push_back(line);
 		}
 		
-		materials = new Material[names.size()+1];
+		materials.assign(names.size()+1, Material());
 		if(eject_part.GetZ() > 0){ eject_tables.assign(names.size()+1, RangeTable()); }
 		if(recoil_part.GetZ() > 0){ recoil_tables.assign(names.size()+1, RangeTable()); }
 		num_materials = 1; // Default CD2 material
@@ -539,7 +539,7 @@ int main(int argc, char* argv[]){
 	}
 	else{ 
 		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
-		materials = new Material[1];
+		materials.assign(1, Material());
 		if(eject_part.GetZ() > 0){ eject_tables.assign(1, RangeTable()); }
 		if(recoil_part.GetZ() > 0){ recoil_tables.assign(1, RangeTable()); }
 	}
@@ -1318,7 +1318,6 @@ process:
 	file->Close();
 	
 	delete file;
-	delete[] materials;
 	delete[] ExRecoilStates;
 	delete[] totXsect;
 
