@@ -44,16 +44,16 @@ const float potentials[100] = {19.2, 41.8, 40, 63.7, 76, 78, 82, 95, 115, 137,
 bool RangeTable::_initialize(const unsigned int &num_entries_){
 	if(use_table){ return false; }
 	num_entries = num_entries_;
-	energy = new double[num_entries];
-	dedx = new double[num_entries];
-	range = new double[num_entries];
+	energy.assign(num_entries, 0.0);
+	dedx.assign(num_entries, 0.0);
+	range.assign(num_entries, 0.0);
 	use_table = true;
 	return true;
 }
 
 /// Interpolate between two points
-double RangeTable::_interpolate(double *x_, double *y_, const double &val_){
-	if(!x_ || !y_){ return -1; }
+double RangeTable::_interpolate(const std::vector<double> &x_, const std::vector<double> &y_, const double &val_){
+	if(x_.empty() || y_.empty() || x_.size() != y_.size()){ return -1; }
 	else if(val_ < x_[0]){ return 0.0; }
 	for(unsigned int i = 0; i < num_entries-1; i++){
 		if(val_ == x_[i]){ return y_[i]; }
@@ -79,12 +79,6 @@ RangeTable::RangeTable(const unsigned int &num_entries_){
 
 /// Destructor.
 RangeTable::~RangeTable(){
-	if(use_table){
-		delete[] energy;
-		delete[] dedx;
-		delete[] range;
-	}
-	if(use_birks){ delete[] birks; }
 }
 	
 /// Initialize arrays but do not fill them.
@@ -117,8 +111,7 @@ bool RangeTable::Init(const unsigned int &num_entries_, const double &startE_, c
 bool RangeTable::InitBirks(double L0_, double kB_, double C_/*=0.0*/){
 	if(!use_table || use_birks){ return false; }
 	
-	birks = new double[num_entries];
-	birks[0] = 0.0;
+	birks.assign(num_entries, 0.0);
 	
 	for(unsigned int i = 1; i < num_entries; i++){
 		birks[i] = birks[i-1] + L0_*0.5*(1.0/(1.0 + kB_*dedx[i-1] + C_*dedx[i-1]*dedx[i-1]) + 1.0/(1.0 + kB_*dedx[i] + C_*dedx[i]*dedx[i]))*step;
@@ -369,11 +362,6 @@ void Material::_initialize(){
 	coeff = 0.0;
 	num_elements = 0;
 	total_elements = 0;
-	num_per_molecule = NULL;
-	element_Z = NULL;
-	element_A = NULL;
-	element_I = NULL;
-	weight = NULL;
 	init = false;
 	use_eloss = true;
 }
@@ -494,16 +482,48 @@ Material::Material(unsigned int num_elements_){
 	Init(num_elements_);
 }
 
+Material::Material(const std::string &name_, const double &density_, 
+         const double &Z1_, const double &M1_, const int &N1_){
+	_initialize();
+	Init(1);
+
+	vikar_name = name_;
+	density = density_;
+	
+	element_Z[0] = Z1_;
+	element_A[0] = M1_;
+	element_I[0] = _ionpot(element_Z[0]);
+	num_per_molecule[0] = N1_;
+	total_elements = N1_;
+
+	_calculate();
+}
+
+Material::Material(const std::string &name_, const double &density_, 
+         const double &Z1_, const double &M1_, const int &N1_,
+         const double &Z2_, const double &M2_, const int &N2_){
+	_initialize();
+	Init(2);
+
+	vikar_name = name_;
+	density = density_;
+	
+	element_Z[0] = Z1_;
+	element_A[0] = M1_;
+	element_I[0] = _ionpot(element_Z[0]);
+	num_per_molecule[0] = N1_;
+	element_Z[1] = Z2_;
+	element_A[1] = M2_;
+	element_I[1] = _ionpot(element_Z[1]);
+	num_per_molecule[1] = N2_;
+	total_elements = N1_+N2_;
+
+	_calculate();
+}
+
 /** Destructor.
   */
 Material::~Material(){
-	if(init){
-		delete[] num_per_molecule;
-		delete[] element_Z;
-		delete[] element_A;
-		delete[] element_I;
-		delete[] weight;
-	}
 }
 
 /** Initialize all element variable arrays.
@@ -512,19 +532,13 @@ Material::~Material(){
   */
 bool Material::Init(unsigned int num_elements_){
 	if(init){ return false; }
+
 	num_elements = num_elements_;
-	num_per_molecule = new unsigned int[num_elements];
-	element_Z = new double[num_elements];
-	element_A = new double[num_elements];
-	element_I = new double[num_elements];
-	weight = new double[num_elements];
-	for(unsigned int i = 0; i < num_elements; i++){
-		num_per_molecule[i] = 0;
-		element_Z[i] = 0.0;
-		element_A[i] = 0.0;
-		element_I[i] = 0.0;
-		weight[i] = 0.0;
-	}
+	num_per_molecule.assign(num_elements, 0);
+	element_Z.assign(num_elements, 0.0);
+	element_A.assign(num_elements, 0.0);
+	element_I.assign(num_elements, 0.0);
+	weight.assign(num_elements, 0.0);
 
 	rad_length = 0.0;
 		

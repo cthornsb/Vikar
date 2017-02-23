@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.31d"
+#define VERSION "1.31e"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -489,77 +489,52 @@ int main(int argc, char* argv[]){
 		std::cout << " Error: Found no valid detectors in detector setup file!\n";
 	}
 
+	std::cout << "\n Setting up VANDMC materials...\n";
+
+	// Natural Gold
+	materials.push_back(Material("Au197", 19.311, 79, 196.96657, 1));
+	// BC408 plastic scintillator (polyvinyltoluene (C9H10 118.18 g/mol) base)
+	materials.push_back(Material("BC408", 1.032, 6, 12.0107, 9, 1, 1.00794, 10));
+	// Deuterated polyethylene
+	materials.push_back(Material("C2D4", 1.06300, 6, 12.0107, 2, 1, 2.01588, 4));
+	// Polyethylene
+	materials.push_back(Material("C2H4", 0.95, 6, 12.0107, 2, 1, 1.00794, 4));
+	// Polystyrene
+	materials.push_back(Material("C8H8", 1.05, 6, 12.0107, 8, 1, 1.00794, 8));
+	// Natural Carbon
+	materials.push_back(Material("C12", 2.2670, 6, 12.0107, 1));
+	// Deuterated polyethylene
+	materials.push_back(Material("CD2", 1.06300, 6, 12.0107, 1, 1, 2.01588, 2));	
+	// Silicon
+	materials.push_back(Material("Si28", 2.3212, 14, 28.0855, 1));
+
+	num_materials = materials.size();
+	std::cout << " Successfully setup " << num_materials << " materials\n";
+
 	bool use_target_eloss = true;
-
-	// Load VANDMC material files
 	targ_mat_id = 0;
-	std::ifstream material_names("./materials/names.in");
-	if(material_names.good()){
-		std::cout << "\n Loading VANDMC material files...\n";
-		std::vector<std::string> names;
-		std::string line;
-		while(true){
-			getline(material_names, line);
-			if(material_names.eof()){ break; }
-			if(line[0] == '#'){ continue; } // Commented line
-			
-			line = Parse(line);
-			names.push_back(line);
-		}
-		
-		materials.assign(names.size()+1, Material());
-		if(eject_part.GetZ() > 0){ eject_tables.assign(names.size()+1, RangeTable()); }
-		if(recoil_part.GetZ() > 0){ recoil_tables.assign(names.size()+1, RangeTable()); }
-		num_materials = 1; // Default CD2 material
-		for(std::vector<std::string>::iterator iter = names.begin(); iter != names.end(); iter++){
-			materials[num_materials].ReadMatFile(iter->c_str());
-			num_materials++;
-		}
-		
-		std::cout << " Successfully loaded " << num_materials-1 << " materials\n";
-		if(targ_mat_name == "CD2"){ } // Use the default target
-		else if(targ_mat_name == "NONE"){ 
-			std::cout << "  Target Material: DISABLED\n";
-			use_target_eloss = false;
-		}
-		else{
-			std::cout << "  Target Material: " << targ_mat_name;
-			for(unsigned int i = 1; i < num_materials; i++){
-				if(targ_mat_name == materials[i].GetName()){
-					targ_mat_id = i;
-					break;
-				}
-			}
-			if(targ_mat_id == 0){ 
-				std::cout << " (not found)"; 
-				use_target_eloss = false;			
-			}
-			std::cout << std::endl;
-		}
+	
+	if(targ_mat_name == "NONE"){ // Use no target.
+		std::cout << "  Target Material: DISABLED\n";
+		use_target_eloss = false;
 	}
-	else{ 
-		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
-		materials.assign(1, Material());
-		if(eject_part.GetZ() > 0){ eject_tables.assign(1, RangeTable()); }
-		if(recoil_part.GetZ() > 0){ recoil_tables.assign(1, RangeTable()); }
+	else{ // Use a pre-loaded material target.
+		bool found_valid_material = false;
+		std::cout << "  Target Material: " << targ_mat_name;
+		for(targ_mat_id = 0; targ_mat_id < num_materials; targ_mat_id++){
+			if(targ_mat_name == materials[targ_mat_id].GetName()){
+				found_valid_material = true;
+				break;
+			}
+		}
+		if(!found_valid_material){ 
+			std::cout << " (not found)"; 
+			use_target_eloss = false;			
+		}
+		std::cout << std::endl;
 	}
-
-	// Setup default CD2 material
-	materials[0].SetName("CD2");
-	materials[0].Init(2);
-	materials[0].SetDensity(1.06300);
-	materials[0].SetMolarMass(16.038904);
-
-	unsigned int num_per_molecule[2] = {1, 2};
-	double element_Z[2] = {6, 1};
-	double element_A[2] = {12, 2};
-	materials[0].SetElements(num_per_molecule, element_Z, element_A);
 	
 	if(use_target_eloss){
-		if(targ_mat_id == 0){
-			std::cout << "  Target Material: CD2\n";
-		}
-	
 		targ.SetDensity(materials[targ_mat_id].GetDensity());
 		targ.SetRadLength(materials[targ_mat_id].GetRadLength());
 		std::cout << "  Target Radiation Length: " << targ.GetRadLength() << " mg/cm^2\n\n";
@@ -567,17 +542,17 @@ int main(int argc, char* argv[]){
 		// Calculate the stopping power table for the reactino particles in the target
 		if(beam_part.GetZ() > 0){ // The beam is a charged particle (not a neutron)
 			std::cout << " Calculating range table for beam in " << materials[targ_mat_id].GetName() << "...";
-			beam_targ.Init(10000, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()/mev2amu, &materials[targ_mat_id]);
+			beam_targ.Init(1000, 0.1, (Ebeam0+2*beamEspread), beam_part.GetZ(), beam_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 		if(eject_part.GetZ() > 0){
 			std::cout << " Calculating range table for ejectile in " << materials[targ_mat_id].GetName() << "...";
-			eject_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[targ_mat_id]);
+			eject_targ.Init(1000, 0.1, (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 		if(recoil_part.GetZ() > 0){
 			std::cout << " Calculating range table for recoil in " << materials[targ_mat_id].GetName() << "...";
-			recoil_targ.Init(100, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[targ_mat_id]);
+			recoil_targ.Init(1000, 0.1, (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[targ_mat_id]);
 			std::cout << " Done!\n";
 		}
 	}
@@ -587,21 +562,22 @@ int main(int argc, char* argv[]){
 
 	// Calculate the stopping power table for the ejectiles in the materials
 	if(eject_part.GetZ() > 0){ // The ejectile is a charged particle (not a neutron)
+		eject_tables.assign(num_materials, RangeTable());
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating ejectile range table for " << materials[i].GetName() << "...";
-			eject_tables[i].Init(10000, eject_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[i]);
+			eject_tables[i].Init(1000, eject_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), eject_part.GetZ(), eject_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}
 
-
 	// Calculate the stopping power table for the recoils in the materials
 	if(recoil_part.GetZ() > 0){ // The recoil is a charged particle (not a neutron)
+		recoil_tables.assign(num_materials, RangeTable());
 		for(unsigned int i = 0; i < num_materials; i++){
 			if(!IsInVector(materials[i].GetName(), needed_materials)){ continue; }
 			std::cout << " Calculating recoil range table for " << materials[i].GetName() << "...";
-			recoil_tables[i].Init(100, recoil_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[i]);
+			recoil_tables[i].Init(1000, recoil_part.GetKEfromV(0.02*c), (Ebeam0+2*beamEspread), recoil_part.GetZ(), recoil_part.GetA()/mev2amu, &materials[i]);
 			std::cout << " Done!\n";
 		}
 	}

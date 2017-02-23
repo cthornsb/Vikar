@@ -83,11 +83,11 @@ class Material{
 	std::string vikar_name; /// The name vikar uses to search for this material.
   	unsigned int num_elements; /// Number of unique elements per molecule of the material.
   	unsigned int total_elements; /// Total number of elements per molecule in the material.
-  	unsigned int *num_per_molecule; /// Number of each element per molecule.
-  	double *element_Z, *element_A; /// Atomic numbers and atomic masses (u) for each element.
-  	double *element_I; /// Ionization potentials (MeV).
-  	double *weight; /// The fractional weight of each element.
-  	double avgZ, avgA; /// Average Z and A of the elements within the material molecule.
+	std::vector<unsigned int> num_per_molecule; /// Number of each element per molecule.
+	std::vector<double> element_Z, element_A; /// Atomic numbers and atomic masses (u) for each element.
+	std::vector<double> element_I; /// Ionization potentials (MeV).
+	std::vector<double> weight; /// The fractional weight of each element.
+	double avgZ, avgA; /// Average Z and A of the elements within the material molecule.
 	double density; /// Density of the material (g/cm^3).
 	double Mmass; /// Molar mass of material (g/mol).
 	double rad_length; /// The radiation length of the material (mg/cm^2).
@@ -123,6 +123,13 @@ class Material{
   	
 	/// Constructor which initializes all data arrays to the correct size.
   	Material(unsigned int);
+
+	Material(const std::string &name_, const double &density_, 
+             const double &Z1_, const double &M1_, const int &N1_);
+
+	Material(const std::string &name_, const double &density_, 
+             const double &Z1_, const double &M1_, const int &N1_,
+             const double &Z2_, const double &M2_, const int &N2_);
   	
   	/// Destructor.
 	~Material();
@@ -200,10 +207,10 @@ class Material{
 
 class RangeTable{
   private:
-	double *energy; /// Array for storing energy values.
-	double *dedx; /// Array for storing stopping power.
-	double *range; /// Array for storing range values.
-	double *birks; /// Array for storing light response.
+	std::vector<double> energy; /// Array for storing energy values.
+	std::vector<double> dedx; /// Array for storing stopping power.
+	std::vector<double> range; /// Array for storing range values.
+	std::vector<double> birks; /// Array for storing light response.
 	double step; /// Energy step size (MeV).
 	unsigned int num_entries; /// Number of table array entries.
 	bool use_table; /// True if the table is to be used for energy loss calculations.
@@ -213,7 +220,7 @@ class RangeTable{
 	bool _initialize(const unsigned int &num_entries_);
 	
 	/// Interpolate between two points
-	double _interpolate(double *x_, double *y_, const double &val_);
+	double _interpolate(const std::vector<double> &x_, const std::vector<double> &y_, const double &val_);
 	
   public:
   	/// Default constructor.
