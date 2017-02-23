@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.31"
+#define VERSION "1.31b"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -391,7 +391,7 @@ int main(int argc, char* argv[]){
 			}
 			else if(count == 23){ 
 				// Load detector setup from a file
-				det_fname = "./detectors/" + input;
+				det_fname = input;
 				std::cout << "  Detector Setup Filename: " << det_fname << std::endl;
 			}
 			else if(count == 24){ 
