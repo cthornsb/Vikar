@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.31b"
+#define VERSION "1.31c"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -57,8 +57,8 @@ int main(int argc, char* argv[]){
 	RangeTable beam_targ; // Range table for beam in target
 	RangeTable eject_targ; // Pointer to the range table for ejectile in target
 	RangeTable recoil_targ; // Pointer to the range table for recoil in target
-	RangeTable *eject_tables = NULL; // Array of range tables for ejectile in various materials
-	RangeTable *recoil_tables = NULL; // Array of range tables for recoil in various materials
+	std::vector<RangeTable> eject_tables; // Array of range tables for ejectile in various materials
+	std::vector<RangeTable> recoil_tables; // Array of range tables for recoil in various materials
 
 	Particle recoil_part; // Recoil particle
 	Particle eject_part;// Ejectile particle
@@ -508,8 +508,8 @@ int main(int argc, char* argv[]){
 		}
 		
 		materials = new Material[names.size()+1];
-		if(eject_part.GetZ() > 0){ eject_tables = new RangeTable[names.size()+1]; }
-		if(recoil_part.GetZ() > 0){ recoil_tables = new RangeTable[names.size()+1]; }
+		if(eject_part.GetZ() > 0){ eject_tables.assign(names.size()+1, RangeTable()); }
+		if(recoil_part.GetZ() > 0){ recoil_tables.assign(names.size()+1, RangeTable()); }
 		num_materials = 1; // Default CD2 material
 		for(std::vector<std::string>::iterator iter = names.begin(); iter != names.end(); iter++){
 			materials[num_materials].ReadMatFile(iter->c_str());
@@ -540,8 +540,8 @@ int main(int argc, char* argv[]){
 	else{ 
 		std::cout << " Warning! Failed to load the file ./materials/names.in\n"; 
 		materials = new Material[1];
-		if(eject_part.GetZ() > 0){ eject_tables = new RangeTable[1]; }
-		if(recoil_part.GetZ() > 0){ recoil_tables = new RangeTable[1]; }
+		if(eject_part.GetZ() > 0){ eject_tables.assign(1, RangeTable()); }
+		if(recoil_part.GetZ() > 0){ recoil_tables.assign(1, RangeTable()); }
 	}
 
 	// Setup default CD2 material
@@ -1319,8 +1319,6 @@ process:
 	
 	delete file;
 	delete[] materials;
-	if(eject_part.GetZ() > 0){ delete[] eject_tables; }
-	if(recoil_part.GetZ() > 0){ delete[] recoil_tables; }
 	delete[] ExRecoilStates;
 	delete[] totXsect;
 
