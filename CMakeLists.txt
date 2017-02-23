@@ -49,6 +49,7 @@ endif(CMAKE_BUILD_TYPE MATCHES "Debug")
 
 #Install options
 option(BUILD_TOOLS "Build and install tool programs." OFF)
+option(BUILD_RENDERER "Build and install vandmc detector renderer." OFF)
 
 #------------------------------------------------------------------------------
 
@@ -57,10 +58,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 #Find rcbuild executable (https://github.com/cthornsb/devTools)
 find_program(RCBUILD_EXECUTABLE rcbuild /opt/devTools/install/bin)
-if("${RCBUILD_EXECUTABLE}" STREQUAL "RCBUILD_EXE-NOTFOUND")
-	message(FATAL_ERROR "Could NOT find rcbuild")
+if("${RCBUILD_EXECUTABLE}" STREQUAL "RCBUILD_EXECUTABLE-NOTFOUND")
+	message(FATAL_ERROR "Could NOT find rcbuild (https://github.com/cthornsb/devTools)")
 else()
-	message(STATUS "Searching for rcbuild: ${RCBUILD_EXE}")
+	message(STATUS "Searching for rcbuild: ${RCBUILD_EXECUTABLE}")
+endif()
+
+if(BUILD_RENDERER)
+	#Find qt install.
+	find_package (QT REQUIRED)
 endif()
 
 #Find ROOT install.
@@ -79,7 +85,9 @@ add_subdirectory(dict)
 include_directories(include)
 add_subdirectory(source)
 
-set(CONFIG_INSTALL_DIR "${TOP_DIRECTORY}/config" CACHE PATH "Path to configuration file install directory.")
+if(BUILD_RENDERER)
+	add_subdirectory(tools/qtfiles)
+endif()
 
 if(BUILD_TOOLS)
 	add_subdirectory(tools)
