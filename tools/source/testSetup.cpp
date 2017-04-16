@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 
 #include "vandmc_core.h"
 #include "kindeux.h"
@@ -8,6 +9,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1D.h"
+#include "TNamed.h"
 
 Vector3 zero_vector(0.0, 0.0, 0.0);
 
@@ -349,6 +351,18 @@ int main(int argc, char *argv[]){
 			}
 		
 			std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
+
+			std::stringstream stream; stream << Nwanted;
+			TNamed n1("EjectDet", stream.str().c_str());
+			stream.str(""); stream << total_found;
+			TNamed n2("EjectTot", stream.str().c_str());
+			stream.str(""); stream << 100.0*Nwanted/total_found << " %";
+			TNamed n3("EjectEff", stream.str().c_str());
+
+			pack.file->cd();
+			n1.Write();
+			n2.Write();
+			n3.Write();
 		}
 	}
 	else{ std::cout << " Note: Found no ejectile detectors in detector file.\n\n"; }
@@ -365,6 +379,18 @@ int main(int argc, char *argv[]){
 			}
 		
 			std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
+
+			std::stringstream stream; stream << Nwanted;
+			TNamed n1("RecoilDet", stream.str().c_str());
+			stream.str(""); stream << total_found;
+			TNamed n2("RecoilTot", stream.str().c_str());
+			stream.str(""); stream << 100.0*Nwanted/total_found << " %";
+			TNamed n3("RecoilEff", stream.str().c_str());
+
+			pack.file->cd();
+			n1.Write();
+			n2.Write();
+			n3.Write();
 		}
 	}
 	else{ std::cout << " Note: Found no recoil detectors in detector file.\n\n"; }
