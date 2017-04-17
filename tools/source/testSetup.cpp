@@ -16,7 +16,6 @@ Vector3 zero_vector(0.0, 0.0, 0.0);
 struct DataPack{
 	TFile *file;
 	TTree *tree;
-	TH1D *hist;
 	bool init;
 
 	MonteCarloStructure MCARLOdata;
@@ -25,12 +24,11 @@ struct DataPack{
 	DataPack(){
 		file = NULL;
 		tree = NULL;
-		hist = NULL;
 		init = false;
 	}
 	
-	DataPack(std::string fname_, unsigned int Nbins_, double low_, double high_, bool write_rxn_){
-		Open(fname_, Nbins_, low_, high_, write_rxn_);
+	DataPack(std::string fname_, unsigned int Nbins_, bool write_rxn_=false){
+		Open(fname_, write_rxn_);
 	}
 
 	~DataPack(){
@@ -39,7 +37,7 @@ struct DataPack{
 
 	bool IsInit(){ return init; }
 
-	bool Open(std::string fname_, unsigned int Nbins_, double low_, double high_, bool write_rxn_){
+	bool Open(std::string fname_, bool write_rxn_){
 		if(init){ return false; }
 
 		file = new TFile(fname_.c_str(), "RECREATE");
@@ -50,7 +48,6 @@ struct DataPack{
 		}
 		
 		tree = new TTree("data", "Monte carlo detector efficiency tree");
-		hist = new TH1D("hist", "Detector Hits vs. CoM Angle", Nbins_, low_, high_);
 		
 		tree->Branch("MCarlo", &MCARLOdata);
 		if(write_rxn_){ tree->Branch("Reaction", &REACTIONdata); }
@@ -63,7 +60,6 @@ struct DataPack{
 		
 		file->cd();
 		tree->Write();
-		hist->Write();
 		file->Close();
 		
 		init = false;
@@ -190,90 +186,6 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 	return total;
 }
 
-// Perform a monte carlo simulation on an arbitrary configuration
-// of detectors from an array. Returns the number of hits detected
-// Generates an output ascii file named 'mcarlo.hist' which contains 
-// bin contents of a histogram of event center of mass angles.
-// fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
-// angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, Kindeux *kind_, unsigned int num_trials, double beamE_,
-						  unsigned int num_bins_, double start_, double stop_, double fwhm_/*=0.0*/, double angle_/*=0.0*/){
-	if(!pack || !kind_ || !kind_->IsInit()){ return 0; }
-	double t1, t2;
-	unsigned int count, total;
-	Vector3 flight_path;
-	Vector3 temp_vector;
-	Vector3 temp_normal;
-	Vector3 Ejectile, EjectSphere;
-	Vector3 Recoil, RecoilSphere;
-	Vector3 offset, dummyVector;
-	
-	bool eject_hit, recoil_hit;
-	
-	Matrix3 matrix;
-	bool use_gaussian_beam = true;
-	bool use_rotated_source = false;
-	if(fwhm_ == 0.0){ 
-		offset = zero_vector; 
-		use_gaussian_beam = false;
-	}
-	if(angle_ != 0.0){ 
-		use_rotated_source = true; 
-		matrix.SetRotationMatrixSphere(angle_, 0.0);
-	}
-
-	double dummyR, dummyPhi, ejectTheta, recoilTheta, alpha;
-	double m1m2 = kind_->GetMbeam()/kind_->GetMtarg();
-
-	// Struct for storing reaction information.
-	reactData rdata;
-
-	total = 0; count = 0;
-	while(count < num_trials){
-		if(use_gaussian_beam){ // Generate an offset based on a gaussian beam
-			double x_offset = rndgauss0(fwhm_);
-			double y_offset = rndgauss0(fwhm_);
-			offset.axis[0] = x_offset;
-			offset.axis[1] = y_offset;
-			offset.axis[2] = 0.0;
-			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
-		}
-		
-		kind_->FillVars(rdata, EjectSphere, RecoilSphere);
-		Sphere2Cart(EjectSphere, Ejectile); 
-		Sphere2Cart(RecoilSphere, Recoil);
-		
-		eject_hit = false; recoil_hit = false;
-		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
-			if(!eject_hit && (*iter)->IsEjectileDet()){
-				if((*iter)->IntersectPrimitive(offset, Ejectile, temp_vector, temp_normal, t1, t2)){ eject_hit = true; }
-			}
-			else if(!recoil_hit && (*iter)->IsRecoilDet()){
-				if((*iter)->IntersectPrimitive(offset, Recoil, temp_vector, temp_normal, t1, t2)){ recoil_hit = true; }
-			}
-			
-			if(eject_hit && recoil_hit){
-				// Encountered coincidence event
-				//com_angle = Ejectile.Dot(Recoil)*rad2deg;
-				
-				Cart2Sphere(Ejectile, dummyR, ejectTheta, dummyPhi);
-				Cart2Sphere(Recoil, dummyR, recoilTheta, dummyPhi);
-				
-				alpha = std::tan(recoilTheta)/std::tan(ejectTheta);
-				rdata.comAngle = std::acos((1-alpha*m1m2)/(1+alpha))*rad2deg;
-				
-				pack->hist->Fill(rdata.comAngle);
-
-				count++;
-				break;
-			}
-		}
-		total++;
-	}
-	
-	return total;
-}
-
 void help(char * prog_name_){
 	std::cout << "  SYNTAX: " << prog_name_ << " [detfile]\n";
 }
@@ -284,8 +196,6 @@ int main(int argc, char *argv[]){
 		help(argv[0]);
 		return 1;
 	}
-
-	bool do_hist_run = false;
 
 	std::vector<Primitive*> detectors;
 
@@ -325,17 +235,7 @@ int main(int argc, char *argv[]){
 
 	DataPack pack;
 
-	unsigned int Nbins;
-	double startAngle;
-	double stopAngle;
-
-	if(do_hist_run){
-		Nbins = (unsigned int)proper_value("Enter number of CoM bins: ", 0.0, false);
-		startAngle = proper_value("Enter start CoM angle (degrees): ", 0.0, true);
-		stopAngle = proper_value("Enter stop CoM angle (degrees): ", startAngle, false);
-		pack.Open("mcarlo.root", Nbins, startAngle, stopAngle, WriteReaction);
-	}
-	else{ pack.Open("mcarlo.root", 1, 0, 1, WriteReaction); }
+	pack.Open("mcarlo.root", WriteReaction);
 
 	std::cout << std::endl;
 
@@ -346,9 +246,6 @@ int main(int argc, char *argv[]){
 		if(Nwanted > 0){
 			std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
 			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, true);
-			if(do_hist_run){
-				//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
-			}
 		
 			std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 
@@ -374,10 +271,7 @@ int main(int argc, char *argv[]){
 		if(Nwanted > 0){
 			std::cout << "  Performing Monte Carlo test on recoil detectors...\n";
 			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, false);
-			if(do_hist_run){
-				//total_found = TestDetSetup(&pack, detectors, &kind, Ndet, Nwanted, Ebeam, Nbins, startAngle*deg2rad, stopAngle*deg2rad, beamspot, targangle));
-			}
-		
+			
 			std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 
 			std::stringstream stream; stream << Nwanted;
