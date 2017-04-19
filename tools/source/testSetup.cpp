@@ -163,11 +163,6 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 			if(use_rotated_source){ matrix.Transform(offset); } // This will rotate the "source" about the y-axis
 		}
 
-		if(WriteRXN_){ 
-			pack->REACTIONdata.Zero();
-			pack->REACTIONdata.Append(pack->reaction.Ereact, pack->reaction.Eeject, pack->reaction.Erecoil, pack->reaction.comAngle*rad2deg, pack->reaction.state, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
-		}
-
 		for(std::vector<Primitive*>::const_iterator iter = bar_array.begin(); iter != bar_array.end(); iter++){
 			if((*iter)->IsEjectileDet()){
 				if((*iter)->IsRecoilDet()){ type = 2; } // Both ejectile & recoil
