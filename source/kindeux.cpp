@@ -19,6 +19,7 @@
 Kindeux::Kindeux(){
 	ang_dist = false; 
 	init = false;
+	inverse = false;
 	NDist = 0; 
 	NrecoilStates = 0;
 	RecoilExStates = NULL;
@@ -61,6 +62,7 @@ void Kindeux::Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double M
 			Nreactions[i] = 0;
 		}
 		init = true;
+		inverse = (Mbeam > Mtarg);
 	}
 }
 
@@ -260,11 +262,14 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 		else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Failed to sample the distribution
 	}
 	else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
-	
+
 	EjectTheta = std::atan2(std::sin(react.comAngle),(std::cos(react.comAngle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
 	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
 	double Ejectile_V = Vcm*std::cos(EjectTheta); // Ejectile velocity in the lab frame
 	
+	// Correct for inverse kinematics.
+	if(inverse) react.comAngle = pi - react.comAngle;
+
 	if(VejectCoM >= Vcm){ 
 		// Veject is single valued
 		Ejectile_V += temp_value; 

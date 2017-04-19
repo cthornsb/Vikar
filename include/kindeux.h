@@ -40,6 +40,7 @@ class Kindeux{
 	unsigned int NDist, NrecoilStates;
 	AngularDist *distributions;
 	bool ang_dist, init;
+	bool inverse;
 	
 	/// Get the excitation of the recoil particle.
 	bool get_excitations(double &recoilE, unsigned int &state);
