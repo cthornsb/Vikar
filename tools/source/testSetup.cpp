@@ -53,8 +53,8 @@ struct DataPack{
 		
 		tree = new TTree("data", "Monte carlo detector efficiency tree");
 		
-		tree->Branch("MCarlo", &MCARLOdata);
-		if(write_rxn_){ tree->Branch("Reaction", &REACTIONdata); }
+		tree->Branch("mcarlo", &MCARLOdata);
+		if(write_rxn_){ tree->Branch("reaction", &REACTIONdata); }
 		
 		return (init = true);
 	}
