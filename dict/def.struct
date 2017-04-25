@@ -125,6 +125,7 @@ vector:int	face1_ID	ID of the face where the ray enters the detector
 vector:int	face2_ID	ID of the face where the ray exits the detector
 vector:int	location	The detector location in the detector setup file
 vector:int	type	Type of detector (0 == ejectile, 1 == recoil, 2 == both)
+u_int	mult	Multiplicity of recoil detector hits	
 
 # Trace output data types and names (must end with _wave)
 # type	name	description

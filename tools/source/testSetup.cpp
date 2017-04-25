@@ -20,8 +20,12 @@ struct DataPack{
 	TTree *tree;
 	bool init;
 
+	double offsetX, offsetY, offsetZ;
+	double trajX, trajY, trajZ;
+	double Ereact, Eeject, Erecoil;
+	double comAngle;
+
 	MonteCarloStructure MCARLOdata;
-	ReactionObjectStructure REACTIONdata;
 
 	reactData reaction;
 
@@ -54,7 +58,12 @@ struct DataPack{
 		tree = new TTree("data", "Monte carlo detector efficiency tree");
 		
 		tree->Branch("mcarlo", &MCARLOdata);
-		if(write_rxn_){ tree->Branch("reaction", &REACTIONdata); }
+		if(write_rxn_){ 
+			tree->Branch("Ereact", &Ereact); 
+			tree->Branch("Eeject", &Eeject); 
+			tree->Branch("Erecoil", &Erecoil); 
+			tree->Branch("comAngle", &comAngle); 
+		}
 		
 		return (init = true);
 	}
@@ -75,7 +84,6 @@ struct DataPack{
 	
 	void Zero(){
 		MCARLOdata.Zero();
-		REACTIONdata.Zero();
 	}
 };
 
@@ -190,15 +198,21 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 			}
 		}
 		
+		if(WriteRXN_){
+			pack->Ereact = pack->reaction.Ereact;
+			pack->Eeject = pack->reaction.Eeject;
+			pack->Erecoil = pack->reaction.Erecoil;
+			pack->comAngle = pack->reaction.comAngle*rad2deg;
+		}
+
 		if(found_hit){
-			if(WriteRXN_){ // Write the reaction parameters.
-				pack->REACTIONdata.Append(pack->reaction.Ereact, pack->reaction.Eeject, pack->reaction.Erecoil, pack->reaction.comAngle*rad2deg, pack->reaction.state, offset.axis[0], offset.axis[1], offset.axis[2], temp_ray.axis[0], temp_ray.axis[1], temp_ray.axis[2]); 
-			}
 			pack->tree->Fill();
-			pack->REACTIONdata.Zero();
 			pack->MCARLOdata.Zero();
 			pack->MCARLOdata.Zero();
 			if(found_hit){ count++; }
+		}
+		else if(WriteRXN_){
+			pack->tree->Fill();
 		}
 		
 		total++;
