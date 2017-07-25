@@ -263,6 +263,7 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, int recoil_state/*=-
   * param[in] theta Allows the user to select the reaction center of mass angle (in rad).
   */
 bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
+	double EjectPhi, EjectTheta;
 	if(!nsource){
 		if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
 			react.state = recoil_state;
@@ -274,7 +275,6 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 		}
 	
 		// In the center of mass frame
-		double EjectPhi, EjectTheta;
 		double Vcm = std::sqrt(2.0*Mbeam*react.Ereact)/(Mbeam+Mtarg); // Velocity of the center of mass
 		double Ecm = Mtarg*react.Ereact/(Mbeam+Mtarg); // Energy of the center of mass
 
@@ -318,8 +318,8 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 			else{ Ejectile_V = Ejectile_V - temp_value; }
 		}
 	
+		// Calculate the ejectile energy in the lab frame.
 		react.Eeject = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
-		Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
 	
 		// Recoil calculations (now in the lab frame)
 		react.Erecoil = (react.Ereact+Qvalue-(0.0+react.Eexcited)) - react.Eeject;
@@ -327,8 +327,10 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int
 	}
 	else{
 		react.Eeject = cf.sample();
-		UnitSphereRandom(Ejectile);
-	}	
+		UnitSphereRandom(EjectTheta, EjectPhi);
+	}
+
+	Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
 
 	return true;
 }
