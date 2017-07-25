@@ -23,7 +23,7 @@
 #include "detectors.h"
 #include "Structures.h"
 
-#define VERSION "1.31f"
+#define VERSION "1.32"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -145,6 +145,7 @@ int main(int argc, char* argv[]){
 	bool InverseKinematics = true;
 	bool InCoincidence = true;
 	bool WriteReaction = false;
+	bool NeutronSource = false;
 	bool PerfectDet = true;
 	bool SupplyRates = false;
 	bool BeamFocus = false;
@@ -422,12 +423,16 @@ int main(int argc, char* argv[]){
 				// Write Reaction data to file?
 				SetBool(input, "  Write Reaction Info", WriteReaction);
 			}
+			else if(count == 28){
+				// Simulate a 252Cf neutron source?
+				SetBool(input, "  Simulate 252Cf source", NeutronSource);
+			}
 			
 			count++;
 		}
 		
 		input_file.close();
-		if(count <= 28){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		if(count <= 29){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
 	}
 	else{
 		std::cout << "\n FATAL ERROR! Missing required variable! Aborting...\n";
@@ -451,6 +456,9 @@ int main(int argc, char* argv[]){
 
 	// Initialize kinematics object
 	kind.Initialize(beam_part.GetA(), targ.GetA(), recoil_part.GetA(), eject_part.GetA(), gsQvalue, NRecoilStates, ExRecoilStates);
+
+	// Set the simulated 252Cf source.
+	if(NeutronSource) kind.ToggleNeutronSource();
 
 	// Read the detector setup file
 	std::cout << " Reading in NewVANDMC detector setup file...\n";
@@ -1013,7 +1021,7 @@ process:
 			}
 			else if(detector_type == 2){
 				if(!(*iter)->IsGammaDet()){ continue; } // This detector is not able to detect gammas.
-				if(Egamma <= 0.0){ break; } // Do not process the ground state.
+				if(Egamma <= 0.0 && !NeutronSource){ break; } // Do not process the ground state.
 			}
 			else{ continue; } // This detector cannot detect particles.
 

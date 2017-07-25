@@ -14,12 +14,44 @@
 #include "kindeux.h"
 
 /////////////////////////////////////////////////////////////////////
+// Californium
+/////////////////////////////////////////////////////////////////////
+double Californium::func(const double &E){
+	const double a = 1.18; // MeV
+	const double b = 1.03419; // MeV
+        return std::exp(-E/a)*std::sinh(std::sqrt(b*E));
+}
+
+Californium::Californium(){
+        for(size_t i = 0; i < 101; i++){
+                energy[i] = i*0.1;
+                neutrons[i] = func(energy[i]);
+        }
+        integral[0] = 0;
+        for(size_t i = 1; i < 101; i++){
+                integral[i] = integral[i-1] + 0.5*(neutrons[i-1]+neutrons[i])*0.1;
+        }
+        totalIntegral = integral[100];
+}
+
+double Californium::sample(){
+        double sampleIntegral = frand(0, totalIntegral);
+        for(size_t i = 1; i < 101; i++){
+                if(integral[i-1] < sampleIntegral && integral[i] >= sampleIntegral){
+                        return (energy[i-1] + 0.1*(sampleIntegral-integral[i-1])/(integral[i]-integral[i-1]));
+                }
+        }
+        return neutrons[100];
+}
+
+/////////////////////////////////////////////////////////////////////
 // Kindeux
 /////////////////////////////////////////////////////////////////////
 Kindeux::Kindeux(){
 	ang_dist = false; 
 	init = false;
 	inverse = false;
+	nsource = false;
 	NDist = 0; 
 	NrecoilStates = 0;
 	RecoilExStates = NULL;
@@ -231,67 +263,73 @@ bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, int recoil_state/*=-
   * param[in] theta Allows the user to select the reaction center of mass angle (in rad).
   */
 bool Kindeux::FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int recoil_state/*=-1*/, int solution/*=-1*/, double theta/*=-1*/){
-	if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
-		react.state = recoil_state;
-		react.Eexcited = RecoilExStates[react.state];
-	}
-	else if(!get_excitations(react.Eexcited, react.state)){ // Use built-in state selection
-		// No reaction occured
-		return false; 
-	}
+	if(!nsource){
+		if(recoil_state >= 0 && (unsigned int)recoil_state < NrecoilStates){ // Select the state to use
+			react.state = recoil_state;
+			react.Eexcited = RecoilExStates[react.state];
+		}
+		else if(!get_excitations(react.Eexcited, react.state)){ // Use built-in state selection
+			// No reaction occured
+			return false; 
+		}
 	
-	// In the center of mass frame
-	double EjectPhi, EjectTheta;
-	double Vcm = std::sqrt(2.0*Mbeam*react.Ereact)/(Mbeam+Mtarg); // Velocity of the center of mass
-	double Ecm = Mtarg*react.Ereact/(Mbeam+Mtarg); // Energy of the center of mass
+		// In the center of mass frame
+		double EjectPhi, EjectTheta;
+		double Vcm = std::sqrt(2.0*Mbeam*react.Ereact)/(Mbeam+Mtarg); // Velocity of the center of mass
+		double Ecm = Mtarg*react.Ereact/(Mbeam+Mtarg); // Energy of the center of mass
 
-	double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+react.Eexcited))); // Ejectile CoM velocity after reaction
-	react.comAngle = -1.0; // Ejectile and recoil angle in the center of mass frame
+		double VejectCoM = std::sqrt((2.0/(Meject+Mrecoil))*(Mrecoil/Meject)*(Ecm+Qvalue-(0.0+react.Eexcited))); // Ejectile CoM velocity after reaction
+		react.comAngle = -1.0; // Ejectile and recoil angle in the center of mass frame
 	
-	if(theta >= 0.0){
-		double temp;
-		UnitSphereRandom(temp, EjectPhi);
+		if(theta >= 0.0){
+			double temp;
+			UnitSphereRandom(temp, EjectPhi);
 		
-		if(theta >= 0.0){ react.comAngle = theta; }
-		else{ react.comAngle = temp; }
-	}
-	else if(ang_dist){
-		// Sample the angular distributions for the CoM angle of the ejectile
-		react.comAngle = distributions[react.state].Sample();
-		if(react.comAngle > 0.0){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
-		else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Failed to sample the distribution
-	}
-	else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
+			if(theta >= 0.0){ react.comAngle = theta; }
+			else{ react.comAngle = temp; }
+		}
+		else if(ang_dist){
+			// Sample the angular distributions for the CoM angle of the ejectile
+			react.comAngle = distributions[react.state].Sample();
+			if(react.comAngle > 0.0){ EjectPhi = 2*pi*frand(); } // Randomly select phi of the ejectile
+			else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Failed to sample the distribution
+		}
+		else{ UnitSphereRandom(react.comAngle, EjectPhi); } // Randomly select a uniformly distributed point on the unit sphere
 
-	EjectTheta = std::atan2(std::sin(react.comAngle),(std::cos(react.comAngle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
-	double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
-	double Ejectile_V = Vcm*std::cos(EjectTheta); // Ejectile velocity in the lab frame
+		EjectTheta = std::atan2(std::sin(react.comAngle),(std::cos(react.comAngle)+(Vcm/VejectCoM))); // Ejectile angle in the lab
+		double temp_value = std::sqrt(VejectCoM*VejectCoM-pow(Vcm*std::sin(EjectTheta),2.0));
+		double Ejectile_V = Vcm*std::cos(EjectTheta); // Ejectile velocity in the lab frame
 	
-	// Correct for inverse kinematics.
-	if(inverse) react.comAngle = pi - react.comAngle;
+		// Correct for inverse kinematics.
+		if(inverse) react.comAngle = pi - react.comAngle;
 
-	if(VejectCoM >= Vcm){ 
-		// Veject is single valued
-		Ejectile_V += temp_value; 
-	} 
-	else{ 
-		// Veject is double valued, so we randomly choose one of the values
-		// for the velocity, and hence, the energy of the ejectile
-		if(solution < 0){
-			if(frand() >= 0.5){ Ejectile_V += temp_value; }
+		if(VejectCoM >= Vcm){ 
+			// Veject is single valued
+			Ejectile_V += temp_value; 
+		} 
+		else{ 
+			// Veject is double valued, so we randomly choose one of the values
+			// for the velocity, and hence, the energy of the ejectile
+			if(solution < 0){
+				if(frand() >= 0.5){ Ejectile_V += temp_value; }
+				else{ Ejectile_V = Ejectile_V - temp_value; }
+			}
+			else if(solution == 0){ Ejectile_V += temp_value; }
 			else{ Ejectile_V = Ejectile_V - temp_value; }
 		}
-		else if(solution == 0){ Ejectile_V += temp_value; }
-		else{ Ejectile_V = Ejectile_V - temp_value; }
+	
+		react.Eeject = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
+		Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
+	
+		// Recoil calculations (now in the lab frame)
+		react.Erecoil = (react.Ereact+Qvalue-(0.0+react.Eexcited)) - react.Eeject;
+		Recoil = Vector3(1.0, std::asin(((std::sqrt(2*Meject*react.Eeject))/(std::sqrt(2*Mrecoil*react.Erecoil)))*std::sin(EjectTheta)), WrapValue(EjectPhi+pi,0.0,2*pi));
 	}
-	
-	react.Eeject = 0.5*Meject*Ejectile_V*Ejectile_V; // Ejectile energy in the lab frame
-	Ejectile = Vector3(1.0, EjectTheta, EjectPhi); // Ejectile direction unit vector
-	
-	// Recoil calculations (now in the lab frame)
-	react.Erecoil = (react.Ereact+Qvalue-(0.0+react.Eexcited)) - react.Eeject;
-	Recoil = Vector3(1.0, std::asin(((std::sqrt(2*Meject*react.Eeject))/(std::sqrt(2*Mrecoil*react.Erecoil)))*std::sin(EjectTheta)), WrapValue(EjectPhi+pi,0.0,2*pi));
-	
+	else{
+		react.Eeject = cf.sample();
+		UnitSphereRandom(Ejectile);
+	}	
+
 	return true;
 }
 

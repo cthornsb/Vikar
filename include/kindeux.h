@@ -19,13 +19,34 @@
 class AngularDist;
 class Target;
 
-struct reactData{
+class reactData{
+  public:
 	double Ereact;
 	double Eeject;
 	double Erecoil;
 	double Eexcited;
 	double comAngle;
 	unsigned int state;
+
+	reactData() : Ereact(0.0), Eeject(0.0), Erecoil(0.0), Eexcited(0.0), comAngle(0.0), state(0) { }
+};
+
+class Californium{
+  private:
+        double energy[101];
+        double neutrons[101];
+        double integral[101];
+        double totalIntegral;
+
+        const double SFbranch = 0.0309; 
+        const double AlphaBranch = 0.9691;
+
+        double func(const double &E);
+
+  public:
+        Californium();
+
+        double sample();
 };
 
 class Kindeux{
@@ -41,7 +62,10 @@ class Kindeux{
 	AngularDist *distributions;
 	bool ang_dist, init;
 	bool inverse;
+	bool nsource;
 	
+	Californium cf;
+
 	/// Get the excitation of the recoil particle.
 	bool get_excitations(double &recoilE, unsigned int &state);
 	
@@ -104,6 +128,9 @@ class Kindeux{
 	/// Calculate reaction product energies and angles for the recoil and ejectile particles.
 	bool FillVars(reactData &react, Vector3 &Ejectile, Vector3 &Recoil, int recoil_state=-1, int solution=-1, double theta=-1);
 	
+	/// Toggle whether or not to use this class as a neutron source.
+	bool ToggleNeutronSource(){ return (nsource = !nsource); }
+
 	/// Convert an input center of mass angle to the lab frame.
 	double ConvertAngle2Lab(double, double, double);
 	
