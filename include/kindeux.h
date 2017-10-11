@@ -109,7 +109,10 @@ class Kindeux{
    	
    	/// Return a pointer to the angular distribution for a given state.
    	AngularDist *GetDistribution(const unsigned int &index_){ return (ang_dist && index_ < NrecoilStates ? &distributions[index_] : NULL); }
-   	
+   
+	/// Return true if this reaction is in inverse kinematics and false otherwise.
+	bool GetInverseKinematics(){ return inverse; }
+	
    	/// Initialize Kindeux object with reaction parameters.
    	void Initialize(double Mbeam_, double Mtarg_, double Mrecoil_, double Meject_, double Qvalue_, unsigned int NrecoilStates_, double *RecoilExStates_);
 	

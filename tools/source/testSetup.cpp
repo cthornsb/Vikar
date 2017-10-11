@@ -332,6 +332,12 @@ int main(int argc, char *argv[]){
 
 		kind = new Kindeux();
 		kind->Initialize(beam.GetA(), targ.GetA(), recoil.GetA(), ejectile.GetA(), Qgs, 1, recoilStates);
+
+		std::cout << " Inverse Kinematics:";
+		if(kind->GetInverseKinematics())
+			std::cout << " Yes\n";
+		else
+			std::cout << " No\n";
 	}
 
 	pack.Open("mcarlo.root", WriteReaction);
