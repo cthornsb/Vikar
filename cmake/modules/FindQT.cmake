@@ -11,13 +11,13 @@
 # MOC_EXECUTABLE  Path to moc executable
 # UIC_EXECUTABLE  Path to uic executable
 #
-#Last updated by C. R. Thornsberry (cthornsb@vols.utk.edu) on Feb. 22nd, 2017
+#Last updated by C. R. Thornsberry (cthornsb@vols.utk.edu) on Oct. 24th, 2017
 
 #Look for a valid qt install.
 find_path(QT_LIB_DIR
 	NAMES libQtGui.so libQtCore.so
 	PATHS /usr/lib
-	PATH_SUFFIXES x86_64-linux-gnu)
+	PATH_SUFFIXES x86_64-linux-gnu i386-linux-gnu)
 
 if(QT_LIB_DIR)
 	set(QT_GUI_LIB ${QT_LIB_DIR}/libQtGui.so)
