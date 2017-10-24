@@ -307,7 +307,7 @@ class Planar : public Primitive {
 	
 	void SetSmall(){ SetSize(0.6, 0.03, 0.03); }
 
-	void SetMedium(){ SetSize(1.2, 0.05, 0.03); }
+	void SetMedium(){ SetSize(1.2, 0.06, 0.03); }
 
 	void SetLarge(){ SetSize(2.0, 0.05, 0.05); }
 };
