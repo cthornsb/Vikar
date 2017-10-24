@@ -56,12 +56,17 @@ option(BUILD_RENDERER "Build and install vandmc detector renderer." OFF)
 #Find required packages.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-#Find rcbuild executable (https://github.com/cthornsb/devTools)
-find_program(RCBUILD_EXECUTABLE rcbuild /opt/devTools/install/bin)
+#Find simpleScan install (https://github.com/cthornsb/SimplePixieScan)
+find_package (SimpleScan REQUIRED)
+include_directories(${SimpleScan_INCLUDE_DIR})
+mark_as_advanced(SimpleScan_SCAN_LIB SimpleScan_OPT_LIB)
+
+#Find rcbuild executable.
+find_program(RCBUILD_EXECUTABLE NAMES rcbuild PATHS ${SimpleScan_BIN_DIR})
 if("${RCBUILD_EXECUTABLE}" STREQUAL "RCBUILD_EXECUTABLE-NOTFOUND")
-	message(FATAL_ERROR "Could NOT find rcbuild (https://github.com/cthornsb/devTools)")
+	message(FATAL_ERROR "Could NOT find rcbuild (https://github.com/cthornsb/SimplePixieScan)")
 else()
-	message(STATUS "Searching for rcbuild: ${RCBUILD_EXECUTABLE}")
+	message(STATUS "Found rcbuild: ${RCBUILD_EXECUTABLE}")
 endif()
 
 if(BUILD_RENDERER)
