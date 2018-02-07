@@ -23,6 +23,7 @@ struct DataPack{
 	double offsetX, offsetY, offsetZ;
 	double trajX, trajY, trajZ;
 	double Ereact, Eeject, Erecoil;
+	double labTheta, labPhi;
 	double comAngle;
 
 	MonteCarloStructure MCARLOdata;
@@ -62,6 +63,8 @@ struct DataPack{
 			tree->Branch("Ereact", &Ereact); 
 			tree->Branch("Eeject", &Eeject); 
 			tree->Branch("Erecoil", &Erecoil); 
+			tree->Branch("labTheta", &labTheta);
+			tree->Branch("labPhi", &labPhi);
 			tree->Branch("comAngle", &comAngle); 
 		}
 		
@@ -199,9 +202,12 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 		}
 		
 		if(WriteRXN_){
+			Cart2Sphere(temp_ray, dummyR, hitTheta, hitPhi);
 			pack->Ereact = pack->reaction.Ereact;
 			pack->Eeject = pack->reaction.Eeject;
 			pack->Erecoil = pack->reaction.Erecoil;
+			pack->labTheta = hitTheta*rad2deg;
+			pack->labPhi = hitPhi*rad2deg;
 			pack->comAngle = pack->reaction.comAngle*rad2deg;
 		}
 
