@@ -14,17 +14,23 @@ const int numSectors = 8;
 const double stripWidth = (Rmax-Rmin)/numStrips; // m
 const double sectorAngle = 2*pi/numSectors; // rad
 
+double xoffset = 0;
+double yoffset = 0;
+
 /// Return the local polar coordinates of a hit on the surface of the detector.
-bool getLocalPosition(const double &x_, const double &y_, double &r, double &theta){
+bool getLocalPosition(const double &x_, const double &y_, double &xloc, double &yloc, double &r, double &theta){
+	// Compute the local coordinates of the event.
+	xloc = x_ - xoffset;
+	yloc = y_ - yoffset;
 
 	// Compute the radius on the local detector face.
-	r = std::sqrt(x_*x_ + y_*y_);
+	r = std::sqrt(xloc*xloc + yloc*yloc);
 
 	// Check that the radius of the event is within the active detector area.
 	if(r < Rmin || r > Rmax) return false;
 
 	// Compute the polar angle on the local detector face.
-	theta = pi + std::atan2(y_, x_);
+	theta = pi + std::atan2(yloc, xloc);
 
 	return true;
 }
@@ -73,7 +79,7 @@ int main(int argc, char *argv[]){
 	intree->SetMakeClass(1);
 	intree->SetBranchAddress("face1_hitX", &hitX, &hitX_b);
 	intree->SetBranchAddress("face1_hitY", &hitY, &hitY_b);
-
+	
 	if(!hitX_b || !hitY_b){
 		std::cout << " Error! Failed to load branches from input tree!\n";
 		infile->Close();
@@ -85,15 +91,19 @@ int main(int argc, char *argv[]){
 	TTree *outtree = new TTree("data", "Strips tree");
 
 	double x, y;
+	double xloc, yloc;
 	double r, theta;
 	unsigned short sector, strip;
 
-	outtree->Branch("x", &x);
-	outtree->Branch("y", &y);
+	outtree->Branch("x", &xloc);
+	outtree->Branch("y", &yloc);
 	outtree->Branch("r", &r);
 	outtree->Branch("theta", &theta);
 	outtree->Branch("sector", &sector);
 	outtree->Branch("strip", &strip);
+
+	std::cout << " Enter position of detector (x, y) in m: ";
+	std::cin >> xoffset >> yoffset;
 
 	for(int entry = 0; entry < intree->GetEntries(); entry++){
 		intree->GetEntry(entry);
@@ -102,7 +112,7 @@ int main(int argc, char *argv[]){
 			y = hitY.at(i);
 
 			// Convert to coordinates in the local frame of the face of the detector.
-			if(!getLocalPosition(x, y, r, theta)) continue;
+			if(!getLocalPosition(x, y, xloc, yloc, r, theta)) continue;
 
 			sector = getSector(theta);
 			strip = getStrip(r);
