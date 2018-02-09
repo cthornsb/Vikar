@@ -722,6 +722,16 @@ double Interpolate(double x1, double y1, double x2, double y2, double x){
 	return ((y2-y1)/(x2-x1))*(x-x1)+y1;
 }
 
+bool Interpolate(const double &x, double &y, double *x_, double *y_, const size_t &len_){
+	for(size_t i = 1; i < len_; i++){
+		if(x >= x_[i-1] && x < x_[i]){
+			y = ((y_[i]-y_[i-1])/(x_[i]-x_[i-1]))*(x-x_[i-1])+y_[i-1];
+			return true;
+		}
+	}
+	return false;
+}
+
 // Return the distance between two points in 3d space
 double Dist3d(const Vector3 &v1, const Vector3 &v2){
 	return (v2-v1).Length();

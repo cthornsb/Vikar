@@ -3,7 +3,6 @@
 #include <fstream>
 
 #include "vandmc_core.h"
-#include "kindeux.h"
 #include "detectors.h"
 #include "materials.h"
 #include "Structures.h"
@@ -15,7 +14,57 @@
 
 Vector3 zero_vector(0.0, 0.0, 0.0);
 
-struct DataPack{
+class comConverter{
+  public:
+	comConverter() : length(0) { }
+
+	comConverter(const char *fname) : length(0) { 
+		load(fname);
+	}
+
+	bool load(const char *fname){
+		com.clear();
+		ejectLab.clear();
+		recoilLab.clear();
+		length = 0;
+
+		std::ifstream file(fname);
+		if(!file.good()) return false;
+
+		double comVal, ejectLabVal, recoilLabVal;
+		while(true){
+			file >> comVal >> ejectLabVal >> recoilLabVal;
+			if(file.eof()) break;
+			com.push_back(comVal);
+			ejectLab.push_back(ejectLabVal);
+			recoilLab.push_back(recoilLabVal);
+		}
+
+		length = com.size();
+		return (length != 0);
+	}
+
+	double convertEject2lab(const double &com_){
+		double retval = -9999;
+		Interpolate(com_, retval, com.data(), ejectLab.data(), length);
+		return retval;
+	}
+
+	double convertRecoil2lab(const double &com_){
+		double retval = -9999;
+		Interpolate(com_, retval, com.data(), recoilLab.data(), length);
+		return retval;
+	}
+
+  private:
+	std::vector<double> com;
+	std::vector<double> ejectLab;
+	std::vector<double> recoilLab;
+	size_t length;
+};
+
+class DataPack{
+  public:
 	TFile *file;
 	TTree *tree;
 	bool init;
@@ -27,8 +76,6 @@ struct DataPack{
 	double comAngle;
 
 	MonteCarloStructure MCARLOdata;
-
-	reactData reaction;
 
 	DataPack(){
 		file = NULL;
@@ -112,20 +159,20 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // Generates one output root file named 'mcarlo.root'
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true, Kindeux *kind=NULL){
+unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true, comConverter *conv=0x0){
 	if(!pack){ return 0; }
 	double dummyR, hitTheta, hitPhi;
+	double comAngle;
 	double t1, t2;
 	unsigned int count, total;
 	Vector3 flight_path;
 	Vector3 temp_vector;
 	Vector3 temp_normal;
 	Vector3 temp_ray, offset, dummyVector;
-	Vector3 ejectileVector, recoilVector;
 	int type;
 	bool found_hit;
 	
-	bool useKindeux = (kind != 0x0);
+	bool useKinematics = (conv != 0x0);
 	
 	Matrix3 matrix;
 	bool use_gaussian_beam = true;
@@ -150,18 +197,18 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 	
 		found_hit = false;
 
-		if(useKindeux){ // Generate a uniformly distributed random point on the unit sphere in the center-of-mass frame.
-			if(ejectile_){
-				kind->FillVars(pack->reaction, ejectileVector, dummyVector);
-				Sphere2Cart(ejectileVector, temp_ray);
-			}
-			else{
-				kind->FillVars(pack->reaction, dummyVector, recoilVector);
-				Sphere2Cart(recoilVector, temp_ray);
-			}
+		if(useKinematics){ // Generate a uniformly distributed random point on the unit sphere in the center-of-mass frame.
+			UnitSphereRandom(comAngle, hitPhi); // In the CM frame.
+			if(ejectile_)
+				hitTheta = conv->convertEject2lab(comAngle);
+			else
+				hitTheta = conv->convertRecoil2lab(comAngle);
+			Sphere2Cart(1.0, hitTheta, hitPhi, temp_ray); // Theta is now in the lab frame.
+			//if(comAngle < 0) comAngle += 2*pi;
 		}
 		else{ // Generate a uniformly distributed random point on the unit sphere in the lab frame.
 			UnitSphereRandom(temp_ray);
+			comAngle = temp_ray.axis[0];
 		}
 
 		// Generate an offset based on a gaussian beam.
@@ -203,12 +250,13 @@ unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_arr
 		
 		if(WriteRXN_){
 			Cart2Sphere(temp_ray, dummyR, hitTheta, hitPhi);
-			pack->Ereact = pack->reaction.Ereact;
+			/*pack->Ereact = pack->reaction.Ereact;
 			pack->Eeject = pack->reaction.Eeject;
-			pack->Erecoil = pack->reaction.Erecoil;
+			pack->Erecoil = pack->reaction.Erecoil;*/
 			pack->labTheta = hitTheta*rad2deg;
 			pack->labPhi = hitPhi*rad2deg;
-			pack->comAngle = pack->reaction.comAngle*rad2deg;
+			//pack->comAngle = pack->reaction.comAngle*rad2deg;
+			pack->comAngle = comAngle*rad2deg;
 		}
 
 		if(found_hit){
@@ -278,72 +326,15 @@ int main(int argc, char *argv[]){
 	
 	DataPack pack;
 	
-	Kindeux *kind = NULL;
+	comConverter *conv = NULL;
 	if(UseKinematics){
-		double Mbeam[3], Mtarg[3];
-		double Mrecoil[4], Meject[4];
-		double recoilStates[1];
-		double Qgs;
-		bool userChoice;
-
-		Particle beam, targ, recoil, ejectile;
-
-		std::cout << "  Load reaction parameters from file? "; std::cin >> userChoice;
-
 		std::string rxnFilename;
-		if(userChoice){
-			std::cout << "  Enter input filename: "; std::cin >> rxnFilename;
-			std::ifstream rxnFile(rxnFilename.c_str());
-			rxnFile >> Mbeam[0] >> Mbeam[1] >> Mbeam[2];
-			rxnFile >> Mtarg[0] >> Mtarg[1] >> Mtarg[2];
-			rxnFile >> Mrecoil[0] >> Mrecoil[1] >> Mrecoil[2] >> Mrecoil[3];
-			rxnFile >> Meject[0] >> Meject[1] >> Meject[2] >> Meject[3];
-			rxnFile >> pack.reaction.Ereact;
-			rxnFile.close();
+		std::cout << "  Enter input filename: "; std::cin >> rxnFilename;
+		conv = new comConverter();
+		if(!conv->load(rxnFilename.c_str())){
+			std::cout << " Error: failed to load input kinematics file \"" << rxnFilename << "\"!\n";
+			return 1;
 		}
-		else{
-			std::cout << "  Enter beam Z, A, BE/A(MeV): "; std::cin >> Mbeam[0] >> Mbeam[1] >> Mbeam[2];
-			std::cout << "  Enter target Z, A, BE/A(MeV): "; std::cin >> Mtarg[0] >> Mtarg[1] >> Mtarg[2];
-			std::cout << "  Enter recoil Z, A, BE/A(MeV), Excitation(MeV): "; std::cin >> Mrecoil[0] >> Mrecoil[1] >> Mrecoil[2] >> Mrecoil[3];
-			std::cout << "  Enter ejectile Z, A, BE/A(MeV), Excitation(MeV): "; std::cin >> Meject[0] >> Meject[1] >> Meject[2] >> Meject[3];
-			std::cout << "  Enter beam energy (MeV): "; std::cin >> pack.reaction.Ereact;
-			std::cout << "  Write reaction parameters to file? "; std::cin >> userChoice;
-			if(userChoice){
-				std::cout << "  Enter output filename: "; std::cin >> rxnFilename;
-				std::ofstream rxnFile(rxnFilename.c_str());
-				rxnFile << Mbeam[0] << "\t" << Mbeam[1] << "\t" << Mbeam[2] << "\n";
-				rxnFile << Mtarg[0] << "\t" << Mtarg[1] << "\t" << Mtarg[2] << "\n";
-				rxnFile << Mrecoil[0] << "\t" << Mrecoil[1] << "\t" << Mrecoil[2] << "\t" << Mrecoil[3] << "\n";
-				rxnFile << Meject[0] << "\t" << Meject[1] << "\t" << Meject[2] << "\t" << Meject[3] << "\n";
-				rxnFile << pack.reaction.Ereact;
-				rxnFile.close();
-			}
-		}
-
-		beam.SetParticle("", Mbeam[0], Mbeam[1], Mbeam[2]);
-		targ.SetParticle("", Mtarg[0], Mtarg[1], Mtarg[2]);
-		recoil.SetParticle("", Mrecoil[0], Mrecoil[1], Mrecoil[2]);
-		ejectile.SetParticle("", Meject[0], Meject[1], Meject[2]);
-
-		recoilStates[0] = Mrecoil[3];
-
-		Qgs = (beam.GetMass()+targ.GetMass())-(recoil.GetMass()+ejectile.GetMass());
-
-		std::cout << "\n Beam energy (MeV)       = " << pack.reaction.Ereact << std::endl;
-		std::cout << " Beam mass (MeV/c^2)     = " << beam.GetMass() << std::endl;
-		std::cout << " Target mass (MeV/c^2)   = " << targ.GetMass() << std::endl;
-		std::cout << " Recoil mass (MeV/c^2)   = " << recoil.GetMass() << std::endl;
-		std::cout << " Ejectile mass (MeV/c^2) = " << ejectile.GetMass() << std::endl;
-		std::cout << " g.s. Q-value (MeV)      = " << Qgs << std::endl;
-
-		kind = new Kindeux();
-		kind->Initialize(beam.GetA(), targ.GetA(), recoil.GetA(), ejectile.GetA(), Qgs, 1, recoilStates);
-
-		std::cout << " Inverse Kinematics:";
-		if(kind->GetInverseKinematics())
-			std::cout << " Yes\n";
-		else
-			std::cout << " No\n";
 	}
 
 	pack.Open("mcarlo.root", WriteReaction);
@@ -356,7 +347,7 @@ int main(int argc, char *argv[]){
 		// Process ejectile detectors
 		if(Nwanted > 0){
 			std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
-			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, true, kind);
+			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, true, conv);
 		
 			std::cout << "  Found " << Nwanted << " ejectile events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 
@@ -381,7 +372,7 @@ int main(int argc, char *argv[]){
 		// Process recoil detectors
 		if(Nwanted > 0){
 			std::cout << "  Performing Monte Carlo test on recoil detectors...\n";
-			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, false, kind);
+			total_found = TestDetSetup(&pack, detectors, Nwanted, WriteReaction, beamspot, targangle, false, conv);
 			
 			std::cout << "  Found " << Nwanted << " recoil events in " << total_found << " trials (" << 100.0*Nwanted/total_found << "%)\n\n";
 

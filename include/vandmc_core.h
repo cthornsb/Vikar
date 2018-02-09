@@ -254,5 +254,6 @@ void Sphere2Cart(const Vector3&, Vector3&);
 void Sphere2Cart(Vector3&);
 void straggleA(double&, double, double, double, double, double);
 double Interpolate(double, double, double, double, double);
+bool Interpolate(const double &x, double &y, double *x_, double *y_, const size_t &len_);
 
 #endif
