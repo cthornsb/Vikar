@@ -33,9 +33,12 @@ add_executable(range range.cpp)
 target_link_libraries(range VandmcStatic)
 
 add_executable(strips strips.cpp)
-target_link_libraries( strips ${ROOT_LIBRARIES})
+target_link_libraries(strips ${ROOT_LIBRARIES})
+
+add_executable(detFileMaker detFileMaker.cpp)
+target_link_libraries(detFileMaker VandmcStatic)
 
 #add_executable(root2raw root2raw.cpp)
 #target_link_libraries(root2raw VandmcStatic)
 
-install(TARGETS angleConvert eloss kindist relativistic testSetup kinematics range strips DESTINATION bin)
+install(TARGETS angleConvert eloss kindist relativistic testSetup kinematics range strips detFileMaker DESTINATION bin)
