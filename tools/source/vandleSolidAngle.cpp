@@ -158,9 +158,9 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // Generates one output root file named 'mcarlo.root'
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const double &radius_, unsigned int num_trials, bool WriteRXN_, comConverter *conv=0x0){
+unsigned int TestDetSetup(DataPack *pack, const std::vector<double> &barAngles, const std::vector<double> &angleBins, const double &radius_, unsigned int num_trials, bool WriteRXN_, comConverter *conv=0x0){
 	if(!pack){ return 0; }
-	double hitTheta, hitPhi;
+	double hitTheta=0, hitPhi;
 	double comAngle;
 	unsigned int count=0;
 	unsigned int totalGenerated=0;
@@ -176,36 +176,10 @@ unsigned int TestDetSetup(DataPack *pack, const double &radius_, unsigned int nu
 
 	const double width = 0.03; // m
 	const double barHalfAngle = std::asin(width/(2*radius_));
-	//const double barArcWidth = 2*radius_*barHalfAngle;
 
 	// Compute mask angles.
-	const double dTheta = 0; // deg
+	const double dTheta = 1; // deg
 	const double angles[3] = {barHalfAngle-dTheta*deg2rad, barHalfAngle, barHalfAngle+dTheta*deg2rad};
-
-	const double barAnglesDeg[21] = {169.23, 164.23, 159.22, 154.22, 149.22, 144.22, 139.22, 134.22, 129.21, 124.21, 119.21, 114.21, 109.21, 104.21, 99.20, 94.20, 89.20, 84.20, 79.20, 74.20, 69.19};
-	
-	double barAngles[21];
-	int Nbars = 21;
-
-	for(int i = 0; i < 21; i++){
-		barAngles[i] = barAnglesDeg[i]*deg2rad;
-	}
-
-	double angleLow = barAngles[20]-angles[2];
-	double angleHigh = barAngles[0]+angles[2];
-
-	const double angleBinsDeg[20] = {65, 72.5, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 157.5, 165, 175};
-	double angleBins[20];
-	int Nbins = 19;
-	
-	for(int i = 0; i < Nbins+1; i++){
-		angleBins[i] = angleBinsDeg[i]*deg2rad;
-	}
-
-	std::cout << "barHalfAngle=" << barHalfAngle*rad2deg << std::endl;
-	std::cout << "angleLow=" << angleLow*rad2deg << std::endl;
-	std::cout << "angleHigh=" << angleHigh*rad2deg << std::endl;
-	std::cout << "angles={" << angles[0]*rad2deg << ", " << angles[1]*rad2deg << ", " << angles[2]*rad2deg << "}\n";
 
 	while(count < num_trials){
 		if(count != 0 && count == num_trials_chunk*chunk_num){ // Print a status update.
@@ -229,9 +203,9 @@ unsigned int TestDetSetup(DataPack *pack, const double &radius_, unsigned int nu
 
 		// Check angular bin.
 		int bin = -1;
-		for(int i = 0; i < Nbins; i++){
+		for(size_t i = 0; i < angleBins.size()-1; i++){
 			if(hitTheta >= angleBins[i] && hitTheta < angleBins[i+1]){
-				bin = i;
+				bin = (int)i;
 				break;
 			}
 		}
@@ -255,7 +229,7 @@ unsigned int TestDetSetup(DataPack *pack, const double &radius_, unsigned int nu
 			// Check for detector hit.
 			int loc = -1;
 			int mask = -1;
-			for(int i = 0; i < Nbars; i++){
+			for(size_t i = 0; i < barAngles.size(); i++){
 				if(hitTheta >= barAngles[i]-angles[2] && hitTheta <= barAngles[i]+angles[2]){
 					loc = i;
 					if(hitTheta < barAngles[i]){
@@ -286,30 +260,65 @@ unsigned int TestDetSetup(DataPack *pack, const double &radius_, unsigned int nu
 }
 
 void help(char * prog_name_){
-	std::cout << "  SYNTAX: " << prog_name_ << " [detfile]\n";
+	std::cout << "  SYNTAX: " << prog_name_ << " <detfile> <binfile> [relfile]\n";
 }
 
 int main(int argc, char *argv[]){
-	/*if(argc < 2){
-		std::cout << " Error: Invalid number of arguments to " << argv[0] << ". Expected 1, received " << argc-1 << ".\n";
+	if(argc < 3){
+		std::cout << " Error: Invalid number of arguments to " << argv[0] << ". Expected 2, received " << argc-1 << ".\n";
 		help(argv[0]);
 		return 1;
-	}*/
+	}
 
 	unsigned int Nwanted = 0;
 	unsigned int totalGenerated = 0;
-	bool WriteReaction = false;
-	bool UseKinematics = false;
 
+	std::vector<Primitive*> detectors;
+
+	std::cout << " Reading in NewVIKAR detector setup file...\n";
+	int Ndet = ReadDetFile(argv[1], detectors);
+	if(Ndet < 0){
+		std::cout << " Error: failed to load detector setup file!\n";
+		return 1; 
+	}
+	else if(Ndet == 0){ std::cout << " Error: Found no detectors in the detector setup file!\n"; }
+
+	std::cout << "  Loaded " << Ndet << " detectors from file.\n";
+
+	std::cout << " Reading angular bin file...\n";
+	std::ifstream binFile(argv[2]);
+	if(!binFile.good()){
+		std::cout << " Error: Failed to load angular bin file!\n";
+		return 1;
+	}
+	
+	double labTheta, comTheta;
+	std::vector<double> angularBins;
+	while(true){
+		binFile >> labTheta >> comTheta;
+		if(binFile.eof()) break;
+		angularBins.push_back(labTheta);
+	}
+	binFile.close();
+
+	std::cout << "  Loaded " << angularBins.size()-1 << " angular bins.\n"; 
+
+	std::vector<double> detectorAngles;
+	for(std::vector<Primitive*>::iterator iter = detectors.begin(); iter != detectors.end(); iter++){
+		detectorAngles.push_back((*iter)->GetTheta());
+	}
+
+	bool WriteReaction = false;
 	std::cout << " Write reaction data? "; std::cin >> WriteReaction; 
-	std::cout << " Use kinematics? "; std::cin >> UseKinematics;
+
+	double radius;
+	std::cout << " Enter detector radius (m): "; std::cin >> radius;
 	
 	DataPack pack;
 	
 	comConverter *conv = NULL;
-	if(UseKinematics){
-		std::string rxnFilename;
-		std::cout << "  Enter input filename: "; std::cin >> rxnFilename;
+	if(argc >= 4){
+		std::string rxnFilename(argv[3]);
 		conv = new comConverter();
 		if(!conv->load(rxnFilename.c_str())){
 			std::cout << " Error: failed to load input kinematics file \"" << rxnFilename << "\"!\n";
@@ -325,7 +334,7 @@ int main(int argc, char *argv[]){
 
 	if(Nwanted > 0){
 		std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
-		totalGenerated = TestDetSetup(&pack, 0.54, Nwanted, WriteReaction, conv);
+		totalGenerated = TestDetSetup(&pack, detectorAngles, angularBins, radius, Nwanted, WriteReaction, conv);
 	
 		std::cout << "  Found " << Nwanted << " ejectile events in " << totalGenerated << " trials (" << 100.0*Nwanted/totalGenerated << "%)\n\n";
 

@@ -143,6 +143,15 @@ class Primitive{
 	/// Get the z-coordinate of the center of the detector (in m).
 	double GetZ(){ return position.axis[2]; }
 
+	/// Get the rotation theta.
+	double GetTheta(){ return theta; }
+
+	/// Get the rotation phi.
+	double GetPhi(){ return phi; }
+
+	/// Get the rotation psi.
+	double GetPsi(){ return psi; }
+
 	/// Get the width of the detector along the x-axis (in m).
 	double GetWidth(){ return width; }
 
