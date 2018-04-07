@@ -4,8 +4,9 @@
 
 #include "vandmc_core.h"
 #include "detectors.h"
-#include "materials.h"
-#include "Structures.h"
+
+#include "comConverter.hpp"
+#include "dataPack.hpp"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -13,129 +14,6 @@
 #include "TNamed.h"
 
 Vector3 zero_vector(0.0, 0.0, 0.0);
-
-class comConverter{
-  public:
-	comConverter() : length(0) { }
-
-	comConverter(const char *fname) : length(0) { 
-		load(fname);
-	}
-
-	bool load(const char *fname){
-		com.clear();
-		ejectLab.clear();
-		recoilLab.clear();
-		length = 0;
-
-		std::ifstream file(fname);
-		if(!file.good()) return false;
-
-		double comVal, ejectLabVal, recoilLabVal;
-		while(true){
-			file >> comVal >> ejectLabVal >> recoilLabVal;
-			if(file.eof()) break;
-			com.push_back(comVal);
-			ejectLab.push_back(ejectLabVal);
-			recoilLab.push_back(recoilLabVal);
-		}
-
-		length = com.size();
-		return (length != 0);
-	}
-
-	double convertEject2lab(const double &com_){
-		double retval = -9999;
-		Interpolate(com_, retval, com.data(), ejectLab.data(), length);
-		return retval;
-	}
-
-	double convertRecoil2lab(const double &com_){
-		double retval = -9999;
-		Interpolate(com_, retval, com.data(), recoilLab.data(), length);
-		return retval;
-	}
-
-  private:
-	std::vector<double> com;
-	std::vector<double> ejectLab;
-	std::vector<double> recoilLab;
-	size_t length;
-};
-
-class DataPack{
-  public:
-	TFile *file;
-	TTree *tree;
-	bool init;
-
-	double offsetX, offsetY, offsetZ;
-	double trajX, trajY, trajZ;
-	double Ereact, Eeject, Erecoil;
-	double labTheta, labPhi;
-	double comAngle;
-
-	MonteCarloStructure MCARLOdata;
-
-	DataPack(){
-		file = NULL;
-		tree = NULL;
-		init = false;
-	}
-	
-	DataPack(std::string fname_, unsigned int Nbins_, bool write_rxn_=false){
-		Open(fname_, write_rxn_);
-	}
-
-	~DataPack(){
-		if(init){ Close(); }
-	}
-
-	bool IsInit(){ return init; }
-
-	bool Open(std::string fname_, bool write_rxn_){
-		if(init){ return false; }
-
-		file = new TFile(fname_.c_str(), "RECREATE");
-		
-		if(!file->IsOpen()){
-			init = false;
-			delete file;
-		}
-		
-		tree = new TTree("data", "Monte carlo detector efficiency tree");
-		
-		tree->Branch("mcarlo", &MCARLOdata);
-		if(write_rxn_){ 
-			tree->Branch("Ereact", &Ereact); 
-			tree->Branch("Eeject", &Eeject); 
-			tree->Branch("Erecoil", &Erecoil); 
-			tree->Branch("labTheta", &labTheta);
-			tree->Branch("labPhi", &labPhi);
-			tree->Branch("comAngle", &comAngle); 
-		}
-		
-		return (init = true);
-	}
-
-	bool Close(){
-		if(!init){ return false; }
-		
-		file->cd();
-		tree->Write();
-		file->Close();
-		
-		init = false;
-		
-		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
-		
-		return true;
-	}
-	
-	void Zero(){
-		MCARLOdata.Zero();
-	}
-};
 
 double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_=false){
 	double output = -1;
@@ -159,7 +37,7 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // Generates one output root file named 'mcarlo.root'
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true, comConverter *conv=0x0){
+unsigned int TestDetSetup(dataPack *pack, const std::vector<Primitive*> &bar_array, unsigned int num_trials, bool WriteRXN_, double fwhm_, double angle_, bool ejectile_=true, comConverter *conv=0x0){
 	if(!pack){ return 0; }
 	double dummyR, hitTheta, hitPhi;
 	double comAngle;
@@ -324,7 +202,7 @@ int main(int argc, char *argv[]){
 	std::cout << " Write reaction data? "; std::cin >> WriteReaction; 
 	std::cout << " Use kinematics? "; std::cin >> UseKinematics;
 	
-	DataPack pack;
+	dataPack pack;
 	
 	comConverter *conv = NULL;
 	if(UseKinematics){
@@ -397,6 +275,11 @@ int main(int argc, char *argv[]){
 		delete *iter;
 	}
 	detectors.clear();
+
+	if(pack.Close())
+		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
+	else
+		std::cout << "  Error! Failed to write to output file.\n";
 
 	return 0;
 }

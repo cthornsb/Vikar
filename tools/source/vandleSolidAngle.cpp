@@ -4,8 +4,9 @@
 
 #include "vandmc_core.h"
 #include "detectors.h"
-#include "materials.h"
-#include "Structures.h"
+
+#include "comConverter.hpp"
+#include "dataPack.hpp"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -13,128 +14,6 @@
 #include "TNamed.h"
 
 Vector3 zero_vector(0.0, 0.0, 0.0);
-
-class comConverter{
-  public:
-	comConverter() : length(0) { }
-
-	comConverter(const char *fname) : length(0) { 
-		load(fname);
-	}
-
-	bool load(const char *fname){
-		com.clear();
-		ejectLab.clear();
-		recoilLab.clear();
-		length = 0;
-
-		std::ifstream file(fname);
-		if(!file.good()) return false;
-
-		double comVal, ejectLabVal, recoilLabVal;
-		while(true){
-			file >> comVal >> ejectLabVal >> recoilLabVal;
-			if(file.eof()) break;
-			com.push_back(comVal);
-			ejectLab.push_back(ejectLabVal);
-			recoilLab.push_back(recoilLabVal);
-		}
-
-		length = com.size();
-		return (length != 0);
-	}
-
-	double convertEject2lab(const double &com_){
-		double retval = -9999;
-		Interpolate(com_, retval, com.data(), ejectLab.data(), length);
-		return retval;
-	}
-
-	double convertRecoil2lab(const double &com_){
-		double retval = -9999;
-		Interpolate(com_, retval, com.data(), recoilLab.data(), length);
-		return retval;
-	}
-
-  private:
-	std::vector<double> com;
-	std::vector<double> ejectLab;
-	std::vector<double> recoilLab;
-	size_t length;
-};
-
-class DataPack{
-  public:
-	TFile *file;
-	TTree *tree;
-	bool init;
-
-	double offsetX, offsetY, offsetZ;
-	double trajX, trajY, trajZ;
-	double Ereact, Eeject, Erecoil;
-	double labTheta, labPhi;
-	double comAngle;
-	int labBin;
-
-	MonteCarloStructure MCARLOdata;
-
-	DataPack(){
-		file = NULL;
-		tree = NULL;
-		init = false;
-	}
-	
-	DataPack(std::string fname_, unsigned int Nbins_, bool write_rxn_=false){
-		Open(fname_, write_rxn_);
-	}
-
-	~DataPack(){
-		if(init){ Close(); }
-	}
-
-	bool IsInit(){ return init; }
-
-	bool Open(std::string fname_, bool write_rxn_){
-		if(init){ return false; }
-
-		file = new TFile(fname_.c_str(), "RECREATE");
-		
-		if(!file->IsOpen()){
-			init = false;
-			delete file;
-		}
-		
-		tree = new TTree("data", "Monte carlo detector efficiency tree");
-		
-		tree->Branch("mcarlo", &MCARLOdata);
-		if(write_rxn_){ 
-			tree->Branch("labTheta", &labTheta);
-			tree->Branch("labPhi", &labPhi);
-			tree->Branch("comAngle", &comAngle);
-			tree->Branch("labBin", &labBin); 
-		}
-		
-		return (init = true);
-	}
-
-	bool Close(){
-		if(!init){ return false; }
-		
-		file->cd();
-		tree->Write();
-		file->Close();
-		
-		init = false;
-		
-		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
-		
-		return true;
-	}
-	
-	void Zero(){
-		MCARLOdata.Zero();
-	}
-};
 
 double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_=false){
 	double output = -1;
@@ -158,7 +37,7 @@ double proper_value(const std::string &prompt_, const double &min_=0.0, bool ge_
 // Generates one output root file named 'mcarlo.root'
 // fwhm_ (m) allows the use of a gaussian particle "source". If fwhm_ == 0.0, a point source is used
 // angle_ (rad) allows the rotation of the particle source about the y-axis
-unsigned int TestDetSetup(DataPack *pack, const std::vector<double> &barAngles, const std::vector<double> &angleBins, const double &radius_, unsigned int num_trials, bool WriteRXN_, comConverter *conv=0x0){
+unsigned int TestDetSetup(dataPack *pack, const std::vector<double> &barAngles, const std::vector<double> &angleBins, const double &radius_, unsigned int num_trials, bool WriteRXN_, comConverter *conv=0x0){
 	if(!pack){ return 0; }
 	double hitTheta=0, hitPhi;
 	double comAngle;
@@ -314,7 +193,7 @@ int main(int argc, char *argv[]){
 	double radius;
 	std::cout << " Enter detector radius (m): "; std::cin >> radius;
 	
-	DataPack pack;
+	dataPack pack;
 	
 	comConverter *conv = NULL;
 	if(argc >= 4){
@@ -332,26 +211,29 @@ int main(int argc, char *argv[]){
 
 	Nwanted = (unsigned int)proper_value("Enter number of ejectile MC events: ", 0.0, true);
 
-	if(Nwanted > 0){
-		std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
-		totalGenerated = TestDetSetup(&pack, detectorAngles, angularBins, radius, Nwanted, WriteReaction, conv);
-	
-		std::cout << "  Found " << Nwanted << " ejectile events in " << totalGenerated << " trials (" << 100.0*Nwanted/totalGenerated << "%)\n\n";
+	std::cout << "  Performing Monte Carlo test on ejectile detectors...\n";
+	totalGenerated = TestDetSetup(&pack, detectorAngles, angularBins, radius, Nwanted, WriteReaction, conv);
 
-		std::stringstream stream; stream << Nwanted;
-		TNamed n1("EjectDet", stream.str().c_str());
-		stream.str(""); stream << totalGenerated;
-		TNamed n2("EjectTot", stream.str().c_str());
-		stream.str(""); stream << 100.0*Nwanted/totalGenerated << " %";
-		TNamed n3("EjectEff", stream.str().c_str());
+	std::cout << "  Found " << Nwanted << " ejectile events in " << totalGenerated << " trials (" << 100.0*Nwanted/totalGenerated << "%)\n\n";
 
-		pack.file->cd();
-		n1.Write();
-		n2.Write();
-		n3.Write();
-	}
+	std::stringstream stream; stream << Nwanted;
+	TNamed n1("EjectDet", stream.str().c_str());
+	stream.str(""); stream << totalGenerated;
+	TNamed n2("EjectTot", stream.str().c_str());
+	stream.str(""); stream << 100.0*Nwanted/totalGenerated << " %";
+	TNamed n3("EjectEff", stream.str().c_str());
+
+	pack.file->cd();
+	n1.Write();
+	n2.Write();
+	n3.Write();
 
 	std::cout << " Finished geometric efficiency test on detector setup...\n";
+
+	if(pack.Close())
+		std::cout << "  Wrote monte carlo file 'mcarlo.root'\n";
+	else
+		std::cout << "  Error! Failed to write to output file.\n";
 	
 	return 0;
 }
