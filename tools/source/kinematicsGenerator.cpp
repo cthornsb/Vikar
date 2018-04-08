@@ -15,7 +15,7 @@
 bool GenerateKinematicsFile(const char *fname, unsigned int num_trials, comConverter *conv, const std::string &title="Kinematics File"){
 	if(!conv){ return false; }
 	double labAngle;
-	double dummyPhi;
+	double phiAngle;
 	double comAngle;
 	
 	unsigned int num_trials_chunk = num_trials/10;
@@ -30,6 +30,7 @@ bool GenerateKinematicsFile(const char *fname, unsigned int num_trials, comConve
 	TTree *tree = new TTree("data", title.c_str());
 	tree->Branch("com", &comAngle);
 	tree->Branch("lab", &labAngle);
+	tree->Branch("phi", &phiAngle);
 
 	for(unsigned int i = 0; i < num_trials; i++){
 		if(i != 0 && i == num_trials_chunk*chunk_num){ // Print a status update.
@@ -37,7 +38,7 @@ bool GenerateKinematicsFile(const char *fname, unsigned int num_trials, comConve
 		}
 	
 		// Generate a uniformly distributed random point on the unit sphere in the center-of-mass frame.
-		UnitSphereRandom(comAngle, dummyPhi); // In the CM frame.
+		UnitSphereRandom(comAngle, phiAngle); // In the CM frame.
 		labAngle = conv->convertEject2lab(comAngle);
 		
 		tree->Fill();
