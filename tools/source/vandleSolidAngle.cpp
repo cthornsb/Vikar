@@ -66,7 +66,6 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 	double comAngle;
 	unsigned int totalInAngleBin=0;
 	unsigned int totalDetected=0;
-	Vector3 flight_path;
 	Vector3 temp_ray;
 	
 	TBranch *lab_b=NULL, *phi_b=NULL, *com_b=NULL;
@@ -78,10 +77,12 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 		return 0;
 	}
 	
-	TH1F *h1 = new TH1F("h1", "Ungated", angleBins.size()-1, angleBins.data());
-	TH1F *h2 = new TH1F("h2", "Detector Gated (mask 0)", angleBins.size()-1, angleBins.data());
-	TH1F *h3 = new TH1F("h3", "Detector Gated (mask 1)", angleBins.size()-1, angleBins.data());
-	TH1F *h4 = new TH1F("h4", "Detector Gated (mask 2)", angleBins.size()-1, angleBins.data());
+	TH1F *hist[4];
+	hist[0] = new TH1F("h1", "Ungated", angleBins.size()-1, angleBins.data());
+	for(unsigned int i = 1; i < 4; i++){
+		std::stringstream stream; stream << i+1;
+		hist[i] = new TH1F(("h"+stream.str()).c_str(), ("Detector Gated (mask "+stream.str()+")").c_str(), angleBins.size()-1, angleBins.data());
+	}
 	
 	unsigned int Nentries = comTree->GetEntries();
 	unsigned int num_trials_chunk = comTree->GetEntries()/10;
@@ -92,8 +93,8 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 	const double barHalfAngle = std::asin(width/(2*radius_));
 
 	// Compute mask angles.
-	const double dTheta = 2; // deg
-	const double angles[3] = {barHalfAngle-dTheta*deg2rad, barHalfAngle, barHalfAngle+dTheta*deg2rad};
+	const double dTheta = 3; // deg
+	const double angles[3] = {-dTheta*deg2rad, 0, +dTheta*deg2rad};
 
 	for(unsigned int count = 0; count < Nentries; count++){
 		if(count != 0 && count == num_trials_chunk*chunk_num){ // Print a status update.
@@ -104,7 +105,7 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 		comTree->GetEntry(count);
 	
 		// Fill the ungated histogram.
-		h1->Fill(labAngle);
+		hist[0]->Fill(labAngle);
 	
 		// Check CM angle. To speed things up.
 		if(comAngle >= pi/2) continue;
@@ -121,48 +122,30 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 		
 		// Check for events which do not intersect VANDLE.
 		if(y >= -0.3 && y <= 0.3 && x >= 0){
-			// Check for detector hit.
-			int loc = -1;
-			int mask = -1;
-			for(size_t i = 0; i < barAngles.size(); i++){
-				if(labAngle >= barAngles[i]-angles[2] && labAngle <= barAngles[i]+angles[2]){
-					loc = i;
-					if(labAngle < barAngles[i]){
-						if(labAngle < barAngles[i]-angles[1]) mask = 0;
-						else if(labAngle < barAngles[i]-angles[0]) mask = 1;
-						else mask = 2;
+			for(unsigned int j = 0; j < 3; j++){
+				// Check for detector hit.
+				int loc = -1;
+				for(size_t i = 0; i < barAngles.size(); i++){
+					if(labAngle >= (barAngles[i]+angles[j])-barHalfAngle && labAngle < (barAngles[i]+angles[j])+barHalfAngle){
+						loc = i;
+						break;
 					}
-					else{
-						if(labAngle >= barAngles[i]+angles[1]) mask = 4;
-						else if(labAngle >= barAngles[i]+angles[0]) mask = 3;
-						else mask = 2;
-					}
-					break;
 				}
-			}
-
-			if(loc >= 0 && mask >= 0){
-				if(mask <= 2){ // Bar mask -dTheta
-					h2->Fill(labAngle);
-				}
-				if(mask >=1 && mask <= 3){ // Bar mask
-					h3->Fill(labAngle);
-					totalDetected++;
-				}
-				if(mask >=2 && mask <= 4){ // Bar mask +dTheta
-					h4->Fill(labAngle);
+				
+				if(loc >= 0){
+					hist[j+1]->Fill(labAngle);
 				}
 			}
 		}
 	}
 
 	// Compute the solid angle per bin.
-	binRatio(h1, h2, h3, h4, comBins); 
+	binRatio(hist[0], hist[1], hist[2], hist[3], comBins); 
 
-	delete h1;
-	delete h2;
-	delete h3;
-	delete h4;
+	totalDetected = hist[2]->GetEntries();
+
+	for(unsigned int i = 0; i < 4; i++)
+		delete hist[i];
 
 	return totalDetected;
 }
