@@ -95,13 +95,13 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 	const double dTheta = 2; // deg
 	const double angles[3] = {barHalfAngle-dTheta*deg2rad, barHalfAngle, barHalfAngle+dTheta*deg2rad};
 
-	for(unsigned int i=0; i < Nentries; i++){
-		if(i != 0 && i == num_trials_chunk*chunk_num){ // Print a status update.
-			std::cout << "  " << (chunk_num++)*10 << "% - " << "Detected " << i << " of " << Nentries << " total events (" << i*100.0/Nentries << "%)\n";
+	for(unsigned int count = 0; count < Nentries; count++){
+		if(count != 0 && count == num_trials_chunk*chunk_num){ // Print a status update.
+			std::cout << "  " << (chunk_num++)*10 << "% - " << "Detected " << count << " of " << Nentries << " total events (" << count*100.0/Nentries << "%)\n";
 		}
 	
 		// Get an event from the tree.
-		comTree->GetEntry(i);
+		comTree->GetEntry(count);
 	
 		// Fill the ungated histogram.
 		h1->Fill(labAngle);
