@@ -88,6 +88,7 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 	unsigned int num_trials_chunk = comTree->GetEntries()/10;
 	unsigned int chunk_num = 1;
 	double t, x, y;
+	double labAngleCyl;
 
 	const double width = 0.03; // m
 	const double barHalfAngle = std::asin(width/(2*radius_));
@@ -104,12 +105,12 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 		// Get an event from the tree.
 		comTree->GetEntry(count);
 	
-		// Fill the ungated histogram.
-		hist[0]->Fill(labAngle);
-	
 		// Check CM angle. To speed things up.
 		if(comAngle >= pi/2) continue;
 
+		// Fill the ungated histogram.
+		hist[0]->Fill(labAngle, 2); // Fill with weight x2 since we ignore comAngle > pi/2
+	
 		// Convert from spherical to cartesian.
 		Sphere2Cart(1.0, labAngle, phiAngle, temp_ray);
 
@@ -118,15 +119,17 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 		t = radius_/std::sqrt(temp_ray.axis[0]*temp_ray.axis[0]+temp_ray.axis[2]*temp_ray.axis[2]);
 		x = t*temp_ray.axis[0];
 		y = t*temp_ray.axis[1];
-		//z = t*temp_ray.axis[2];
-		
+	
+		// Calculate the cylindrical angle in the lab frame.
+		labAngleCyl = std::atan2(temp_ray.axis[0], temp_ray.axis[2]);
+	
 		// Check for events which do not intersect VANDLE.
 		if(y >= -0.3 && y <= 0.3 && x >= 0){
 			for(unsigned int j = 0; j < 3; j++){
 				// Check for detector hit.
 				int loc = -1;
 				for(size_t i = 0; i < barAngles.size(); i++){
-					if(labAngle >= (barAngles[i]+angles[j])-barHalfAngle && labAngle < (barAngles[i]+angles[j])+barHalfAngle){
+					if(labAngleCyl >= (barAngles[i]+angles[j])-barHalfAngle && labAngleCyl < (barAngles[i]+angles[j])+barHalfAngle){
 						loc = i;
 						break;
 					}
