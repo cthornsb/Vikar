@@ -94,7 +94,7 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 	const double barHalfAngle = std::asin(width/(2*radius_));
 
 	// Compute mask angles.
-	const double dTheta = 3; // deg
+	const double dTheta = 2; // deg
 	const double angles[3] = {-dTheta*deg2rad, 0, +dTheta*deg2rad};
 
 	for(unsigned int count = 0; count < Nentries; count++){
@@ -144,6 +144,10 @@ unsigned int TestDetSetup(TTree *comTree, const std::vector<double> &barAngles, 
 
 	// Compute the solid angle per bin.
 	binRatio(hist[0], hist[1], hist[2], hist[3], comBins); 
+
+	std::ofstream solidAngleFile("solidangle.dat");
+	binRatio(hist[0], hist[1], hist[2], hist[3], comBins, solidAngleFile); 
+	solidAngleFile.close();
 
 	totalDetected = hist[2]->GetEntries();
 
