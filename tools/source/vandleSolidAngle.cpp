@@ -3,8 +3,8 @@
 #include <fstream>
 #include <algorithm>
 
-#include "vandmc_core.h"
-#include "detectors.h"
+#include "vandmc_core.hpp"
+#include "detectors.hpp"
 
 #include "TFile.h"
 #include "TTree.h"

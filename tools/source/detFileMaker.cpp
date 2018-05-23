@@ -5,7 +5,7 @@
 #include <fstream>
 #include <string>
 
-#include "vandmc_core.h"
+#include "vandmc_core.hpp"
 
 int main(){
 	double radius;

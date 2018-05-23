@@ -10,8 +10,8 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
-#include "vandmc_core.h"
-#include "kindeux.h"
+#include "vandmc_core.hpp"
+#include "kindeux.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // Californium

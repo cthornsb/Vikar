@@ -17,11 +17,11 @@
 #include "TTree.h"
 #include "TNamed.h"
 
-#include "vandmc_core.h"
-#include "kindeux.h"
-#include "materials.h"
-#include "detectors.h"
-#include "Structures.h"
+#include "vandmc_core.hpp"
+#include "kindeux.hpp"
+#include "materials.hpp"
+#include "detectors.hpp"
+#include "vandmcStructures.hpp"
 
 #define VERSION "1.32b"
 

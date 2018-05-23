@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
 
-#include "vandmc_core.h"
-#include "materials.h"
-#include "detectors.h"
+#include "vandmc_core.hpp"
+#include "materials.hpp"
+#include "detectors.hpp"
 
 double proper_value(const std::string &prompt_, const double &min_, bool ge_=false){
 	double output = -1;

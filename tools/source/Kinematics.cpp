@@ -9,8 +9,8 @@
 #include <string>
 #include <time.h>
 
-#include "vandmc_core.h"
-#include "kindeux.h"
+#include "vandmc_core.hpp"
+#include "kindeux.hpp"
 
 int main(int argc, char* argv[]){
 	std::ifstream inFile;

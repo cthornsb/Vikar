@@ -9,9 +9,9 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
-#include "vandmc_core.h"
-#include "detectors.h"
-#include "materials.h"
+#include "vandmc_core.hpp"
+#include "detectors.hpp"
+#include "materials.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // Constant Globals (for fortran commons)

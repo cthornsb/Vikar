@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QGraphicsScene>
 
-#include "vandmc_core.h"
+#include "vandmc_core.hpp"
 
 class Primitive;
 

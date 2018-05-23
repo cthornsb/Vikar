@@ -4,7 +4,7 @@
 #include "camera.h"
 #include "ui_camera.h"
 
-#include "detectors.h"
+#include "detectors.hpp"
 
 RGBcolor::RGBcolor(int color_/*=0xFFFFFF*/){
 	SetColor(color_);

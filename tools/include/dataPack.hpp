@@ -1,7 +1,7 @@
 #ifndef DATA_PACK_HPP
 #define DATA_PACK_HPP
 
-#include "Structures.h"
+#include "vandmcStructures.hpp"
 
 class TFile;
 class TTree;

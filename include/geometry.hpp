@@ -15,7 +15,7 @@
 
 #include <string>
 
-#include "vandmc_core.h"
+#include "vandmc_core.hpp"
 
 class NewVIKARdet;
 

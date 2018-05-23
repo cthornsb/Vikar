@@ -7,7 +7,7 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
-#include "detectors.h"
+#include "detectors.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // NewVIKARdet

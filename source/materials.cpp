@@ -7,8 +7,8 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
-#include "vandmc_core.h"
-#include "materials.h"
+#include "vandmc_core.hpp"
+#include "materials.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // Constant Globals 

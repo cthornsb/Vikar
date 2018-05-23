@@ -2,8 +2,8 @@
 #include <sstream>
 #include <fstream>
 
-#include "vandmc_core.h"
-#include "detectors.h"
+#include "vandmc_core.hpp"
+#include "detectors.hpp"
 
 #include "comConverter.hpp"
 #include "dataPack.hpp"

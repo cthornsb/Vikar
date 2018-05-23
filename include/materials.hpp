@@ -10,7 +10,7 @@
 #ifndef MATERIALS_H
 #define MATERIALS_H
 
-#include "detectors.h"
+#include "detectors.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // Globals

@@ -9,8 +9,8 @@
 #include <vector>
 #include <time.h>
 
-#include "vandmc_core.h"
-#include "kindeux.h"
+#include "vandmc_core.hpp"
+#include "kindeux.hpp"
 
 // Return true if substr is found in the character array
 bool FindSubstring(char *input, char* substr, unsigned short len){

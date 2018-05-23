@@ -1,7 +1,7 @@
 
 #include <iostream>
 
-#include "vandmc_core.h"
+#include "vandmc_core.hpp"
 #include "comConverter.hpp"
 
 #include "TFile.h"

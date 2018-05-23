@@ -12,7 +12,7 @@
 
 #include <string>
 
-#include "geometry.h"
+#include "geometry.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // NewVIKARdet

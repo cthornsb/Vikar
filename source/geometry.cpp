@@ -10,8 +10,8 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
-#include "geometry.h"
-#include "detectors.h"
+#include "geometry.hpp"
+#include "detectors.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // RegularPolygon

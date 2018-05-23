@@ -2,8 +2,9 @@
 
 #include "camera.h"
 #include "ui_camera.h"
-#include "vandmc_core.h"
-#include "detectors.h"
+
+#include "vandmc_core.hpp"
+#include "detectors.hpp"
 
 int main(int argc, char* argv[]){
     QApplication app(argc, argv);
