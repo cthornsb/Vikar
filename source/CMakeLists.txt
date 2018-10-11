@@ -11,3 +11,9 @@ add_library(VandmcStatic STATIC $<TARGET_OBJECTS:CoreObjects>)
 add_executable(vandmc vandmc.cpp)
 target_link_libraries(vandmc VandmcStatic ${DICTIONARY_PREFIX}Static ${ROOT_LIBRARIES})
 install(TARGETS vandmc DESTINATION bin)
+
+# Build shared libs
+if(${BUILD_SHARED})
+	add_library(Vandmc SHARED $<TARGET_OBJECTS:CoreObjects>)
+	install(TARGETS Vandmc DESTINATION lib)
+endif(${BUILD_SHARED})

@@ -30,11 +30,14 @@ set(DictSources ${STRUCTURES_SOURCE} ${CINT_OUTPUT_FILE})
 #Add the sources to the library.
 add_library(DictObjects OBJECT ${DictSources})
 
-#Create shared library.
-message(STATUS "Building Root Dictionary Shared Objects")
-add_library(${DICTIONARY_PREFIX} SHARED $<TARGET_OBJECTS:DictObjects>)
-install(TARGETS ${DICTIONARY_PREFIX} DESTINATION lib)
-
 #Create static library.
 add_library(${DICTIONARY_PREFIX}Static STATIC $<TARGET_OBJECTS:DictObjects>)
-install(TARGETS ${DICTIONARY_PREFIX}Static DESTINATION lib)
+
+# Build shared libs
+if(${BUILD_SHARED})
+	#Create shared library.
+	add_library(${DICTIONARY_PREFIX} SHARED $<TARGET_OBJECTS:DictObjects>)
+	install(TARGETS ${DICTIONARY_PREFIX} DESTINATION lib)
+endif(${BUILD_SHARED})
+
+

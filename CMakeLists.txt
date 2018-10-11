@@ -50,6 +50,7 @@ endif(CMAKE_BUILD_TYPE MATCHES "Debug")
 #Install options
 option(BUILD_TOOLS "Build and install tool programs." OFF)
 option(BUILD_RENDERER "Build and install vandmc detector renderer." OFF)
+option(BUILD_SHARED "Build and install shared libraries." OFF)
 
 #------------------------------------------------------------------------------
 
@@ -107,6 +108,11 @@ if(BUILD_TOOLS)
 	option(BUILD_TOOLS_STRIPS "Build and install silicon strip program." OFF)
 	option(BUILD_TOOLS_DETFILEMAKER "Build and install vandmc det file generator." ON)
 	add_subdirectory(tools)
+endif()
+
+if(${BUILD_SHARED})
+	# Copy header files to the install directory.
+	install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()
 
 #Build/install the miscellaneous stuff
