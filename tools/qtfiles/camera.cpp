@@ -55,6 +55,58 @@ void Camera::set_colors(){
 	}
 }
 
+void Camera::update_detSelect(){
+    if(!currDetector) return;
+    ui->doubleSpinBox_xPos->setValue(currDetector->GetX());
+    ui->doubleSpinBox_yPos->setValue(currDetector->GetY());
+    ui->doubleSpinBox_zPos->setValue(currDetector->GetZ());
+    ui->doubleSpinBox_theta->setValue(currDetector->GetTheta()*rad2deg);
+    ui->doubleSpinBox_phi->setValue(currDetector->GetPhi()*rad2deg);
+    ui->doubleSpinBox_psi->setValue(currDetector->GetPsi()*rad2deg);
+    ui->doubleSpinBox_length->setValue(currDetector->GetLength());
+    ui->doubleSpinBox_width->setValue(currDetector->GetWidth());
+    ui->doubleSpinBox_depth->setValue(currDetector->GetDepth());
+    ui->lineEdit_type->setText(QString::fromStdString(currDetector->GetType()));
+    ui->lineEdit_subtype->setText(QString::fromStdString(currDetector->GetSubtype()));
+    ui->lineEdit_material->setText(QString::fromStdString(currDetector->GetMaterialName()));
+}
+
+void Camera::disable_all(){
+    ui->pushButton->setDisabled(true);
+    ui->pushButton_2->setDisabled(true);
+    ui->doubleSpinBox_xPos->setDisabled(true);
+    ui->doubleSpinBox_yPos->setDisabled(true);
+    ui->doubleSpinBox_zPos->setDisabled(true);
+    ui->doubleSpinBox_theta->setDisabled(true);
+    ui->doubleSpinBox_phi->setDisabled(true);
+    ui->doubleSpinBox_psi->setDisabled(true);
+    ui->doubleSpinBox_length->setDisabled(true);
+    ui->doubleSpinBox_width->setDisabled(true);
+    ui->doubleSpinBox_depth->setDisabled(true);
+    ui->spinBox_detSelect->setDisabled(true);
+    ui->lineEdit_type->setDisabled(true);
+    ui->lineEdit_subtype->setDisabled(true);
+    ui->lineEdit_material->setDisabled(true);
+}
+
+void Camera::enable_all(){
+    ui->pushButton->setEnabled(true);
+    ui->pushButton_2->setEnabled(true);
+    ui->doubleSpinBox_xPos->setEnabled(true);
+    ui->doubleSpinBox_yPos->setEnabled(true);
+    ui->doubleSpinBox_zPos->setEnabled(true);
+    ui->doubleSpinBox_theta->setEnabled(true);
+    ui->doubleSpinBox_phi->setEnabled(true);
+    ui->doubleSpinBox_psi->setEnabled(true);
+    ui->doubleSpinBox_length->setEnabled(true);
+    ui->doubleSpinBox_width->setEnabled(true);
+    ui->doubleSpinBox_depth->setEnabled(true);
+    ui->spinBox_detSelect->setEnabled(true);
+    ui->lineEdit_type->setEnabled(true);
+    ui->lineEdit_subtype->setEnabled(true);
+    ui->lineEdit_material->setEnabled(true);
+}
+
 Camera::Camera(QWidget* parent): QMainWindow(parent), ui(new Ui::Camera) {
     fov = pi/2.0;
     sizeX = 240;
@@ -74,6 +126,8 @@ Camera::Camera(QWidget* parent): QMainWindow(parent), ui(new Ui::Camera) {
     scene->addPixmap(*pixmap);
     the_app = NULL;
     
+    currDetector = NULL;
+
     set_colors();
 }
 
@@ -97,6 +151,8 @@ Camera::Camera(double x_, double y_, double z_, double theta_, double phi_, QWid
     scene->addPixmap(*pixmap);
     the_app = NULL;
     
+    disable_all();
+
     set_colors();
 }
 
@@ -162,7 +218,7 @@ void Camera::Render() {
     Vector3 face_hit1;
     Vector3 face_hit2;
 
-	unsigned char red, green, blue;
+    unsigned char red, green, blue;
 
     float luminosity; // Intensity of the color of the drawing pen.
     int index; // Current detector index in the Primitive vector.
@@ -209,7 +265,7 @@ void Camera::Render() {
         }
     }
 
-	ui->progressBar->setValue(100);
+    ui->progressBar->setValue(100);
 
     scene->addPixmap(*pixmap);
 }
@@ -219,6 +275,11 @@ void Camera::paintEvent(QPaintEvent*) {
 
 void Camera::on_pushButton_clicked(){
     this->Render();
+}
+
+void Camera::on_spinBox_detSelect_valueChanged(int i){
+    currDetector = ((unsigned int)i < primitives.size() ? primitives.at(i) : NULL);
+    update_detSelect();
 }
 
 void Camera::on_doubleSpinBox_valueChanged(double arg1){
@@ -303,7 +364,7 @@ void Camera::on_pushButton_2_clicked(){
 }
 
 void Camera::on_pushButton_3_clicked(){
-	for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
+    for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
         delete (*iter);
     }
     primitives.clear();
@@ -311,17 +372,22 @@ void Camera::on_pushButton_3_clicked(){
     std::cout << "Loaded detector file " << ui->lineEdit_2->text().toStdString() << std::endl;
     std::cout << " Found " << primitives.size() << " objects.\n";
 
-    if(!primitives.empty()){ // Set position diagnostic tools to the position of the last detector read.
-        currDetector = primitives.back();
-        ui->doubleSpinBox_xPos->setValue(currDetector->GetX());
-        ui->doubleSpinBox_yPos->setValue(currDetector->GetY());
-        ui->doubleSpinBox_zPos->setValue(currDetector->GetZ());
-        ui->doubleSpinBox_theta->setValue(currDetector->GetTheta());
-        ui->doubleSpinBox_phi->setValue(currDetector->GetPhi());
-        ui->doubleSpinBox_psi->setValue(currDetector->GetPsi());
-        ui->doubleSpinBox_length->setValue(currDetector->GetLength());
-        ui->doubleSpinBox_width->setValue(currDetector->GetWidth());
-        ui->doubleSpinBox_depth->setValue(currDetector->GetDepth());
+    if(!primitives.empty()){ // Set position diagnostic tools to the position of the first detector read.
+        int count = 1;
+        for(std::vector<Primitive*>::iterator iter = primitives.begin(); iter != primitives.end(); iter++){
+            std::stringstream stream;
+            stream << count++;
+        }
+	ui->spinBox_detSelect->setMaximum(count-1);
+	ui->lcdNumber->display(count-1);
+        currDetector = primitives.front();
+	enable_all();
+        update_detSelect();
+    }
+    else{
+        ui->lcdNumber->display(0);
+	disable_all();
+        currDetector = NULL;
     }
 }
 

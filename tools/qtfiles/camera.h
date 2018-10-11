@@ -80,6 +80,8 @@ private slots:
 
     void on_pushButton_clicked();
 
+    void on_spinBox_detSelect_valueChanged(int i);
+
     void on_doubleSpinBox_valueChanged(double arg1);
 
     void on_doubleSpinBox_2_valueChanged(double arg1);
@@ -163,6 +165,12 @@ private:
     void set_rotation();
     
     void set_colors();
+
+    void update_detSelect();
+
+    void disable_all();
+
+    void enable_all();
 };
 
 #endif // CAMERA_H
