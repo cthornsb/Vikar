@@ -248,6 +248,42 @@ void Camera::on_doubleSpinBox_7_valueChanged(double arg1){
     rotated = true;
 }
 
+void Camera::on_doubleSpinBox_xPos_valueChanged(double arg1){
+    currDetector->SetPosition(arg1, currDetector->GetY(), currDetector->GetZ());
+}
+
+void Camera::on_doubleSpinBox_yPos_valueChanged(double arg1){
+    currDetector->SetPosition(currDetector->GetX(), arg1, currDetector->GetZ());
+}
+
+void Camera::on_doubleSpinBox_zPos_valueChanged(double arg1){
+    currDetector->SetPosition(currDetector->GetX(), currDetector->GetY(), arg1);
+}
+
+void Camera::on_doubleSpinBox_theta_valueChanged(double arg1){
+    currDetector->SetRotation(arg1*deg2rad, currDetector->GetPhi(), currDetector->GetPsi());
+}
+
+void Camera::on_doubleSpinBox_phi_valueChanged(double arg1){
+    currDetector->SetRotation(currDetector->GetTheta(), arg1*deg2rad, currDetector->GetPsi());
+}
+
+void Camera::on_doubleSpinBox_psi_valueChanged(double arg1){
+    currDetector->SetRotation(currDetector->GetTheta(), currDetector->GetPhi(), arg1*deg2rad);
+}
+
+void Camera::on_doubleSpinBox_length_valueChanged(double arg1){
+    currDetector->SetSize(arg1, currDetector->GetWidth(), currDetector->GetDepth());
+}
+
+void Camera::on_doubleSpinBox_width_valueChanged(double arg1){
+    currDetector->SetSize(currDetector->GetLength(), arg1, currDetector->GetDepth());
+}
+
+void Camera::on_doubleSpinBox_depth_valueChanged(double arg1){
+    currDetector->SetSize(currDetector->GetLength(), currDetector->GetWidth(), arg1);
+}
+
 void Camera::on_spinBox_valueChanged(int arg1){
     fov = arg1*deg2rad;
 }
@@ -274,6 +310,19 @@ void Camera::on_pushButton_3_clicked(){
     ReadDetFile(ui->lineEdit_2->text().toStdString().c_str(), primitives);
     std::cout << "Loaded detector file " << ui->lineEdit_2->text().toStdString() << std::endl;
     std::cout << " Found " << primitives.size() << " objects.\n";
+
+    if(!primitives.empty()){ // Set position diagnostic tools to the position of the last detector read.
+        currDetector = primitives.back();
+        ui->doubleSpinBox_xPos->setValue(currDetector->GetX());
+        ui->doubleSpinBox_yPos->setValue(currDetector->GetY());
+        ui->doubleSpinBox_zPos->setValue(currDetector->GetZ());
+        ui->doubleSpinBox_theta->setValue(currDetector->GetTheta());
+        ui->doubleSpinBox_phi->setValue(currDetector->GetPhi());
+        ui->doubleSpinBox_psi->setValue(currDetector->GetPsi());
+        ui->doubleSpinBox_length->setValue(currDetector->GetLength());
+        ui->doubleSpinBox_width->setValue(currDetector->GetWidth());
+        ui->doubleSpinBox_depth->setValue(currDetector->GetDepth());
+    }
 }
 
 void Camera::on_actionExit_triggered(){

@@ -92,6 +92,24 @@ private slots:
 
     void on_doubleSpinBox_7_valueChanged(double arg1);
 
+    void on_doubleSpinBox_xPos_valueChanged(double arg1);
+
+    void on_doubleSpinBox_yPos_valueChanged(double arg1);
+
+    void on_doubleSpinBox_zPos_valueChanged(double arg1);
+
+    void on_doubleSpinBox_theta_valueChanged(double arg1);
+
+    void on_doubleSpinBox_phi_valueChanged(double arg1);
+
+    void on_doubleSpinBox_psi_valueChanged(double arg1);
+
+    void on_doubleSpinBox_length_valueChanged(double arg1);
+
+    void on_doubleSpinBox_width_valueChanged(double arg1);
+
+    void on_doubleSpinBox_depth_valueChanged(double arg1);
+
     void on_spinBox_valueChanged(int arg1);
 
     void on_spinBox_2_valueChanged(int arg1);
@@ -134,9 +152,11 @@ private:
     double psi;
     bool rotated;
 
-	RGBcolor colors[12]; /// Array of RGB codes for coloring on screen objects.
+    RGBcolor colors[12]; /// Array of RGB codes for coloring on screen objects.
 
     std::vector<Primitive*> primitives;
+
+    Primitive *currDetector;
     
     void set_pixel_size();
 
