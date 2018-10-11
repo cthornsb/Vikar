@@ -9,6 +9,8 @@
  * \author C. R. Thornsberry
  * \date Feb. 26th, 2016
  */
+#include <iomanip>
+
 #include "vandmc_core.hpp"
 #include "detectors.hpp"
 #include "materials.hpp"
@@ -316,14 +318,22 @@ void Matrix3::_initialize(){
 
 Matrix3::Matrix3(){ _initialize(); }
 
-Matrix3::Matrix3(double theta_, double phi_){
+Matrix3::Matrix3(double theta_, double phi_, double psi_/*=0.0*/){
 	_initialize();
-	SetRotationMatrixSphere(theta_, phi_);
+	SetRotationMatrixSphere(theta_, phi_, psi_);
 }
 
 Matrix3::Matrix3(const Vector3 &vector_){
 	_initialize();
 	SetRotationMatrixSphere(vector_);
+}
+
+Matrix3::Matrix3(const double a00, const double a10, const double a20,
+	             const double a01, const double a11, const double a21,
+	             const double a02, const double a12, const double a22){
+	components[0][0] = a00; components[1][0] = a10; components[2][0] = a20; 
+	components[0][1] = a01; components[1][1] = a11; components[2][1] = a21; 
+	components[0][2] = a02; components[1][2] = a12; components[2][2] = a22; 
 }
 
 void Matrix3::SetRotationMatrixSphere(double theta_, double phi_, double psi_/*=0.0*/){
@@ -334,10 +344,18 @@ void Matrix3::SetRotationMatrixSphere(double theta_, double phi_, double psi_/*=
 	// Pitch-Roll-Yaw convention
 	// Rotate by angle theta about the y-axis
 	//  angle phi about the z-axis
-	//  angle psi about the x-axis
-	SetRow1(cos_theta*cos_phi, cos_theta*sin_phi, -sin_theta); // Width axis
-	SetRow2(sin_psi*sin_theta*cos_phi-cos_psi*sin_phi, sin_psi*sin_theta*sin_phi+cos_psi*cos_phi, cos_theta*sin_psi); // Length axis
-	SetRow3(cos_psi*sin_theta*cos_phi+sin_psi*sin_phi, cos_psi*sin_theta*sin_phi-sin_psi*cos_phi, cos_theta*cos_psi); // Depth axis
+	//  angle psi about the x-axis	
+	Matrix3 thetaM(cos_theta,         0,-sin_theta,
+	                       0,         1,         0,
+	               sin_theta,         0, cos_theta);
+	Matrix3   phiM(  cos_phi,   sin_phi,         0,
+	                -sin_phi,   cos_phi,         0,
+	                       0,         0,         1);
+	Matrix3   psiM(        1,         0,         0,
+	                       0,   cos_psi,   sin_psi,
+	                       0,  -sin_psi,   cos_psi);
+	
+	(*this) = psiM*(phiM*thetaM);
 }
 
 void Matrix3::SetRotationMatrixSphere(const Vector3 &vector_){
@@ -352,6 +370,34 @@ void Matrix3::SetRotationMatrixCart(double x_, double y_, double z_){
 
 void Matrix3::SetRotationMatrixCart(const Vector3 &vector_){
 	SetRotationMatrixCart(vector_.axis[0], vector_.axis[1], vector_.axis[2]);
+}
+
+// Performs the operation (*this) x right
+Matrix3 Matrix3::operator * (const Matrix3 &right){
+	Matrix3 newMatrix;
+	for(unsigned int i = 0; i < 3; i++){ // Over columns
+		for(unsigned int j = 0; j < 3; j++){ // Over rows
+			newMatrix.components[i][j] = 0;
+			for(unsigned int k = 0; k < 3; k++){
+				newMatrix.components[i][j] += components[i][k]*right.components[k][j];
+			}
+		}
+	}
+	return newMatrix;
+}
+
+// Performs the operation (*this) = (*this) x right
+Matrix3 Matrix3::operator *= (const Matrix3 &right){
+	Matrix3 oldMatrix(*this);
+	for(unsigned int i = 0; i < 3; i++){ // Over columns
+		for(unsigned int j = 0; j < 3; j++){ // Over rows
+			components[i][j] = 0;
+			for(unsigned int k = 0; k < 3; k++){
+				components[i][j] += oldMatrix.components[i][k]*right.components[k][j];
+			}
+		}
+	}
+	return (*this);
 }
 
 // Transform an input vector by this matrix
@@ -373,9 +419,13 @@ void Matrix3::Transpose(Vector3 &vector){
 }
 
 void Matrix3::Dump(){
-	std::cout << " [" << components[0][0] << "\t" << components[0][1] << "\t" << components[0][2] << "]\n";
-	std::cout << " [" << components[1][0] << "\t" << components[1][1] << "\t" << components[1][2] << "]\n";
-	std::cout << " [" << components[2][0] << "\t" << components[2][1] << "\t" << components[2][2] << "]\n";
+	std::stringstream stream;
+	stream.precision(3);
+	stream << std::fixed;
+	stream << "[" << std::setw(8) << components[0][0] << ", " << std::setw(8) << components[0][1] << ", " << std::setw(8) << components[0][2] << "]\n";
+	stream << "[" << std::setw(8) << components[1][0] << ", " << std::setw(8) << components[1][1] << ", " << std::setw(8) << components[1][2] << "]\n";
+	stream << "[" << std::setw(8) << components[2][0] << ", " << std::setw(8) << components[2][1] << ", " << std::setw(8) << components[2][2] << "]\n";
+	std::cout << stream.str();
 }
 
 /////////////////////////////////////////////////////////////////////
