@@ -269,6 +269,7 @@ void vandmc::initialize(){
 	BeamFocus = false;
 	DoRutherford = false;
 	echoMode = false;
+	printParams = false;
 	ADists = 0;
 	
 	// Detector options
@@ -280,9 +281,11 @@ void vandmc::initialize(){
 	// Output filename string
 	output_filename = "vandmc.root";
 
-	handler.add(optionExt("input", required_argument, NULL, 'i', "<filename>", "Specifies an input configuration file."));
-	handler.add(optionExt("output", required_argument, NULL, 'o', "<filename>", "Specifies the name of the output file."));
+	handler.add(optionExt("input", required_argument, NULL, 'i', "<filename>", "Specify an input configuration file."));
+	handler.add(optionExt("output", required_argument, NULL, 'o', "<filename>", "Specify the name of the output file."));
+	handler.add(optionExt("detector", required_argument, NULL, 'd', "<filename>", "Specify the name of the detector file."));
 	handler.add(optionExt("echo", no_argument, NULL, 'e', "", "Echo values read from the config file."));
+	handler.add(optionExt("print", no_argument, NULL, 0x0, "", "Print simulation parameters."));
 }
 
 void vandmc::titleCard(){
@@ -481,9 +484,21 @@ bool vandmc::setup(int argc, char *argv[]){
 		output_filename = handler.getOption(1)->argument;
 	}
 
+	// Set detector filename
 	if(handler.getOption(2)->active){
+		detector_filename = handler.getOption(2)->argument;
+	}
+
+	// Set config file read echo mode
+	if(handler.getOption(3)->active){
 		echoMode = true;
 	}
+
+	// Set parameter print mode
+	if(handler.getOption(4)->active){
+		printParams = true;
+	}	
+	
 
 	return true;
 }
@@ -589,11 +604,17 @@ bool vandmc::Execute(int argc, char *argv[]){
 		return false;
 	}
 	
-	print();
+	if(printParams) print();
 	
 	// Check for mass conservation
 	if(beam_part.GetA()+targ.GetA() != recoil_part.GetA()+eject_part.GetA()){
-		std::cout << "\n FATAL ERROR! Mass number is NOT conserved! Aborting...\n";
+		std::cout << "\n FATAL ERROR! Mass number is NOT conserved! Aborting\n";
+		return false;
+	}
+	
+	// Check for no detector file defined.
+	if(detector_filename.empty()){
+		std::cout << "\n FATAL ERROR! Detector file not specified.\n";
 		return false;
 	}
 		

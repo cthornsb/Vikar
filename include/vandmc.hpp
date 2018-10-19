@@ -190,6 +190,7 @@ class vandmc{
 	bool BeamFocus;
 	bool DoRutherford;
 	bool echoMode;
+	bool printParams;
 	unsigned int ADists;
 	
 	bool have_recoil_det;
