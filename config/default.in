@@ -1,28 +1,28 @@
-1.19c		# Vikar input file version number
-4			# Beam Z
-7			# Beam A
-1			# Target Z (isotope of interest)
-2			# Target A (isotope of interest)
-0			# Ejectile Z
-1			# Ejectile A
-31.00		# Beam energy (MeV)
-0			# Beam type (0=gaussian, 1=cylindrical)
-1.00		# Beam spot diameter (or FWHM for gaussian beam) (mm)
-0.00		# Beam angular divergence (degrees) (0 degrees is perfectly cylindrical)
-0.05		# Beam energy spread (MeV)
--2.085		# Ground state Q-value
-2			# Number of excited states
-0.7695		# Energy of excited state 1
-2.3200		# Energy of excited state 2
-0			# Supply angular distributions?
-CD2			# Target material type name
-1.0			# Target thickness (mg/cm^2)
-0.0000		# Target angle wrt beam axis (degrees)
-1			# Perfect detectors?
-default.det	# Detector setup filename
-10000		# Number of detections
-0			# Detect prompt gammas?
-1			# Require ejectile and recoil coincidence?
-1			# Write reaction data to output?
-0			# Write debug info to output?
-0			# Perform Monte Carlo test on detector setup?
+VERSION				1.33		# Vikar input file version number
+BEAM_Z				6			# Beam Z
+BEAM_A				12			# Beam A
+BEAM_AMU			12			# Beam mass (amu)
+TARG_Z				1			# Target Z (isotope of interest)
+TARG_A				2			# Target A (isotope of interest)
+TARG_AMU			2			# Target mass (amu)
+RECOIL_Z			7			# Recoil Z
+RECOIL_A			13			# Recoil A
+RECOIL_AMU			13			# Recoil mass (amu)
+EJECT_Z				0			# Ejectile Z
+EJECT_A				1			# Ejectile A
+EJECT_AMU			1			# Ejectile mass (amu)
+BEAM_E				41.7		# Beam energy (MeV)
+BEAM_TYPE			0			# Beam type (0=gaussian, 1=cylindrical, 2=halo)
+BEAM_SPOT			5.00		# Beam spot diameter (or FWHM for gaussian beam) (mm)
+BEAM_ANGLE			0.00		# Beam angular divergence (degrees) (0 degrees is perfectly cylindrical)
+BEAM_E_SPREAD		0.10		# Beam energy spread (MeV)
+RECOIL_STATE		2.3649		# Energy of excited state 1
+RECOIL_STATE		3.5020		# Energy of excited state 2
+TARG_MATERIAL		CD2			# Target material type name
+TARG_THICKNESS		0.714		# Target thickness (mg/cm^2)
+TARG_ANGLE			0.0000		# Target angle wrt beam axis (degrees)
+DETECTOR_FNAME		default.det	# Detector setup filename
+N_SIMULATED_PART	10000		# Number of detections
+REQUIRE_COINCIDENCE	1			# Require ejectile and recoil coincidence?
+WRITE_REACTION_INFO	0			# Write reaction data to output?
+SIMULATE_252CF		0			# Simulate a 252Cf neutron source?

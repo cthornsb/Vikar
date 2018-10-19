@@ -9,7 +9,7 @@ add_library(VandmcStatic STATIC $<TARGET_OBJECTS:CoreObjects>)
 
 #Build simpleScan executable.
 add_executable(vandmc vandmc.cpp)
-target_link_libraries(vandmc VandmcStatic ${DICTIONARY_PREFIX}Static ${ROOT_LIBRARIES})
+target_link_libraries(vandmc VandmcStatic ${DICTIONARY_PREFIX}Static ${SimpleScan_SCAN_LIB} ${SimpleScan_OPT_LIB} ${ROOT_LIBRARIES})
 install(TARGETS vandmc DESTINATION bin)
 
 # Build shared libs

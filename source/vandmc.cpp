@@ -13,17 +13,18 @@
 #include <iostream>
 #include <time.h>
 
+// ROOT
 #include "TFile.h"
 #include "TTree.h"
 #include "TNamed.h"
 
-#include "vandmc_core.hpp"
-#include "kindeux.hpp"
-#include "materials.hpp"
-#include "detectors.hpp"
-#include "vandmcStructures.hpp"
+// SimpleScan
+#include "CTerminal.h"
 
-#define VERSION "1.32b"
+// VANDMC
+#include "vandmc.hpp"
+
+#define VERSION "1.33"
 
 template <typename T>
 void SetName(std::vector<TNamed*> &named, std::string name_, const T &value_, std::string units_=""){
@@ -44,126 +45,247 @@ double MeV2MeVee(const double &Tp_){
 	return (Acoeff*Tp_ - Bcoeff*(1 - std::exp(-Ccoeff*std::pow(Tp_, Dcoeff))));
 }
 
-int main(int argc, char* argv[]){ 
+///////////////////////////////////////////////////////////////////////////////
+// class vandmcParameter
+///////////////////////////////////////////////////////////////////////////////
+
+double vandmcParameter::ConvertToDouble(){
+	return strtod(val.c_str(), NULL);
+}
+
+unsigned int vandmcParameter::ConvertToUlong(){
+	return strtoul(val.c_str(), NULL, 10);
+}
+
+int vandmcParameter::ConvertToLong(){
+	return strtol(val.c_str(), NULL, 10);
+}
+
+bool vandmcParameter::ConvertToBool(){
+	return (bool)strtol(val.c_str(), NULL, 10);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// class vandmcParameterReader
+///////////////////////////////////////////////////////////////////////////////
+
+bool vandmcParameterReader::Read(const char *fname, bool echo/*=false*/){
+	std::ifstream ifile(fname);
+	if(!ifile.good()) return false;
+
+	std::string line;
+	while(true){
+		getline(ifile, line);
+		if(ifile.eof()) break;
+	
+		// Check for blank lines or comment lines.
+		if(line.empty() || line[0] == '#') continue;
+
+		// Split the string into parts.
+		std::vector<std::string> args;
+		split_str(line, args, '\t');
+
+		// Check for invalid number of arguments.
+		if(args.size() < 2) continue;
+
+		bool foundParamName;
+		for(std::vector<vandmcParameter>::iterator iter = validParameters.begin(); iter != validParameters.end(); iter++){
+			if(iter->Compare(args.at(0))){
+				if(echo) std::cout << args.at(0) << "=" << args.at(1) << std::endl;
+				parameters.push_back(vandmcParameter(args.at(0), "", args.at(1)));
+				foundParamName = true;
+				break;
+			}
+		}
+
+		if(!foundParamName) std::cout << " vandmc: Encountered unrecognized parameter name (" << args.at(0) << ")\n";
+	}
+	ifile.close();	
+
+	return true;
+}
+
+bool vandmcParameterReader::FindInList(const std::string &str){
+	return (findParam(str) != NULL);
+}
+
+size_t vandmcParameterReader::FindAllOccurances(const std::string &str, std::vector<vandmcParameter*> &vec){
+	vec.clear();
+	for(std::vector<vandmcParameter>::iterator iter = parameters.begin(); iter != parameters.end(); iter++){
+		if(iter->Compare(str) && !iter->Empty()) vec.push_back(&(*iter));
+	}
+	return vec.size();
+}
+
+bool vandmcParameterReader::FindDouble(const std::string &str, double &val){
+	vandmcParameter *par = findParam(str);
+	if(par == NULL) return false;
+	val = par->ConvertToDouble();
+	return true;
+}
+
+bool vandmcParameterReader::FindUlong(const std::string &str, unsigned int &val){
+	vandmcParameter *par = findParam(str);
+	if(par == NULL) return false;
+	val = par->ConvertToUlong();
+	return true;
+}
+
+bool vandmcParameterReader::FindLong(const std::string &str, int &val){
+	vandmcParameter *par = findParam(str);
+	if(par == NULL) return false;
+	val = par->ConvertToLong();
+	return true;
+}
+
+bool vandmcParameterReader::FindBool(const std::string &str, bool &val){
+	vandmcParameter *par = findParam(str);
+	if(par == NULL) return false;
+	val = par->ConvertToBool();
+	return true;
+}
+
+bool vandmcParameterReader::FindString(const std::string &str, std::string &val){
+	vandmcParameter *par = findParam(str);
+	if(par == NULL) return false;
+	val = par->GetValue();
+	return true;
+}
+
+vandmcParameter *vandmcParameterReader::findParam(const std::string &str){
+	for(std::vector<vandmcParameter>::iterator iter = parameters.begin(); iter != parameters.end(); iter++){
+		if(iter->Compare(str)){
+			if(iter->Empty()) return NULL;
+			return &(*iter);
+		}
+	}
+	return NULL;
+}
+
+void vandmcParameterReader::initialize(){
+	const std::vector<std::string> paramNames = {"VERSION",
+	                                             "BEAM_Z",
+	                                             "BEAM_A",
+	                                             "BEAM_AMU",
+	                                             "TARG_Z",
+	                                             "TARG_A",
+	                                             "TARG_AMU",
+	                                             "TARG_MATERIAL",
+	                                             "TARG_THICKNESS",
+	                                             "TARG_ANGLE",
+	                                             "RECOIL_Z",
+	                                             "RECOIL_A",
+	                                             "RECOIL_AMU",
+	                                             "EJECT_Z",
+	                                             "EJECT_A",
+	                                             "EJECT_AMU",
+	                                             "BEAM_E",
+	                                             "BEAM_TYPE",
+	                                             "BEAM_SPOT",
+	                                             "BEAM_ANGLE",
+	                                             "BEAM_RATE",
+	                                             "BEAM_E_SPREAD",
+	                                             "RECOIL_STATE",
+	                                             "ANGULAR_DIST_MODE",
+	                                             "ANGULAR_DIST",
+	                                             "SMALL_EFFICIENCY",
+	                                             "MED_EFFICIENCY",
+	                                             "LARGE_EFFICIENCY",
+	                                             "DETECTOR_FNAME",
+	                                             "N_SIMULATED_PART",
+	                                             "BACKGROUND_RATE",
+	                                             "BACKGROUND_WINDOW",
+	                                             "BACKGROUND_WAIT",
+	                                             "REQUIRE_COINCIDENCE",
+	                                             "WRITE_REACTION_INFO",
+	                                             "SIMULATE_252CF"};
+
+	for(std::vector<std::string>::const_iterator iter = paramNames.begin(); iter != paramNames.end(); iter++){
+		validParameters.push_back(vandmcParameter(*iter));
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// class vandmc
+///////////////////////////////////////////////////////////////////////////////
+
+void vandmc::initialize(){
 	// Seed randomizer
 	srand(time(NULL));
-	
-	// Main objects
-	Kindeux kind; // Main kinematics object
-	Target targ; // The physical target
-	Efficiency bar_eff; // VANDLE bar efficiencies
-	std::vector<Primitive*> vandle_bars; // Vector of Primitive detectors
 
-	RangeTable beam_targ; // Range table for beam in target
-	RangeTable eject_targ; // Pointer to the range table for ejectile in target
-	RangeTable recoil_targ; // Pointer to the range table for recoil in target
-	std::vector<RangeTable> eject_tables; // Array of range tables for ejectile in various materials
-	std::vector<RangeTable> recoil_tables; // Array of range tables for recoil in various materials
-
-	Particle recoil_part; // Recoil particle
-	Particle eject_part;// Ejectile particle
-	Particle beam_part; // Beam particle
-
-	// Hit coordinates on the surface of a detector
-	double hit_x, hit_y, hit_z;
-
-	// Vectors and rotation matrices
-	Vector3 ZeroVector; // The zero vector
-	Vector3 Ejectile, Recoil, Gamma;
-	Vector3 HitDetect1, HitDetect2;
-	Vector3 RecoilSphere;
-	Vector3 EjectSphere;
-	Vector3 GammaSphere;
-	Vector3 lab_beam_focus; // The focal point for the beam. Non-cylindrical beam particles will originate from this point.
-	Vector3 lab_beam_start; // The originating point of the beam particle in the lab frame
-	Vector3 lab_beam_trajectory; // The original trajectory of the beam particle before it enters the target
-	Vector3 lab_beam_interaction; // The position of the reaction inside the target
-	Vector3 lab_beam_stragtraject; // The angular straggled trajectory of the beam particle just before the reaction occurs
-	Vector3 targ_surface; // The intersection point between the beam particle and the target surface (wrt beam focus)
-	Vector3 interaction; // The interaction point inside the target (wrt beam focus)
-	Matrix3 rotation_matrix; // The rotation matrix used to transform vectors from the beam particle frame to the lab frame
-
-	double Zdepth; // Interaction depth inside of the target (m)
-	double range_beam;
-		
-	unsigned int num_materials = 0;
-	std::vector<Material> materials; // Array of materials
-	
-	unsigned int targ_mat_id; // The ID number of the target material
-	std::string targ_mat_name; // The name of the target material
+	num_materials = 0;
 	
 	// Physics Variables
-	unsigned int NRecoilStates = 0;
-	std::vector<std::string> AngDist_fname; 
-	double *ExRecoilStates = NULL;
-	double *totXsect = NULL; 
-	double gsQvalue = 0.0;
+	NRecoilStates = 0;
+	ExRecoilStates = NULL;
+	totXsect = NULL; 
+	gsQvalue = 0.0;
 
 	// Energy variables
-	double Ebeam = 0.0, Ebeam0 = 0.0;
-	double ErecoilMod = 0.0;
-	double EejectMod = 0.0;
-	double Egamma = 0.0;
+	Ebeam = 0.0, Ebeam0 = 0.0;
+	ErecoilMod = 0.0;
+	EejectMod = 0.0;
+	Egamma = 0.0;
 		
 	// Beam variables
-	double beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
-	double beamEspread = 0.0; // Beam energy spread (MeV)
-	double beamAngdiv = 0.0; // Beam angular divergence (radians)
+	beamspot = 0.0; // Beamspot diameter (m) (on the surface of the target)
+	beamEspread = 0.0; // Beam energy spread (MeV)
+	beamAngdiv = 0.0; // Beam angular divergence (radians)
 
-	double timeRes = 2E-9; // Pixie-16 time resolution (s)
-	double BeamRate = 0.0; // Beam rate (1/s)
+	timeRes = 2E-9; // Pixie-16 time resolution (s)
+	BeamRate = 0.0; // Beam rate (1/s)
 
 	// Background variables
-	unsigned int backgroundRate = 0;
-	unsigned int backgroundWait = 0;
-	double detWindow = 0.0;
-	bool bgPerDetection = false;
-	
-	std::string det_fname; // Detector filename
-	std::string output_fname = "vandmc.root";
+	backgroundRate = 0;
+	backgroundWait = 0;
+	detWindow = 0.0;
+	bgPerDetection = false;
 	
 	// Input/output variables
-	unsigned int NgoodDetections = 0; // Number of wanted particles detected in ejectile detectors.
-	unsigned int Ndetected = 0; // Total number of particles detected in ejectile detectors.
-	unsigned int Nwanted = 0; // Number of desired ejectile detections.
-	unsigned int Nsimulated = 0; // Total number of simulated particles.
-	unsigned int NdetHit = 0; // Total number of particles which collided with a detector.
-	unsigned int Nreactions = 0; // Total number of particles which react with the target.
-	unsigned int NrecoilHits = 0;
-	unsigned int NejectileHits = 0;
-	unsigned int NgammaHits = 0;
-	unsigned int NvetoEvents = 0;
-	int Ndet = 0; // Total number of detectors
-	int NdetRecoil = 0; // Total number of recoil detectors
-	int NdetEject = 0; // Total number of ejectile detectors
-	int NdetGamma = 0; // Total number of gamma detectors
-	int NdetVeto = 0; // Total number of particle vetos
-	int BeamType = 0; // The type of beam to simulate (0=gaussian, 1=cylindrical, 2=halo)
-	clock_t timer; // Clock object for calculating time taken and remaining
+	NgoodDetections = 0; // Number of wanted particles detected in ejectile detectors.
+	Ndetected = 0; // Total number of particles detected in ejectile detectors.
+	Nwanted = 0; // Number of desired ejectile detections.
+	Nsimulated = 0; // Total number of simulated particles.
+	NdetHit = 0; // Total number of particles which collided with a detector.
+	Nreactions = 0; // Total number of particles which react with the target.
+	NrecoilHits = 0;
+	NejectileHits = 0;
+	NgammaHits = 0;
+	NvetoEvents = 0;
+	Ndet = 0; // Total number of detectors
+	NdetRecoil = 0; // Total number of recoil detectors
+	NdetEject = 0; // Total number of ejectile detectors
+	NdetGamma = 0; // Total number of gamma detectors
+	NdetVeto = 0; // Total number of particle vetos
+	BeamType = 0; // The type of beam to simulate (0=gaussian, 1=cylindrical, 2=halo)
 
 	// Default options
-	bool InverseKinematics = true;
-	bool InCoincidence = true;
-	bool WriteReaction = false;
-	bool NeutronSource = false;
-	bool PerfectDet = true;
-	bool SupplyRates = false;
-	bool BeamFocus = false;
-	bool DoRutherford = false;
-	int ADists = 0;
+	InverseKinematics = true;
+	InCoincidence = true;
+	WriteReaction = false;
+	NeutronSource = false;
+	PerfectDet = true;
+	SupplyRates = false;
+	BeamFocus = false;
+	DoRutherford = false;
+	echoMode = false;
+	ADists = 0;
 	
 	// Detector options
-	bool have_recoil_det = false;
-	bool have_ejectile_det = false;
-	bool have_gamma_det = false;
-	bool have_veto_det = false;
+	have_recoil_det = false;
+	have_ejectile_det = false;
+	have_gamma_det = false;
+	have_veto_det = false;
 
-	//------------------------------------------------------------------------
-	//
-	// Start of user input code
-	//
-	//------------------------------------------------------------------------
+	// Output filename string
+	output_filename = "vandmc.root";
 
+	handler.add(optionExt("input", required_argument, NULL, 'i', "<filename>", "Specifies an input configuration file."));
+	handler.add(optionExt("output", required_argument, NULL, 'o', "<filename>", "Specifies the name of the output file."));
+	handler.add(optionExt("echo", no_argument, NULL, 'e', "", "Echo values read from the config file."));
+}
+
+void vandmc::titleCard(){
 	std::cout << "####    ####      ##      ####    #### ########     ####    ####  #########   \n";
 	std::cout << " ##      ##       ##       ##      ##   ##   ###     ##      ##  ###     ###  \n";
 	std::cout << "  ##    ##       ####      ###     ##   ##     ###   ###    ###  ##        ## \n";
@@ -180,268 +302,299 @@ int main(int argc, char* argv[]){
 	
 	std::cout << " Welcome to VANDMC, the Versatile Array of Neutron Detectors Monte Carlo program.\n";
 	std::cout << "  Loading the input configuration file...\n";
-	std::cout << "\n ==  ==  ==  ==  == \n";
+	
+	std::cout << "\n ==  ==  ==  ==  == \n\n";
 	sleep(1);
+}
 
-	std::ifstream input_file;
-	if(argc >= 2){
-		// Read an input file
-		input_file.open(argv[1]);
-		if(!input_file.good()){
-			std::cout << "\n Error: Problem loading the input file\n";
-			return 1;
+bool vandmc::readConfig(const char *fname){
+	if(!reader.Read(fname, echoMode)) return false;
+
+	if(echoMode) std::cout << std::endl;
+
+	std::cout << " Reading from file " << fname << std::endl;
+
+	std::string str;
+	double dval;
+	
+	std::string versionString;
+	if(reader.FindString("VERSION", versionString))
+		std::cout << "  Input file version: " << versionString << std::endl;
+
+	if(reader.FindDouble("BEAM_Z", dval))
+		beam_part.SetZ(dval);
+	if(reader.FindDouble("BEAM_A", dval))
+		beam_part.SetA(dval);	
+	if(reader.FindDouble("BEAM_AMU", dval))
+		beam_part.SetMass(dval);	
+
+	if(reader.FindDouble("TARG_Z", dval))
+		targ.SetZ(dval);
+	if(reader.FindDouble("TARG_A", dval))
+		targ.SetA(dval);	
+	if(reader.FindDouble("TARG_AMU", dval))
+		targ.SetMass(dval);		
+
+	if(reader.FindDouble("RECOIL_Z", dval))
+		recoil_part.SetZ(dval);
+	if(reader.FindDouble("RECOIL_A", dval))
+		recoil_part.SetA(dval);	
+	if(reader.FindDouble("RECOIL_AMU", dval))
+		recoil_part.SetMass(dval);	
+
+	if(reader.FindDouble("EJECT_Z", dval))
+		eject_part.SetZ(dval);
+	if(reader.FindDouble("EJECT_A", dval))
+		eject_part.SetA(dval);	
+	if(reader.FindDouble("EJECT_AMU", dval))
+		eject_part.SetMass(dval);	
+
+	// Set the reaction Q-value.
+	gsQvalue = (beam_part.GetMass()+targ.GetMass())-(recoil_part.GetMass()+eject_part.GetMass()); 
+	
+	// Set inverse or normal kinematics.
+	InverseKinematics = (beam_part.GetA() > targ.GetA() ? true : false);
+
+	reader.FindDouble("BEAM_E", Ebeam0); // In MeV
+	reader.FindUlong("BEAM_TYPE", BeamType);
+	if(BeamType > 2){ 
+		std::cout << " FATAL ERROR! Invalid beam type selection (" << BeamType << ").\n";
+		return false;
+	}
+	if(reader.FindDouble("BEAM_SPOT", dval))
+		beamspot = dval/1000.0; // in meters
+	if(reader.FindDouble("BEAM_ANGLE", dval))
+		beamAngdiv = abs(dval*deg2rad); // in radians
+	reader.FindDouble("BEAM_E_SPREAD", beamEspread); // In MeV
+	
+	std::vector<vandmcParameter*> tempParams;
+	NRecoilStates = reader.FindAllOccurances("RECOIL_STATE", tempParams);
+	ExRecoilStates = new double[NRecoilStates+1]; ExRecoilStates[0] = 0.0;
+	totXsect = new double[NRecoilStates+1]; totXsect[0] = 0.0;
+	
+	size_t state = 1;
+	for(std::vector<vandmcParameter*>::iterator iter = tempParams.begin(); iter != tempParams.end(); iter++){
+		ExRecoilStates[state] = (*iter)->ConvertToDouble();
+		totXsect[state++] = 0.0;
+	}
+	
+	// User provided angular distributions.
+	reader.FindUlong("ANGULAR_DIST_MODE", ADists);
+	if(ADists == 1 || ADists == 2){ // Read the filenames.
+		unsigned int NAngularDists = reader.FindAllOccurances("ANGULAR_DIST", tempParams);
+		if(NAngularDists != NRecoilStates){
+			std::cout << " FATAL ERROR! Too few occurances of \"ANGULAR_DIST\" in config file (" << NAngularDists << " < " << NRecoilStates << ").\n";
+			return false;
 		}
 		
-		// Specify the name of the output files
-		if(argc >= 3){ output_fname = std::string(argv[2]); }
-		
-		unsigned int count = 0;
-		std::string input;
-		std::cout << "\n Reading from file " << argv[1] << std::endl;
-		while(true){
-			getline(input_file, input); input = Parse(input);
-			if(input_file.eof()){ break; }
-			if(input == ""){ continue; }
-			
-			if(count == 0){ 
-				std::cout << "  Version: " << input << std::endl;
+		if(ADists == 1){ // Read in filename for each state's angular distribution.
+			for(std::vector<vandmcParameter*>::iterator iter = tempParams.begin(); iter != tempParams.end(); iter++){
+				if(!DoRutherford && (*iter)->GetValue() != "RUTHERFORD")
+					AngDist_fname.push_back((*iter)->GetValue());
+				else
+					DoRutherford = true;
 			}
-			else if(count == 1){ 
-				beam_part.SetZ(atof(input.c_str()));  
-				std::cout << "  Beam-Z: " << beam_part.GetZ() << std::endl;
+
+			// Supply beam rate information.
+			if(reader.FindDouble("BEAM_RATE", dval)){
+				SupplyRates = true;
+				BeamRate = dval; // in pps
 			}
-			else if(count == 2){ 
-				beam_part.SetA(atof(input.c_str()));
-				std::cout << "  Beam-A: " << beam_part.GetA() << std::endl;
-			}
-			else if(count == 3){
-				beam_part.SetMass(atof(input.c_str()));
-				std::cout << "  Beam Mass: " << beam_part.GetMassAMU() << " amu\n";
-			}
-			else if(count == 4){ 
-				targ.SetZ((double)atof(input.c_str()));
-				std::cout << "  Target-Z: " << targ.GetZ() << std::endl;
-			}
-			else if(count == 5){ 
-				targ.SetA((double)atof(input.c_str()));
-				std::cout << "  Target-A: " << targ.GetA() << std::endl;
-			}
-			else if(count == 6){
-				targ.SetMass(atof(input.c_str()));
-				std::cout << "  Target Mass: " << targ.GetMassAMU() << " amu\n";
-			}
-			else if(count == 7){ 
-				recoil_part.SetZ((double)atof(input.c_str()));
-				std::cout << "  Recoil-Z: " << recoil_part.GetZ() << std::endl;
-			}
-			else if(count == 8){ 
-				recoil_part.SetA((double)atof(input.c_str()));
-				std::cout << "  Recoil-A: " << recoil_part.GetA() << std::endl;
-			}
-			else if(count == 9){
-				recoil_part.SetMass(atof(input.c_str()));
-				std::cout << "  Recoil Mass: " << recoil_part.GetMassAMU() << " amu\n";
-			}
-			else if(count == 10){ 
-				eject_part.SetZ(atof(input.c_str()));
-				recoil_part.SetZ(beam_part.GetZ() + targ.GetZ() - eject_part.GetZ());
-				std::cout << "  Ejectile-Z: " << eject_part.GetZ() << std::endl;
-			}
-			else if(count == 11){ 
-				eject_part.SetA(atof(input.c_str())); 
-				std::cout << "  Ejectile-A: " << eject_part.GetA() << std::endl;
-			}
-			else if(count == 12){
-				eject_part.SetMass(atof(input.c_str()));
-				std::cout << "  Ejectile Mass: " << eject_part.GetMassAMU() << " amu\n";
-				
-				// Set the reaction Q-value.
-				gsQvalue = (beam_part.GetMass()+targ.GetMass())-(recoil_part.GetMass()+eject_part.GetMass()); 
-				std::cout << "  G.S. Q-Value: " << gsQvalue << " MeV\n";
-				
-				// Set inverse or normal kinematics.
-				if(beam_part.GetA() > targ.GetA()){ 
-					InverseKinematics = true; 
-					std::cout << "  Inverse Kinematics: Yes\n";
-				}
-				else{ 
-					InverseKinematics = false; 
-					std::cout << "  Inverse Kinematics: No\n";
-				}
-			}
-			else if(count == 13){ 
-				Ebeam0 = atof(input.c_str());  
-				std::cout << "  Beam Energy: " << Ebeam0 << " MeV\n";
-			}
-			else if(count == 14){ 
-				BeamType = atoi(input.c_str());
-				getline(input_file, input); input = Parse(input);
-				beamspot = atof(input.c_str());
-				if(BeamType == 0){ std::cout << "  Beam Spot FWHM: " << beamspot << " mm\n"; }
-				else if(BeamType == 1){ std::cout << "  Beam Spot Diameter: " << beamspot << " mm\n"; }
-				else if(BeamType == 2){ std::cout << "  Beam Halo Diameter: " << beamspot << " mm\n"; }
-				else{ 
-					std::cout << " FATAL ERROR! Invalid beam type selection (" << BeamType << ")...\n";
-					return 1;
-				}
-				beamspot = beamspot/1000.0; // in meters
-			}
-			else if(count == 15){ 
-				beamAngdiv = fabs(atof(input.c_str()));  
-				std::cout << "  Beam Angular Divergence: " << beamAngdiv << " degrees\n";
-				beamAngdiv *= deg2rad; // in radians
-			}
-			else if(count == 16){ 
-				beamEspread = atof(input.c_str());  
-				std::cout << "  Beam Energy Spread: " << beamEspread << " MeV\n";
-			}
-			else if(count == 17){ 
-				// Recoil excited state information
-				NRecoilStates = atoi(input.c_str()) + 1;
-				std::cout << "  No. Excited States: " << NRecoilStates-1 << std::endl;
-				ExRecoilStates = new double[NRecoilStates]; ExRecoilStates[0] = 0.0;
-				totXsect = new double[NRecoilStates]; totXsect[0] = 0.0;
-				std::cout << "   Recoil Ground State: 0.0 MeV\n";
-				for(unsigned int i = 1; i < NRecoilStates; i++){
-					getline(input_file, input); input = Parse(input);
-					ExRecoilStates[i] = atof(input.c_str());
-					std::cout << "   Recoil Excited State " << i << ": " << ExRecoilStates[i] << " MeV\n";
-					totXsect[i] = 0.0;
-				}
-			}
-			else if(count == 18){ 
-				// Angular distribution information
-				ADists = atoi(input.c_str());
-				if(ADists == 1){ // Read in filename for each state's angular distribution.
-					std::cout << "  Supply Angular Distributions: Yes\n";
-					
-					// Read the filenames.
-					for(unsigned int i = 0; i < NRecoilStates; i++){
-						getline(input_file, input); input = Parse(input);
-						if(!DoRutherford && input != "RUTHERFORD"){
-							AngDist_fname.push_back("./xsections/" + input);
-							if(i == 0){ std::cout << "   Distribution for ground state: " << AngDist_fname[i] << std::endl; }
-							else{ std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname[i] << std::endl; }
-						}
-						else{
-							DoRutherford = true;
-							std::cout << "   Using Rutherford scattering\n";
-						}
-					}
-				
-					// Supply beam rate information.
-					getline(input_file, input); input = Parse(input);
-					if(SetBool(input, "  Calculate Rates", SupplyRates)){ 
-						getline(input_file, input); input = Parse(input);
-						BeamRate = atof(input.c_str());
-						std::cout << "   Beam Rate: " << BeamRate << " pps\n";
-					}
-				}
-				else if(ADists == 2){
-					std::cout << "  Supply Angular Distributions: Yes\n";
-					
-					// Supply the rates relative to the ground state. i.e. a value of
-					// 1.0 will generate 1 particle for each ground state particle. A
-					// value of 2.0 will generate 2 particles for each ground state and so on.
-					for(unsigned int i = 0; i < NRecoilStates; i++){
-						getline(input_file, input); input = Parse(input);
-						AngDist_fname.push_back(input);
-						if(i == 0){ std::cout << "   Production rate ground state: " << input << " per event.\n"; }
-						else{ std::cout << "   Production rate for state " << i+1 << ": " << input << " per event.\n"; }
-					}
-				}
-				else{ std::cout << "  Supply Angular Distributions: No\n"; }
-			}
-			else if(count == 19){
-				// Target material
-				targ_mat_name = input;
-			}
-			else if(count == 20){ 
-				// Target thickness
-				if(targ_mat_name != "NONE"){ // Normal material.
-					targ.SetThickness((double)atof(input.c_str()));
-					std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";	
-				}
-				else{ // Target material energy loss disabled.
-					targ.SetRealThickness((double)atof(input.c_str()));
-					std::cout << "  Target Thickness: " << targ.GetRealThickness() << " m\n";	
-				}		
-			}
-			else if(count == 21){ 
-				// Target angle wrt beam axis
-				targ.SetAngle((double)atof(input.c_str())*deg2rad);
-				std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
-			}
-			else if(count == 22){ 
-				// Load the small, medium, and large bar efficiencies
-				// Efficiency index 0 is the underflow efficiency (for energies below E[0])
-				// Efficiency index N is the overflow efficiency (for energies greater than E[N])
-				if(!SetBool(input, "  Perfect Detector", PerfectDet)){ 
-					// Load small bar efficiency data
-					getline(input_file, input); input = "./efficiency/" + Parse(input); 
-					std::cout << "   Found " << bar_eff.ReadSmall(input.c_str()) << " small bar data points in file " << input << "\n";
-					
-					// Load medium bar efficiency data
-					getline(input_file, input); input = "./efficiency/" + Parse(input); 
-					std::cout << "   Found " << bar_eff.ReadMedium(input.c_str()) << " medium bar data points in file " << input << "\n";
-					
-					// Load large bar efficiency data
-					getline(input_file, input); input = "./efficiency/" + Parse(input); 
-					std::cout << "   Found " << bar_eff.ReadLarge(input.c_str()) << " large bar data points in file " << input << "\n";
-				}
-			}
-			else if(count == 23){ 
-				// Load detector setup from a file
-				det_fname = input;
-				std::cout << "  Detector Setup Filename: " << det_fname << std::endl;
-			}
-			else if(count == 24){ 
-				// Desired number of detections
-				Nwanted = atol(input.c_str());
-				std::cout << "  Desired Detections: " << Nwanted << std::endl; 
-			}
-			else if(count == 25){
-				// Background rate (per detection event)
-				backgroundRate = atol(input.c_str());
-				if(backgroundRate > 0){ // Get the detection ToF window
-					getline(input_file, input); input = Parse(input);
-					detWindow = atof(input.c_str());
-					backgroundWait = backgroundRate;
-					getline(input_file, input); input = Parse(input);
-					SetBool(input, bgPerDetection);
-					if(bgPerDetection){	std::cout << "  Background Rate: " << backgroundRate << " events per detection\n"; }
-					else{ std::cout << "  Background Rate: " << backgroundRate << " events per recoil\n"; }
-					std::cout << "  Background Time Width: " << detWindow << " ns\n";
-				}
-				else{ std::cout << "  Background Rate: NONE\n"; }
-			}
-			else if(count == 26){
-				// Require ejectile and recoil particle coincidence?
-				SetBool(input, "  Require Particle Coincidence", InCoincidence);
-			}
-			else if(count == 27){
-				// Write Reaction data to file?
-				SetBool(input, "  Write Reaction Info", WriteReaction);
-			}
-			else if(count == 28){
-				// Simulate a 252Cf neutron source?
-				SetBool(input, "  Simulate 252Cf source", NeutronSource);
-			}
-			
-			count++;
 		}
-		
-		input_file.close();
-		if(count <= 29){ std::cout << " Warning! The input file is invalid. Check to make sure input is correct\n"; }
+		else{ // Supply the rates relative to the ground state. 
+			// Example: a value of 1.0 will generate 1 particle for each ground state particle. A
+			// value of 2.0 will generate 2 particles for each ground state and so on.
+			for(std::vector<vandmcParameter*>::iterator iter = tempParams.begin(); iter != tempParams.end(); iter++){
+				AngDist_fname.push_back((*iter)->GetValue());
+			}
+		}
 	}
-	else{
-		std::cout << "\n FATAL ERROR! Missing required variable! Aborting...\n";
-		return 1;
+
+	// Target material name
+	reader.FindString("TARG_MATERIAL", targ_mat_name);
+		
+	// Target thickness
+	if(reader.FindDouble("TARG_THICKNESS", dval)){
+		if(targ_mat_name != "NONE") // Normal material.
+			targ.SetThickness(dval);
+		else // Target material energy loss disabled.
+			targ.SetRealThickness(dval);
 	}
 		
+	// Target angle wrt beam axis
+	if(reader.FindDouble("TARG_ANGLE", dval))
+		targ.SetAngle(dval*deg2rad);
+
+	// Detector efficiencies
+	if(reader.FindString("SMALL_EFFICIENCY", str)){
+		bar_eff.ReadSmall(str.c_str());
+		PerfectDet = false;
+	}
+	if(reader.FindString("MED_EFFICIENCY", str)){
+		bar_eff.ReadMedium(str.c_str());
+		PerfectDet = false;
+	}
+	if(reader.FindString("LARGE_EFFICIENCY", str)){
+		bar_eff.ReadLarge(str.c_str());
+		PerfectDet = false;
+	}
+
+	// Detector setup filename
+	reader.FindString("DETECTOR_FNAME", detector_filename);
+
+	// Maximum number of detected particles
+	reader.FindUlong("N_SIMULATED_PART", Nwanted);
+	
+	// Background rate (per detection event)
+	reader.FindUlong("BACKGROUND_RATE", backgroundRate);
+		
+	if(backgroundRate > 0){ 
+		// Get the detection ToF window
+		reader.FindDouble("BACKGROUND_WINDOW", detWindow); // in ns
+			
+		backgroundWait = backgroundRate;
+
+		reader.FindBool("BACKGROUND_PER_RECOIL", bgPerDetection);
+	}
+
+	reader.FindBool("REQUIRE_COINCIDENCE", InCoincidence);
+	reader.FindBool("WRITE_REACTION_INFO", WriteReaction);
+	reader.FindBool("SIMULATE_252CF", NeutronSource);
+
+	return true;
+}
+
+bool vandmc::setup(int argc, char *argv[]){
+	if(!handler.setup(argc, argv)){
+		return false;
+	}
+
+	// Set input filename
+	if(!handler.getOption(0)->active){
+		std::cout << " FATAL ERROR! No input filename specified!\n";
+		return false;
+	}
+	input_filename = handler.getOption(0)->argument;
+
+	// Set output filename
+	if(handler.getOption(1)->active){
+		output_filename = handler.getOption(1)->argument;
+	}
+
+	if(handler.getOption(2)->active){
+		echoMode = true;
+	}
+
+	return true;
+}
+
+void vandmc::print(){
+	std::cout << "  Beam-Z: " << beam_part.GetZ() << std::endl;
+	std::cout << "  Beam-A: " << beam_part.GetA() << std::endl;
+	std::cout << "  Beam Mass: " << beam_part.GetMassAMU() << " amu\n";
+	std::cout << "  Target-Z: " << targ.GetZ() << std::endl;
+	std::cout << "  Target-A: " << targ.GetA() << std::endl;
+	std::cout << "  Target Mass: " << targ.GetMassAMU() << " amu\n";
+	std::cout << "  Recoil-Z: " << recoil_part.GetZ() << std::endl;
+	std::cout << "  Recoil-A: " << recoil_part.GetA() << std::endl;
+	std::cout << "  Recoil Mass: " << recoil_part.GetMassAMU() << " amu\n";
+	std::cout << "  Ejectile-Z: " << eject_part.GetZ() << std::endl;
+	std::cout << "  Ejectile-A: " << eject_part.GetA() << std::endl;
+	std::cout << "  Ejectile Mass: " << eject_part.GetMassAMU() << " amu\n";
+	std::cout << "  G.S. Q-Value: " << gsQvalue << " MeV\n";
+	std::cout << "  Inverse Kinematics: " << (InverseKinematics ? "YES" : "NO") << "\n";
+	std::cout << "  Beam Energy: " << Ebeam0 << " MeV\n";
+	if(BeamType == 0)
+		std::cout << "  Beam Spot FWHM: " << beamspot*1000 << " mm\n"; 
+	else if(BeamType == 1)
+		std::cout << "  Beam Spot Diameter: " << beamspot*1000 << " mm\n"; 
+	else if(BeamType == 2)
+		std::cout << "  Beam Halo Diameter: " << beamspot*1000 << " mm\n"; 
+	std::cout << "  Beam Angular Divergence: " << beamAngdiv*rad2deg << " degrees\n";
+	std::cout << "  Beam Energy Spread: " << beamEspread << " MeV\n";
+	std::cout << "  No. Excited States: " << NRecoilStates-1 << std::endl;
+	std::cout << "   Recoil Ground State: 0.0 MeV\n";
+	for(unsigned int i = 1; i < NRecoilStates; i++)
+		std::cout << "   Recoil Excited State " << i << ": " << ExRecoilStates[i] << " MeV\n";
+	std::cout << "  Supply Angular Distributions: " << (ADists == 1 || ADists == 2 ? "YES" : "NO") << "\n";
+	if(ADists == 1){
+		if(!DoRutherford){
+			for(unsigned int i = 0; i < NRecoilStates; i++){
+				if(i == 0)
+					std::cout << "   Distribution for ground state: " << AngDist_fname.at(i) << std::endl;
+				else
+					std::cout << "   Distribution for state " << i+1 << ": " << AngDist_fname.at(i) << std::endl;
+			}
+		}
+		else{
+			for(unsigned int i = 0; i < NRecoilStates; i++){
+				if(i == 0)
+					std::cout << "   Distribution for ground state: RUTHERFORD\n";
+				else
+					std::cout << "   Distribution for state " << i+1 << ": RUTHERFORD\n";
+			}
+		}
+		std::cout << "   Beam Rate: " << BeamRate << " pps\n";
+	}
+	else if(ADists == 2){
+		for(unsigned int i = 0; i < NRecoilStates; i++){
+			if(i == 0)
+				std::cout << "   Production rate ground state: " << AngDist_fname.at(i) << " per event.\n";
+			else 
+				std::cout << "   Production rate for state " << i+1 << ": " << AngDist_fname.at(i) << " per event.\n";
+		}
+	}
+	std::cout << "  Target Material: " << targ_mat_name << std::endl;
+	if(targ_mat_name != "NONE")
+		std::cout << "  Target Thickness: " << targ.GetThickness() << " mg/cm^2\n";	
+	else
+		std::cout << "  Target Thickness: " << targ.GetRealThickness() << " m\n";	
+	std::cout << "  Target Angle: " << targ.GetAngle()*rad2deg << " degrees\n";
+	std::cout << "  Perfect Detectors: " << (PerfectDet ? "YES" : "NO") << "\n";
+	if(bar_eff.GetNsmall() > 0)
+		std::cout << "   Found " << bar_eff.GetNsmall() << " small bar efficiency data points.\n";
+	if(bar_eff.GetNmedium() > 0)
+		std::cout << "   Found " << bar_eff.GetNmedium() << " medium bar efficiency data points.\n";
+	if(bar_eff.GetNlarge() > 0)
+		std::cout << "   Found " << bar_eff.GetNlarge() << " large bar efficiency data points.\n";
+	std::cout << "  Detector Setup Filename: " << detector_filename << std::endl;
+	std::cout << "  Desired Detections: " << Nwanted << std::endl; 
+	if(backgroundRate > 0){
+		if(bgPerDetection)
+			std::cout << "  Background Rate: " << backgroundRate << " events per detection\n";
+		else
+			std::cout << "  Background Rate: " << backgroundRate << " events per recoil\n";
+		std::cout << "  Background Time Width: " << detWindow << " ns\n";
+	}
+	else
+		std::cout << "  Background Rate: NONE\n";
+	std::cout << "  Require Particle Coincidence: " << (InCoincidence ? "YES" : "NO") << std::endl;
+	std::cout << "  Write Reaction Info: " << (WriteReaction ? "YES" : "NO") << std::endl;
+	std::cout << "  Simulate 252Cf source: " << (NeutronSource ? "YES" : "NO") << std::endl;
+}
+
+bool vandmc::Execute(int argc, char *argv[]){ 
+	// Set all variables to default values.
+	initialize();
+
+	// Handle all command line arguments
+	if(!setup(argc, argv)) return false;
+
+	// Display the vandmc welcome screen.
+	titleCard();
+	
+	// Read the input config file.
+	if(!readConfig(input_filename.c_str())){
+		std::cout << " FATAL ERROR! Failed to read configuration file \"" << input_filename << "\"!\n";
+		return false;
+	}
+	
+	print();
+	
+	// Check for mass conservation
 	if(beam_part.GetA()+targ.GetA() != recoil_part.GetA()+eject_part.GetA()){
 		std::cout << "\n FATAL ERROR! Mass number is NOT conserved! Aborting...\n";
-		return 1;
+		return false;
 	}
 		
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
@@ -449,7 +602,7 @@ int main(int argc, char* argv[]){
 	// Make sure the input variables are correct
 	if(!Prompt(" Are the above settings correct?")){
 		std::cout << "  ABORTING...\n";
-		return 1;
+		return false;
 	}
 
 	std::cout << "\n Initializing main simulation Kindeux object...\n";
@@ -462,12 +615,15 @@ int main(int argc, char* argv[]){
 
 	// Read the detector setup file
 	std::cout << " Reading in NewVANDMC detector setup file...\n";
-	Ndet = ReadDetFile(det_fname.c_str(), vandle_bars);
+	Ndet = ReadDetFile(detector_filename.c_str(), vandle_bars);
 	if(Ndet < 0){ // Failed to load setup file
-		std::cout << " Error: failed to load detector setup file!\n";
-		return 1; 
+		std::cout << " FATAL ERROR! failed to load detector setup file!\n";
+		return false; 
 	}
-	else if(Ndet == 0){ std::cout << " Error: Found no detectors in the detector setup file!\n"; } // Check there's at least 1 detector!
+	else if(Ndet == 0){ // Check there's at least 1 detector!
+		std::cout << " FATAL ERROR! Found no detectors in the detector setup file!\n"; 
+		return false;
+	}
 	
 	std::vector<std::string> needed_materials;
 	for(std::vector<Primitive*>::iterator iter = vandle_bars.begin(); iter != vandle_bars.end(); iter++){
@@ -486,15 +642,26 @@ int main(int argc, char* argv[]){
 	if(NdetGamma > 0){ have_gamma_det = true; }
 	if(NdetVeto > 0){ have_veto_det = true; }
 
+	if(InCoincidence && (NdetEject == 0 || NdetGamma == 0)){
+		std::cout << " FATAL ERROR! Requiring particle coincidence but found no ejectile or gamma detectors in the detector setup file!\n"; 
+		return false;
+	}
+
+	if(InCoincidence && NdetRecoil == 0){
+		std::cout << " FATAL ERROR! Requiring particle coincidence but found no recoil detectors in the detector setup file!\n"; 
+		return false;
+	}
+
 	// Report on how many detectors were read in
-	std::cout << " Found the following detector types in detector setup file " << det_fname << std::endl;
+	std::cout << " Found the following detector types in detector setup file " << detector_filename << std::endl;
 	std::cout << "  Ejectile: " << NdetEject << std::endl; 
 	std::cout << "  Recoil:   " << NdetRecoil << std::endl;
 	std::cout << "  Gamma:    " << NdetGamma << std::endl;
 	std::cout << "  Veto:     " << NdetVeto << std::endl;
 
 	if(!have_recoil_det && !have_ejectile_det && !have_gamma_det){
-		std::cout << " Error: Found no valid detectors in detector setup file!\n";
+		std::cout << " FATAL ERROR! Found no valid detectors in detector setup file!\n";
+		return false;
 	}
 
 	std::cout << "\n Setting up VANDMC materials...\n";
@@ -667,7 +834,7 @@ int main(int argc, char* argv[]){
 	// Last chance to abort
 	if(!Prompt(" Setup is complete. Is everything correct?")){
 		std::cout << "  ABORTING...\n";
-		return 1;
+		return false;
 	}
 
 	//---------------------------------------------------------------------------
@@ -675,7 +842,7 @@ int main(int argc, char* argv[]){
 	//---------------------------------------------------------------------------
 		
 	// Root stuff
-	TFile *file = new TFile(output_fname.c_str(), "RECREATE");
+	TFile *file = new TFile(output_filename.c_str(), "RECREATE");
 	TTree *VANDMCtree = new TTree("data", "VANDMC output tree");
 	
 	ReactionProductStructure EJECTdata;
@@ -738,7 +905,7 @@ int main(int argc, char* argv[]){
 	SetName(named, "targetAngle", targ.GetAngle()*rad2deg, "deg");
 	if(PerfectDet){ SetName(named, "perfectDetectors", "Yes"); }
 	else{ SetName(named, "perfectDetectors", "No"); }
-	SetName(named, "detectorFilename", det_fname);
+	SetName(named, "detectorFilename", detector_filename);
 	SetName(named, "nDetections", Nwanted);
 	if(backgroundRate > 0){ 
 		if(bgPerDetection){ SetName(named, "backgroundRate", backgroundRate, "per detection"); }
@@ -1078,15 +1245,15 @@ process:
 						if(recoil_part.GetZ() > 0){ // Calculate energy loss for the recoil in the detector
 							QDC = ErecoilMod - recoil_tables[(*iter)->GetMaterial()].GetNewE(ErecoilMod, temp_vector.Length(), dist_traveled);
 						}
-						else{ std::cout << " ERROR! Doing energy loss on recoil particle with Z == 0???\n"; }
+						else{ std::cout << " ERROR: Doing energy loss on recoil particle with Z == 0???\n"; }
 					}	
 					else if(detector_type == 1){
 						if(eject_part.GetZ() > 0){ // Calculate energy loss for the ejectile in the detector
 							QDC = EejectMod - eject_tables[(*iter)->GetMaterial()].GetNewE(EejectMod, temp_vector.Length(), dist_traveled);
 						}
-						else{ std::cout << " ERROR! Doing energy loss on ejectile particle with Z == 0???\n"; }
+						else{ std::cout << " ERROR: Doing energy loss on ejectile particle with Z == 0???\n"; }
 					}
-					else if(detector_type == 2){ std::cout << " ERROR! Doing energy loss on a gamma ray???\n"; }
+					else if(detector_type == 2){ std::cout << " ERROR: Doing energy loss on a gamma ray???\n"; }
 				}
 				else{ // Do not do energy loss calculations. The particle leaves all of its energy in the detector.
 					dist_traveled = temp_vector.Length()*frand(); // The particle penetrates a random distance into the detector and stops.
@@ -1297,7 +1464,7 @@ process:
 	file->cd();
 	VANDMCtree->Write();
 
-	std::cout << "  Wrote file " << output_fname << "\n";
+	std::cout << "  Wrote file " << output_filename << "\n";
 	std::cout << "   Wrote " << VANDMCtree->GetEntries() << " tree entries for VANDMC\n";
 	file->Close();
 	
@@ -1310,5 +1477,10 @@ process:
 	}
 	vandle_bars.clear();
 	
-	return 0;
+	return true;
 } 
+
+int main(int argc, char *argv[]){
+	vandmc obj;
+	return (obj.Execute(argc, argv) ? 0 : 1);
+}
