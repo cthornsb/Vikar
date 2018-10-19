@@ -122,6 +122,8 @@ private slots:
     
     void on_pushButton_3_clicked();
 
+    void on_pushButton_quit_clicked();
+
     void on_actionExit_triggered();
 
 private:

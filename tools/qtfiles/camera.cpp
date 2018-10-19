@@ -391,6 +391,10 @@ void Camera::on_pushButton_3_clicked(){
     }
 }
 
+void Camera::on_pushButton_quit_clicked(){
+    this->on_actionExit_triggered();
+}
+
 void Camera::on_actionExit_triggered(){
     if(the_app){ the_app->quit(); }
 }
