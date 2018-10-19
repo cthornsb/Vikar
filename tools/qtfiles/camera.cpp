@@ -391,6 +391,14 @@ void Camera::on_pushButton_3_clicked(){
     }
 }
 
+void Camera::on_pushButton_print_clicked(){
+    std::cout << currDetector->GetX() << "\t" << currDetector->GetY() << "\t" << currDetector->GetZ() << "\t";
+    std::cout << currDetector->GetTheta() << "\t" << currDetector->GetPhi() << "\t" << currDetector->GetPsi() << "\t";
+    std::cout << currDetector->GetType() << "\t" << currDetector->GetSubtype() << "\t";
+    std::cout << currDetector->GetLength() << "\t" << currDetector->GetWidth() << "\t" << currDetector->GetDepth() << "\t";
+    std::cout << currDetector->GetMaterialName() << std::endl;
+}
+
 void Camera::on_pushButton_quit_clicked(){
     this->on_actionExit_triggered();
 }
