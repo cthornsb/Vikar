@@ -870,11 +870,12 @@ bool vandmc::Execute(int argc, char *argv[]){
 	ReactionProductStructure RECOILdata;
 	ReactionObjectStructure REACTIONdata;
 	
-	VANDMCtree->Branch("eject", &EJECTdata);
-	VANDMCtree->Branch("recoil", &RECOILdata);
-	if(WriteReaction){
+	if(NdetEject > 0 || NdetGamma > 0)
+		VANDMCtree->Branch("eject", &EJECTdata);
+	if(NdetRecoil > 0)
+		VANDMCtree->Branch("recoil", &RECOILdata);
+	if(WriteReaction)
 		VANDMCtree->Branch("reaction", &REACTIONdata);
-	}
 
 	// Write reaction info to the file.
 	std::vector<TNamed*> named;
