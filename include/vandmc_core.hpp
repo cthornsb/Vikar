@@ -21,6 +21,8 @@
 #include <sstream>
 #include <vector>
 
+#include "Vector3.hpp"
+
 /////////////////////////////////////////////////////////////////////
 // Globals
 /////////////////////////////////////////////////////////////////////
@@ -36,66 +38,6 @@ extern const double rad2deg, LN2;
 class Ray;
 class Line;
 class Target;
-
-class Vector3{
-  public:
-	double axis[3];
-	
-	Vector3(){ axis[0] = 0.0; axis[1] = 0.0; axis[2] = 0.0; }
-	Vector3(double x, double y){ axis[0] = x; axis[1] = y; axis[2] = 0.0; }
-	Vector3(double x, double y, double z){ axis[0] = x; axis[1] = y; axis[2] = z; }
-	const Vector3& operator = (const Vector3&);
-	const Vector3& operator += (const Vector3&);
-	const Vector3& operator -= (const Vector3&);
-	const Vector3& operator *= (const double&);
-	Vector3 operator + (const Vector3&) const ;
-	Vector3 operator - (const Vector3&) const ;
-	Vector3 operator * (const double&) const ;
-	double Dot(const Vector3 &) const ;
-	double CosAngle(const Vector3 &) const ;
-	Vector3 Cross(const Vector3 &) const ;
-	double Length() const ;
-	double Square() const ; 
-	double Distance(const Vector3 &) const ;
-	double Normalize();
-	std::string Dump() const ;
-};
-
-class Matrix3{
-  public:
-	double components[3][3];
-	
-	Matrix3();
-	Matrix3(double theta_, double phi_, double psi_=0.0);
-	Matrix3(const Vector3 &vector_);
-	Matrix3(const double a00, const double a10, const double a20,
-	        const double a01, const double a11, const double a21,
-	        const double a02, const double a12, const double a22);
-	Matrix3 operator * (const Matrix3 &right);
-	Matrix3 operator *= (const Matrix3 &right);	        
-	void GetUnitX(Vector3 &vector_){ vector_.axis[0] = components[0][0];  vector_.axis[1] = components[1][0];  vector_.axis[2] = components[2][0]; }
-	void GetUnitY(Vector3 &vector_){ vector_.axis[0] = components[0][1];  vector_.axis[1] = components[1][1];  vector_.axis[2] = components[2][1]; }
-	void GetUnitZ(Vector3 &vector_){ vector_.axis[0] = components[0][2];  vector_.axis[1] = components[1][2];  vector_.axis[2] = components[2][2]; }
-	Vector3 GetUnitX(){ return Vector3(components[0][0], components[1][0], components[2][0]); }
-	Vector3 GetUnitY(){ return Vector3(components[0][1], components[1][1], components[2][1]); }
-	Vector3 GetUnitZ(){ return Vector3(components[0][2], components[1][2], components[2][2]); }
-	void SetUnitX(const Vector3 &vector_){ components[0][0] = vector_.axis[0]; components[1][0] = vector_.axis[1]; components[2][0] = vector_.axis[2]; }
-	void SetUnitY(const Vector3 &vector_){ components[0][1] = vector_.axis[0]; components[1][1] = vector_.axis[1]; components[2][1] = vector_.axis[2]; }
-	void SetUnitZ(const Vector3 &vector_){ components[0][2] = vector_.axis[0]; components[1][2] = vector_.axis[1]; components[2][2] = vector_.axis[2]; }
-	void SetRow1(double p1, double p2, double p3){ components[0][0] = p1; components[0][1] = p2; components[0][2] = p3; }
-	void SetRow2(double p1, double p2, double p3){ components[1][0] = p1; components[1][1] = p2; components[1][2] = p3; }
-	void SetRow3(double p1, double p2, double p3){ components[2][0] = p1; components[2][1] = p2; components[2][2] = p3; }
-	void SetRotationMatrixSphere(double theta_, double phi_, double psi_=0.0);
-	void SetRotationMatrixSphere(const Vector3 &vector_);
-	void SetRotationMatrixCart(double x_, double y_, double z_);
-	void SetRotationMatrixCart(const Vector3 &vector_);
-	void Transform(Vector3 &vector_);
-	void Transpose(Vector3 &vector_);
-	void Dump();
-	
-  private:
-	void _initialize();
-};
 
 class Ray{
   public:
@@ -245,18 +187,8 @@ void UnitSphereRandom(double&, double&);
 double UnitCircleRandom();
 double WrapValue(double, double, double);
 unsigned int GetLines(const char*);
-void Cart2Sphere(double, double, double, double&, double&, double&);
-void Cart2Sphere(double, double, double, Vector3&);
-void Cart2Sphere(const Vector3&, double&, double&, double&);
-void Cart2Sphere(const Vector3&, Vector3&);
-void Cart2Sphere(Vector3&);
 double radlength(unsigned int, unsigned int);
 double rndgauss0(double);
-void Sphere2Cart(double, double, double, double&, double&, double&);
-void Sphere2Cart(double, double, double, Vector3&);
-void Sphere2Cart(const Vector3&, double&, double&, double&);
-void Sphere2Cart(const Vector3&, Vector3&);
-void Sphere2Cart(Vector3&);
 void straggleA(double&, double, double, double, double, double);
 double Interpolate(double, double, double, double, double);
 bool Interpolate(const double &x, double &y, double *x_, double *y_, const size_t &len_);
