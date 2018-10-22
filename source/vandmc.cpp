@@ -620,13 +620,12 @@ bool vandmc::Execute(int argc, char *argv[]){
 		
 	std::cout << "\n ==  ==  ==  ==  == \n\n";
 
-	// Make sure the input variables are correct
-	if(!Prompt(" Are the above settings correct?")){
-		std::cout << "  ABORTING...\n";
+	if(printParams && !Prompt(" Are the above settings correct?")){ // Make sure the input variables are correct
+		std::cout << "  ABORTING...\n\n";
 		return false;
 	}
 
-	std::cout << "\n Initializing main simulation Kindeux object...\n";
+	std::cout << " Initializing main simulation Kindeux object...\n";
 
 	// Initialize kinematics object
 	kind.Initialize(beam_part.GetA(), targ.GetA(), recoil_part.GetA(), eject_part.GetA(), gsQvalue, NRecoilStates, ExRecoilStates);
