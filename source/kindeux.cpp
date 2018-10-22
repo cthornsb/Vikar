@@ -17,9 +17,10 @@
 // Californium
 /////////////////////////////////////////////////////////////////////
 double Californium::func(const double &E){
-	const double a = 1.18; // MeV
-	const double b = 1.03419; // MeV
-        return std::exp(-E/a)*std::sinh(std::sqrt(b*E));
+	const double a = 1.174; // MeV (Mannhart)
+	const double b = 1.043; // 1/MeV (Mannhart)
+	const double coeff = (2/std::sqrt(pi*b*a*a*a))*std::exp(-a*b/4);
+        return coeff*std::exp(-E/a)*std::sinh(std::sqrt(b*E));
 }
 
 Californium::Californium(){
